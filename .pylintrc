@@ -1,0 +1,19 @@
+[MASTER]
+disable=
+    fixme, # W0511
+
+    missing-module-docstring, # C0114
+    missing-class-docstring, # C0115
+    missing-function-docstring, # C0116
+    no-else-return, # R1705
+    no-else-raise, # R1720
+    too-many-instance-attributes, # R0902
+    too-few-public-methods, # R0903
+    too-many-return-statements, # R0911
+    too-many-branches, # R0912
+    too-many-arguments, # R0913
+    too-many-locals,  # R0914
+    too-many-statements, # R0915
+
+[FORMAT]
+max-line-length=88
