@@ -3,7 +3,7 @@ requires = ["setuptools>=67.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "motion_planning_tethered_robots"
+name = "tethered_planning"
 dynamic = ["version"]
 description = "Motion planning algorithms for tethered mobile robots."
 authors = [
@@ -17,20 +17,25 @@ keywords = [
 ]
 dependencies = [
     "numpy",
-    # TODO
+    "matplotlib",
+    "shapely",
+    "networkx",
+    "openpyxl",
+    "PyYAML",
 ]
 
 [project.optional-dependencies]
 dev = [
     "black",
     "isort",
+    "pytest",
 ]
 
 [tool.setuptools]
 license-files = ["LICENSE"]
 
 [tool.setuptools.dynamic]
-version = {attr = "motion_planning_tethered_robots.__version__"}
+version = {attr = "tethered_planning.__version__"}
 
 [tool.black]
 line-length = 88
