@@ -1,0 +1,35 @@
+# Default Environment
+
+# environment properties
+env:
+    name: "Env Default"
+    dimension: 2
+    origin: [0.0, 0.0]
+    size: [10.0, 10.0]
+
+# obstacles properties
+obstacles: 
+    vertices: []
+    
+# generators properties
+generators:
+    vertices: []
+
+# goal properties
+goal: 
+    vertices: [
+        [[8.0, 8.0], [8.0, 9.0], [9.0, 9.0], [9.0, 8.0]]
+    ]
+
+# robot properties
+robot:
+    anchor_point: [1.0, 1.0]
+    initial_state: [2.0, 2.0]
+    radius: 0.0
+
+# tether properties
+tether:
+    max_length: 5.0
+    initial_state: [
+        [1.0, 1.0], [2.0, 2.0]
+    ]

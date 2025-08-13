@@ -1,0 +1,14 @@
+# Yaml data file for testing purposes
+
+test_str_1: "data"
+test_str_2: "results"
+test_str_3: ""
+test_float: 0.2
+test_bool: false
+test_int: 7
+test_list: [1, 2, 3, 4, 5]
+test_dict:
+    el_1: "data"
+    el_2: 0.2
+    el_3: false
+    el_4: 7

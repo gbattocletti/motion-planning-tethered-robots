@@ -1,0 +1,39 @@
+# Test Environment 1
+
+# environment properties
+env:
+    name: "Test Env 1"
+    dimension: 2
+    origin: [0.0, 0.0]
+    size: [10.0, 10.0]
+
+# obstacles properties
+obstacles: 
+    vertices: [
+        [[5.0, 5.0], [5.0, 6.0], [6.0, 6.0], [6.0, 5.0]]
+    ]
+
+# generators properties
+generators:
+    vertices: [
+        [[6.0, 6.0], [6.0, 10.0]]
+    ]
+  
+# goal properties
+goal: 
+    vertices: [
+        [[5.5, 5.5], [5.5, 6.5], [6.5, 6.5], [6.5, 5.5]]
+    ]
+
+# robot properties
+robot:
+    anchor_point: [1.0, 1.0]
+    initial_state: [2.0, 2.0]
+    radius: 0.0
+
+# tether properties
+tether:
+    max_length: 5.0
+    initial_state: [
+        [1.0, 1.0], [2.0, 2.0]
+    ]
