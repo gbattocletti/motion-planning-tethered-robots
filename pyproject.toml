@@ -29,6 +29,7 @@ dev = [
     "black",
     "isort",
     "pytest",
+    "snakeviz",
 ]
 
 [tool.setuptools]

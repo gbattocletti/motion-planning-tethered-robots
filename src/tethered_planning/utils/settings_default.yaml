@@ -18,7 +18,7 @@ planner:
     goal_bias_rate: 0.1
     goal_reached_termination_condition: false
     max_nodes_n_termination_condition: true
-    max_nodes_n: 100
+    max_nodes_n: 1000
 
     # Triangulation settings
     search_algorithm: "a_star"
@@ -44,9 +44,9 @@ plot:
 # Animation settings
 anim:
     # general settings
-    animate: true
+    animate: false
     show: false
-    save: true
+    save: false
 
     # figure settings
     anim_title: ""
