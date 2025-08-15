@@ -316,7 +316,9 @@ class Env2D:
             ValueError: if the anchor point is invalid
         """
         # check if the robot initial position is inside an obstacle
-        if not self.is_valid_point(self.robot_initial_pos):
+        if not self.is_valid_point(
+            self.robot_initial_pos[0], self.robot_initial_pos[1]
+        ):
             print(
                 f"{CmdColors.FAIL}[World]{CmdColors.ENDC} the initial robot location "
                 "specified in the environment file is invalid."
@@ -334,27 +336,24 @@ class Env2D:
             raise ValueError
 
         # check if the anchor point is inside an obstacle
-        if not self.is_valid_point(self.anchor_point):
+        if not self.is_valid_point(self.anchor_point[0], self.anchor_point[1]):
             print(
                 f"{CmdColors.FAIL}[World]{CmdColors.ENDC} the anchor point specified "
                 "in the environment file is invalid."
             )
             raise ValueError
 
-    def is_valid_point(self, point: np.ndarray) -> bool:
+    def is_valid_point(self, x: float, y: float) -> bool:
         """
         Check if a point is inside or on the boundary of the obstacle region.
 
         Args:
-            point (np.ndarray): (2, ) ndarray with the coordinates of the point to check
+            x (float): x-coordinate of the point to check
+            y (float): y-coordinate of the point to check
 
         Returns:
             bool: True if the point is outside of the obstacle region, False otherwise
         """
-        # Extract point coordinates
-        x = point[0]
-        y = point[1]
-
         # Perform check and return result
         return not (
             shapely.contains_xy(self.obstacle_region, x, y)
@@ -393,7 +392,7 @@ class Env2D:
         Returns a point sampled from the environment free configuration space.
 
         Returns:
-            point (np.ndarray): (2, ) ndarray with the coordinates of the sampled point
+            np.ndarray: (2, ) ndarray with the coordinates of the sampled point
 
         Raises:
             StopIteration: if  maximum number of  sampling attempts is reached
@@ -402,12 +401,11 @@ class Env2D:
         max_attempts = 20
 
         # Sample points until a valid one is found or max attempts is reached
-        point = np.array([0, 0])
         for _ in range(0, max_attempts):
-            point[0] = np.random.uniform(0, self.size[0])
-            point[1] = np.random.uniform(0, self.size[1])
-            if self.is_valid_point(point):
-                return point
+            x = np.random.uniform(0, self.size[0])
+            y = np.random.uniform(0, self.size[1])
+            if self.is_valid_point(x, y):
+                return np.array([x, y])
 
         # If no valid point has been found raise an error
         print(
