@@ -20,9 +20,13 @@ class Triangulation:
         Returns:
             None
         """
+        # Env and parameters
         self.env: Env2D = env
         self.anchor_point: np.ndarray
         self.max_dist: float  # Maximum distance between anchor point and vertices
+
+        # Triangulation
+        # TODO: check shapely methods
 
     def triangulate(self, method: str) -> None:
         """
@@ -46,8 +50,9 @@ class Triangulation:
 
     def build_simplicial_complex(self) -> None:
         """
-        Build a length-constrained simplicial complex from the triangulated environment,
-        resulting in a subset of the universal cover of the environment.
+        Turn the triangulated environment into a length-constrained simplicial complex,
+        and lift it to obtain a manifold corresponding to a subset of the universal
+        cover of the environment.
 
         Returns:
             None
