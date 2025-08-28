@@ -124,24 +124,22 @@ class Triangulation:
             for edge in self.list_edges(triang):
 
                 # Find indexes of endpoints of edge
-                idx1 = self.find_vertex_idx(edge.coords[0])
-                idx2 = self.find_vertex_idx(edge.coords[1])
+                idx1 = int(self.find_vertex_idx(edge.coords[0]))
+                idx2 = int(self.find_vertex_idx(edge.coords[1]))
                 idx1, idx2 = (idx1, idx2) if idx1 <= idx2 else (idx2, idx1)  # sort
 
                 # Find edge length
                 dist = np.linalg.norm(self.vertices[idx1] - self.vertices[idx2])
 
                 # Append edge to list
-                self.edges = np.append(
-                    self.edges, [[int(idx1), int(idx2), dist]], axis=0
-                )
+                self.edges = np.append(self.edges, [[idx1, idx2, dist]], axis=0)
 
                 # Find index of dual edge endpoints (triang and triangle across edge)
                 indexes = list(self.triang_tree.query(edge, predicate="covered_by"))
-                idx1 = idx
+                idx1 = int(idx)  # current triangle index
                 if len(indexes) == 2:
                     indexes.remove(idx1)
-                    idx2 = indexes[0]
+                    idx2 = int(indexes[0])  # neighboring triangle index
                     idx1, idx2 = (idx1, idx2) if idx1 <= idx2 else (idx2, idx1)  # sort
                 else:
                     continue
@@ -153,7 +151,7 @@ class Triangulation:
 
                 # Add edge to list
                 self.edges_dual = np.append(
-                    self.edges_dual, [[int(idx1), int(idx2), dist]], axis=0
+                    self.edges_dual, [[idx1, idx2, dist]], axis=0
                 )
 
         # Remove duplicates from arrays (arrays are already sorted along axis 1)
