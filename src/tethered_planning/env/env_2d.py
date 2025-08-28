@@ -23,7 +23,7 @@ class Env2D:
 
     def __init__(self, settings: Settings) -> None:
         """
-        Creates an instance of the World class and sets up the world parameters based on
+        Creates an instance of the Env2D class and sets up the env parameters based on
         the valued contained in the settings object.
 
         Args:
@@ -36,15 +36,17 @@ class Env2D:
             ValueError: If the initial robot location specified in the settings
             object is invalid
         """
-        # Initialize the world properties
+        # Initialize env properties
         self.env_file_path: str = None
         self.name: str = None
         self.dimension: int = None
         self.origin: np.ndarray = None
         self.size: np.ndarray = None
+        self.workspace: Polygon = None
         self.obstacle_vertices: np.ndarray = None
         self.obstacle_polygons: list[Polygon] = None
         self.obstacle_region: MultiPolygon = None
+        self.free_workspace: Polygon = None
         self.generators_vertices: np.ndarray = None
         self.generators_list: list[LineString] = None
         self.generators: MultiLineString = None
@@ -89,16 +91,40 @@ class Env2D:
         self.dimension = env_data["env"]["dimension"]
         if self.dimension != 2:
             print(
-                f"{CmdColors.FAIL}[World]{CmdColors.ENDC} the environment dimension "
+                f"{CmdColors.FAIL}[Env2D]{CmdColors.ENDC} the environment dimension "
                 "is not supported by this environment class."
             )
             raise ValueError
         self.origin = np.array(env_data["env"]["origin"])
         self.size = np.array(env_data["env"]["size"])
 
+        # Create env bounding box (assumes rectangular environment)
+        self.workspace = Polygon(
+            [
+                self.origin,
+                self.origin + np.array([0, self.size[1]]),
+                self.origin + self.size,
+                self.origin + np.array([self.size[0], 0]),
+            ]
+        )
+
         # Create the obstacle region
         self.obstacle_vertices = np.array(env_data["obstacles"]["vertices"])
         self.obstacle_polygons, self.obstacle_region = self.generate_obstacles()
+
+        # Create free workspace polygon
+        self.free_workspace = shapely.difference(self.workspace, self.obstacle_region)
+        if not isinstance(self.free_workspace, Polygon):
+            print(
+                f"{CmdColors.WARNING}[Env]{CmdColors.WARNING} The environment free "
+                f"workspace is not a Polygon but a {type(self.free_workspace)}. The "
+                "free workspace may not be a single connected component."
+            )
+        if not self.free_workspace.is_simple:
+            print(
+                f"{CmdColors.WARNING}[Env]{CmdColors.WARNING} The environment free "
+                "workspace is not simple and contains point-like self intersections."
+            )
 
         # Create the generators
         self.generators_vertices = np.array(env_data["generators"]["vertices"])
@@ -121,7 +147,7 @@ class Env2D:
 
         # Print success message
         print(
-            f"{CmdColors.OKBLUE}[World]{CmdColors.ENDC} environment {env_name} loaded "
+            f"{CmdColors.OKBLUE}[Env2D]{CmdColors.ENDC} environment {env_name} loaded "
             "successfully."
         )
 
@@ -171,7 +197,7 @@ class Env2D:
                 # generator. If so, ignore the intersection -- the generator is valid.
                 if not g.boundary.contains(intersection):
                     print(
-                        f"{CmdColors.WARNING}[World]{CmdColors.ENDC} generator {i} "
+                        f"{CmdColors.WARNING}[Env2D]{CmdColors.ENDC} generator {i} "
                         f"intersects with an obstacle in {intersection}."
                     )
             gen_list.append(g)
@@ -181,7 +207,7 @@ class Env2D:
             for j, gen2 in enumerate(gen_list):
                 if i != j and gen1.intersects(gen2):
                     print(
-                        f"{CmdColors.WARNING}[World]{CmdColors.WARNING} generator {i} "
+                        f"{CmdColors.WARNING}[Env2D]{CmdColors.WARNING} generator {i} "
                         f"intersects with generator {j}."
                     )
 
@@ -211,7 +237,7 @@ class Env2D:
                 non_overlapping_region = g.difference(self.obstacle_region)
                 if non_overlapping_region.is_empty:
                     print(
-                        f"{CmdColors.FAIL}[World]{CmdColors.ENDC} the goal region "
+                        f"{CmdColors.FAIL}[Env2D]{CmdColors.ENDC} the goal region "
                         "does not contain any valid point. The goal region has been "
                         "removed."
                     )
@@ -225,13 +251,13 @@ class Env2D:
                     resized_goal = True
                 else:
                     print(
-                        f"{CmdColors.FAIL}[World]{CmdColors.ENDC} the goal region "
+                        f"{CmdColors.FAIL}[Env2D]{CmdColors.ENDC} the goal region "
                         "has an invalid geometry."
                     )
                     raise ValueError
                 if resized_goal:
                     print(
-                        f"{CmdColors.WARNING}[World]{CmdColors.ENDC} the goal region "
+                        f"{CmdColors.WARNING}[Env2D]{CmdColors.ENDC} the goal region "
                         f"defined by vertices {', '.join(map(str, goal_vert))} has a "
                         "non-empty intersection with the obstacle region. The goal "
                         "region has been resized."
@@ -264,7 +290,7 @@ class Env2D:
         # check for intersections with obstacles
         if self.obstacle_region.intersects(config):
             print(
-                f"{CmdColors.FAIL}[World]{CmdColors.ENDC} the initial tether "
+                f"{CmdColors.FAIL}[Env2D]{CmdColors.ENDC} the initial tether "
                 "configuration intersects with an obstacle."
             )
             raise ValueError
@@ -272,7 +298,7 @@ class Env2D:
         # check that the tether does not exceed its maximum length
         if config.length > self.tether_length:
             print(
-                f"{CmdColors.FAIL}[World]{CmdColors.ENDC} the initial tether "
+                f"{CmdColors.FAIL}[Env2D]{CmdColors.ENDC} the initial tether "
                 "configuration exceeds the maximum length."
             )
             raise ValueError
@@ -283,7 +309,7 @@ class Env2D:
             and init_point[1] == self.anchor_point[1]
         ):
             print(
-                f"{CmdColors.FAIL}[World]{CmdColors.ENDC} the initial tether "
+                f"{CmdColors.FAIL}[Env2D]{CmdColors.ENDC} the initial tether "
                 "configuration does not start from the anchor point."
             )
             raise ValueError
@@ -294,7 +320,7 @@ class Env2D:
             and end_point[1] == self.robot_initial_pos[1]
         ):
             print(
-                f"{CmdColors.FAIL}[World]{CmdColors.ENDC} the initial tether "
+                f"{CmdColors.FAIL}[Env2D]{CmdColors.ENDC} the initial tether "
                 "configuration does not end at the robot initial position."
             )
             raise ValueError
@@ -320,7 +346,7 @@ class Env2D:
             self.robot_initial_pos[0], self.robot_initial_pos[1]
         ):
             print(
-                f"{CmdColors.FAIL}[World]{CmdColors.ENDC} the initial robot location "
+                f"{CmdColors.FAIL}[Env2D]{CmdColors.ENDC} the initial robot location "
                 "specified in the environment file is invalid."
             )
             raise ValueError
@@ -330,7 +356,7 @@ class Env2D:
         robot_occupation = robot_point.buffer(self.robot_radius)
         if robot_occupation.intersects(self.obstacle_region):
             print(
-                f"{CmdColors.FAIL}[World]{CmdColors.ENDC} the robot initial location "
+                f"{CmdColors.FAIL}[Env2D]{CmdColors.ENDC} the robot initial location "
                 "has an occupation that intersects with an obstacle."
             )
             raise ValueError
@@ -338,7 +364,7 @@ class Env2D:
         # check if the anchor point is inside an obstacle
         if not self.is_valid_point(self.anchor_point[0], self.anchor_point[1]):
             print(
-                f"{CmdColors.FAIL}[World]{CmdColors.ENDC} the anchor point specified "
+                f"{CmdColors.FAIL}[Env2D]{CmdColors.ENDC} the anchor point specified "
                 "in the environment file is invalid."
             )
             raise ValueError
@@ -409,7 +435,7 @@ class Env2D:
 
         # If no valid point has been found raise an error
         print(
-            f"{CmdColors.FAIL}[World]{CmdColors.ENDC} failed to sample point (max "
+            f"{CmdColors.FAIL}[Env2D]{CmdColors.ENDC} failed to sample point (max "
             "number of iterations reached)."
         )
         raise StopIteration
