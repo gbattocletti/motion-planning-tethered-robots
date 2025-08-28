@@ -7,10 +7,10 @@ import os
 
 import matplotlib.pyplot as plt
 import shapely
-from shapely import LineString, Point, Polygon, STRtree
 from shapely.plotting import plot_points, plot_polygon
 
 from tethered_planning.env import env_2d
+from tethered_planning.plan.triangulation import Triangulation
 from tethered_planning.utils import io, plot
 from tethered_planning.utils.settings import Settings
 
@@ -29,46 +29,14 @@ settings.env_name = env_name
 env = env_2d.Env2D(settings)
 
 # Generate triangulation
-triang = shapely.constrained_delaunay_triangles(env.free_workspace)
-triang_tree = STRtree(triang.geoms)  # for geometry lookup
-root_idx = triang_tree.query(Point(env.anchor_point), predicate="intersects")
-
-
-def edges(triangle: Polygon):
-    return list(
-        map(
-            LineString, zip(triangle.exterior.coords[:-1], triangle.exterior.coords[1:])
-        )
-    )
-
-
-# Build simplcial complex (overlapped manifold)
-queue: list[int] = [root_idx]
-n_max: int = 100  # max number of triangles
-n: int = 0
-while queue:
-    idx: int = queue.pop(0)[0]  # pop 1st element from queue
-    n += 1  # increase triangles counter
-
-    # iterate over edges to expand toward adjacent triangles
-    for edge in edges(triang_tree.geometries[idx]):
-        idx_list: list[int] = triang_tree.query(edge, predicate="covered_by")
-        idx_list.remove(idx)  # remove current triangle
-        if idx_list:
-            queue.append(idx_list[0])  # append new triangle to list
-
-        # TODO: do something to avoid previous triangle to be added again at the next
-        #       time step!
-
-    # Termination condition TODO: swap with
-    if n >= n_max:
-        break
-
+triang = Triangulation(env)
+triang.triangulate()
 
 # Generate figure
+# TODO: add second plot and plot the data from the numpy data structures for validation
 fig, ax = plot.plot_env(env, settings)
 plot_polygon(
-    shapely.MultiPolygon(triang),
+    triang.triang,
     ax=ax,
     facecolor=(0.0, 0.0, 0.0, 0.0),
     edgecolor=(1.0, 0, 0.01, 0.8),
@@ -76,9 +44,9 @@ plot_polygon(
     add_points=False,
     zorder=4,
 )  # plot triangles
-for t in triang_tree.geometries:
+for p in triang.vertices_dual:
     plot_points(
-        t.centroid,
+        shapely.Point(p),
         color="coral",
     )  # plot centroids (for dual graph)
 plt.show()
