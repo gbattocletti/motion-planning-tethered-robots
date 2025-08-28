@@ -7,7 +7,7 @@ import os
 
 import matplotlib.pyplot as plt
 import shapely
-from shapely.plotting import plot_points, plot_polygon
+from shapely.plotting import plot_line, plot_points, plot_polygon
 
 from tethered_planning.env import env_2d
 from tethered_planning.plan.triangulation import Triangulation
@@ -32,8 +32,7 @@ env = env_2d.Env2D(settings)
 triang = Triangulation(env)
 triang.triangulate()
 
-# Generate figure
-# TODO: add second plot and plot the data from the numpy data structures for validation
+# Generate figure from shapely objects
 fig, ax = plot.plot_env(env, settings)
 plot_polygon(
     triang.triang,
@@ -44,11 +43,36 @@ plot_polygon(
     add_points=False,
     zorder=4,
 )  # plot triangles
+for p in triang.triang.geoms:
+    plot_points(
+        shapely.Point(p.centroid),
+        color="coral",
+    )  # plot centroids (for dual graph)
+
+# Generate figure from extracted data
+fig, ax = plot.plot_env(env, settings)
+for p in triang.vertices:
+    plot_points(
+        shapely.Point(p),
+        color="blue",
+    )  # plot primary vertices
 for p in triang.vertices_dual:
     plot_points(
         shapely.Point(p),
         color="coral",
     )  # plot centroids (for dual graph)
+for e in triang.edges:
+    plot_line(
+        shapely.LineString([triang.vertices[int(e[0])], triang.vertices[int(e[1])]]),
+        color="blue",
+    )  # plot edges
+for e in triang.edges_dual:
+    plot_line(
+        shapely.LineString(
+            [triang.vertices_dual[int(e[0])], triang.vertices_dual[int(e[1])]]
+        ),
+        color="orange",
+    )  # plot edges dual
 plt.show()
 
 # Save figure
