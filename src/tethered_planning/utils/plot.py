@@ -70,6 +70,7 @@ def plot_env(env: Env2D, settings: Settings, **kwargs) -> tuple[plt.Figure, plt.
         show_anchor (bool, **kwargs): flag to display the anchor point
         show_goal (bool, **kwargs): flag to display the goal region
         show_legend (bool, **kwargs): flag to display the legend
+        show_generators (bool, **kwargs): flag to display the generators
         label_generators (bool, **kwargs): flag to label the generators
 
     Returns:
@@ -82,6 +83,7 @@ def plot_env(env: Env2D, settings: Settings, **kwargs) -> tuple[plt.Figure, plt.
     show_anchor: bool = True  # show the anchor point
     show_goal: bool = True  # show the goal region
     show_legend: bool = settings.plot.show_legend  # display the legend
+    show_generators: bool = True  # display the generators
     label_generators: bool = True  # label the generators
 
     # Parse kwargs
@@ -138,35 +140,36 @@ def plot_env(env: Env2D, settings: Settings, **kwargs) -> tuple[plt.Figure, plt.
     obs_handle = Patch(color=PlotColors.obstacles_color, label="Obstacles")
 
     # Plot generators
-    if env.generators_list:
-        plot_line(
-            env.generators,
-            ax=ax,
-            color=PlotColors.generators_color,
-            alpha=1,
-            linewidth=1,
-            add_points=False,
-            zorder=3,
-        )
-        if label_generators:
-            if isinstance(env.generators, MultiLineString):
-                for idx, generator in enumerate(env.generators.geoms):
+    if show_generators:
+        if env.generators_list:
+            plot_line(
+                env.generators,
+                ax=ax,
+                color=PlotColors.generators_color,
+                alpha=1,
+                linewidth=1,
+                add_points=False,
+                zorder=3,
+            )
+            if label_generators:
+                if isinstance(env.generators, MultiLineString):
+                    for idx, generator in enumerate(env.generators.geoms):
+                        ax.text(
+                            generator.coords[0][0] + 0.2,
+                            generator.coords[0][1] + 0.2,
+                            f"$g_{idx+1}$",  # latex mathmode
+                            fontsize=6,
+                        )
+                elif isinstance(env.generators, LineString):
                     ax.text(
-                        generator.coords[0][0] + 0.2,
-                        generator.coords[0][1] + 0.2,
-                        f"$g_{idx+1}$",  # latex mathmode
+                        env.generators.coords[0][0] + 0.2,
+                        env.generators.coords[0][1] + 0.2,
+                        f"$g_{1}$",  # latex mathmode
                         fontsize=6,
                     )
-            elif isinstance(env.generators, LineString):
-                ax.text(
-                    env.generators.coords[0][0] + 0.2,
-                    env.generators.coords[0][1] + 0.2,
-                    f"$g_{1}$",  # latex mathmode
-                    fontsize=6,
-                )
-    generators_handle = Line2D(
-        [], [], color=PlotColors.generators_color, lw=1, label="Generators"
-    )
+        generators_handle = Line2D(
+            [], [], color=PlotColors.generators_color, lw=1, label="Generators"
+        )
 
     # Plot the goal region
     if show_goal:
@@ -229,7 +232,9 @@ def plot_env(env: Env2D, settings: Settings, **kwargs) -> tuple[plt.Figure, plt.
                 box.height,
             ]
         )
-        handles = [obs_handle, generators_handle]
+        handles = [obs_handle]
+        if show_generators:
+            handles.append(generators_handle)
         if show_goal:
             handles.append(goal_handle)
         if show_anchor:
