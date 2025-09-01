@@ -10,7 +10,7 @@ import shapely
 from shapely.plotting import plot_line, plot_points, plot_polygon
 
 from tethered_planning.env import env_2d
-from tethered_planning.plan.triangulation import Triangulation
+from tethered_planning.env.triangulation import Triangulation
 from tethered_planning.utils import io, plot
 from tethered_planning.utils.settings import Settings
 

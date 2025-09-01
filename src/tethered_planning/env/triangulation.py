@@ -4,8 +4,8 @@ import numpy as np
 import shapely
 from shapely import LineString, Point, Polygon
 
-from ..env.env_2d import Env2D
 from ..utils.colors import CmdColors
+from .env_2d import Env2D
 
 
 class Triangulation:
