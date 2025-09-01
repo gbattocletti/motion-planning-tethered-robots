@@ -1,5 +1,6 @@
 # Custom ignored paths
 dev/
+doc/
 tests/results
 scripts/results
 
