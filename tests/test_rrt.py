@@ -7,7 +7,8 @@ import numpy as np
 
 from tethered_planning.env import env_2d
 from tethered_planning.plan import outdated, rrt, rrt_star
-from tethered_planning.utils import io, plot
+from tethered_planning.utils import plot
+from tethered_planning.utils.colors import CmdColors
 from tethered_planning.utils.settings import Settings
 from tethered_planning.utils.wrappers import measureStats
 
@@ -23,7 +24,7 @@ class TestWorld(unittest.TestCase):
         os.chdir(dir_name)
         if not os.path.exists("results"):
             os.makedirs("results")
-        io.clean_folder("results")
+        # io.clean_folder("results")
 
         # Plot variables
         cls.blocking = True
@@ -38,6 +39,7 @@ class TestWorld(unittest.TestCase):
         # Load settings for planner
         self.settings = Settings()  # initialize settings
         self.settings.anim.animate = False  # disable animation for proper profiling
+        self.settings.planner.max_nodes_n = 1_000
         if self.settings.fix_seed:
             random.seed(self.settings.seed)
             np.random.seed(self.settings.seed)
@@ -52,25 +54,39 @@ class TestWorld(unittest.TestCase):
             plt.show()  # wait on user to close plot and continue
 
     @measureStats
+    def test_rrt(self):
+        print(f"{CmdColors.OKBLUE}[TestRRT]{CmdColors.ENDC} Running test_rrt.")
+        self.planner = rrt.RRT(self.world, self.settings)
+        self.planner.plan()
+
+    @measureStats
     def test_rrt_np(self):
-        self.planner = rrt.RRT(self.world, self.settings)  # plan with rrt
+        print(f"{CmdColors.OKBLUE}[TestRRT]{CmdColors.ENDC} Running test_rrt_np.")
+        self.planner = outdated.RRT_networkx_numpy(self.world, self.settings)
         self.planner.plan()
 
     @measureStats
     def test_rrt_tuple(self):
-        self.planner = outdated.RRT(self.world, self.settings)  # plan with rrt
+        print(f"{CmdColors.OKBLUE}[TestRRT]{CmdColors.ENDC} Running test_rrt_tuple.")
+        self.planner = outdated.RRT_networkx_tuple(self.world, self.settings)
         self.planner.plan()
 
-    # @unittest.skip("Skipping plot test test_plot_rrt")
+    @measureStats
+    def test_rrt_star(self):
+        print(f"{CmdColors.OKBLUE}[TestRRT]{CmdColors.ENDC} Running test_rrt_star.")
+        self.planner = rrt_star.RRTStar(self.world, self.settings)
+        self.planner.plan()
+
+    @unittest.skip("Skipping plot test test_plot_rrt")
     def test_plot_rrt_np(self):
-        self.planner = rrt.RRT(self.world, self.settings)  # plan with rrt
+        self.planner = rrt.RRT(self.world, self.settings)
         self.planner.plan()
         plot.plot_graph(self.world, self.planner.graph, self.settings)
         self.show_plot()
 
-    # @unittest.skip("Skipping plot test test_plot_rrt_tuple")
+    @unittest.skip("Skipping plot test test_plot_rrt_tuple")
     def test_plot_rrt_tuple(self):
-        self.planner = outdated.RRT(self.world, self.settings)  # plan with rrt
+        self.planner = outdated.RRT_networkx_tuple(self.world, self.settings)
         self.planner.plan()
         plot.plot_graph(self.world, self.planner.graph, self.settings)
         self.show_plot()

@@ -19,7 +19,6 @@ dependencies = [
     "numpy",
     "matplotlib",
     "shapely",
-    "networkx",
     "openpyxl",
     "PyYAML",
 ]
