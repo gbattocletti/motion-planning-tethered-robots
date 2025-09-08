@@ -31,6 +31,7 @@ env = env_2d.Env2D(settings)
 # Generate triangulation
 triang = Triangulation(env)
 triang.triangulate()
+triang.lift_triangulation()
 
 # Generate figure from shapely objects
 fig, ax = plot.plot_env(env, settings)

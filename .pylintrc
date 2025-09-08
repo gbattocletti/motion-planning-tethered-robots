@@ -19,6 +19,7 @@ disable=
     no-else-return, # R1705
     no-else-raise, # R1720
 
+    unnecessary-pass, # W0107
     fixme, # W0511
 
 [FORMAT]
