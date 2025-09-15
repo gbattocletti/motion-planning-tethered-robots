@@ -61,7 +61,8 @@ class RRT:
         self.parent: np.ndarray = np.empty((self.hard_nodes_limit + 1,), dtype=int)
 
         # Set initial condition (root node)
-        self.nodes[self.n_nodes] = self.env.robot_initial_pos
+        self.nodes[self.n_nodes] = self.env.robot_initial_pos  # root node
+        self.edges[self.n_nodes] = [0, 0]  # dummy edge to itself for root node
         self.parent[self.n_nodes] = -1  # negative index indicates that node is root
 
     def sample(self) -> np.ndarray:
@@ -175,10 +176,10 @@ class RRT:
             if self.settings.anim.animate:
                 graph_list.append(
                     {
-                        "n_nodes": self.n_nodes,
-                        "nodes": self.nodes.copy(),
-                        "edges": self.edges.copy(),
-                        "parent": self.parent.copy(),
+                        "n_nodes": self.n_nodes + 1,
+                        "nodes": self.nodes[: self.n_nodes + 1].copy(),
+                        "edges": self.edges[: self.n_nodes + 1].copy(),
+                        "parent": self.parent[: self.n_nodes + 1].copy(),
                     }
                 )
             if self.goal_reached_termination_condition and new_node is not None:
@@ -201,10 +202,10 @@ class RRT:
         if not graph_list:
             graph_list.append(
                 {
-                    "n_nodes": self.n_nodes,
-                    "nodes": self.nodes.copy(),
-                    "edges": self.edges.copy(),
-                    "parent": self.parent.copy(),
+                    "n_nodes": self.n_nodes + 1,
+                    "nodes": self.nodes[: self.n_nodes + 1].copy(),
+                    "edges": self.edges[: self.n_nodes + 1].copy(),
+                    "parent": self.parent[: self.n_nodes + 1].copy(),
                 }
             )
         return graph_list
