@@ -1,3 +1,6 @@
+# pylint: disable=logging-fstring-interpolation
+
+import logging
 import os
 import unittest
 
@@ -9,6 +12,9 @@ from tethered_planning.utils.colors import CmdColors
 from tethered_planning.utils.settings import Settings
 
 unittest.TestLoader.sortTestMethodsUsing = None  # run tests in order they are defined
+
+
+logger = logging.getLogger(__name__)
 
 
 class TestCurveFcns(unittest.TestCase):
@@ -27,25 +33,25 @@ class TestCurveFcns(unittest.TestCase):
 
     def test_curve_generation(self):
         # test default curve generation function (no kwargs passed)
-        print(
+        logging.info(
             f"{CmdColors.OKBLUE}[TestCurveFcns]{CmdColors.ENDC} Running "
             "test_curve_generation."
         )
         c = curves.generate_curve(self.env, self.settings)
-        print(type(c))
+        logging.info(type(c))
 
     def test_curve_generation_output(self):
         # test default curve generation function (no kwargs passed)
-        print(
+        logging.info(
             f"{CmdColors.OKBLUE}[TestCurveFcns]{CmdColors.ENDC} Running "
             "test_curve_generation_output."
         )
         c = curves.generate_curve(self.env, self.settings, output_type="array")
-        print(type(c))
+        logging.info(type(c))
 
     def test_curve_generation_no_collision_check(self):
         # test curve generation without collision check
-        print(
+        logging.info(
             f"{CmdColors.OKBLUE}[TestCurveFcns]{CmdColors.ENDC} Running "
             "test_curve_generation_no_collision_check."
         )
@@ -53,7 +59,7 @@ class TestCurveFcns(unittest.TestCase):
 
     def test_curve_generation_with_self_intersection_check(self):
         # test curve generation with self-intersection check
-        print(
+        logging.info(
             f"{CmdColors.OKBLUE}[TestCurveFcns]{CmdColors.ENDC} Running "
             "test_curve_generation_with_self_intersection_check."
         )
@@ -61,7 +67,7 @@ class TestCurveFcns(unittest.TestCase):
 
     def test_curve_generation_from_robot(self):
         # test curve generation starting from robot position
-        print(
+        logging.info(
             f"{CmdColors.OKBLUE}[TestCurveFcns]{CmdColors.ENDC} Running "
             "test_curve_generation_from_robot."
         )
@@ -71,11 +77,11 @@ class TestCurveFcns(unittest.TestCase):
             init_curve=self.env.tether_configuration,
             check_self_intersection=True,
         )
-        print(type(curve))
+        logging.info(type(curve))
 
     def test_multiple_curve_generation(self):
         # test the generation of two curves in the same environment
-        print(
+        logging.info(
             f"{CmdColors.OKBLUE}[TestCurveFcns]{CmdColors.ENDC} Running "
             "test_multiple_curve_generation."
         )
@@ -94,7 +100,7 @@ class TestCurveFcns(unittest.TestCase):
         # test the generation of multiple curves in the same environment with the
         # previously generated curves being displayed in the environment and the
         # collision check with other curves set to active
-        print(
+        logging.info(
             f"{CmdColors.OKBLUE}[TestCurveFcns]{CmdColors.ENDC} Running "
             "test_multiple_curve_generation_with_display."
         )
@@ -120,7 +126,7 @@ class TestCurveFcns(unittest.TestCase):
 
     def test_signature(self):
         # test curve signature computation
-        print(
+        logging.info(
             f"{CmdColors.OKBLUE}[TestCurveFcns]{CmdColors.ENDC} Running "
             "test_signature."
         )
@@ -129,7 +135,7 @@ class TestCurveFcns(unittest.TestCase):
         # manual generation of the curve and requires an ad-hoc definition of the curve.
         # curve = LineString([(10.0, 8.0), (3.20, 7.80), (5.00, 9.40)])
         signature = curves.compute_signature(curve, self.env)
-        print(f"Signature: {signature}")
+        logging.info(f"Signature: {signature}")
         plot.plot_env(
             self.env,
             self.settings,
@@ -141,7 +147,7 @@ class TestCurveFcns(unittest.TestCase):
         pass
 
     def test_shorten_curve(self):
-        print(
+        logging.info(
             f"{CmdColors.OKBLUE}[TestCurveFcns]{CmdColors.ENDC} Running "
             "test_shorten_curve."
         )
@@ -155,7 +161,7 @@ class TestCurveFcns(unittest.TestCase):
         plt.show()
 
     def test_shorten_curve_multi_iteration(self):
-        print(
+        logging.info(
             f"{CmdColors.OKBLUE}[TestCurveFcns]{CmdColors.ENDC} Running "
             "test_shorten_curve."
         )
@@ -168,7 +174,7 @@ class TestCurveFcns(unittest.TestCase):
         plt.show()
 
     def test_resample_curve_linear(self):
-        print(
+        logging.info(
             f"{CmdColors.OKBLUE}[TestCurveFcns]{CmdColors.ENDC} Running "
             "test_resample_curve_linear."
         )
@@ -181,7 +187,7 @@ class TestCurveFcns(unittest.TestCase):
         plt.show()
 
     def test_resample_curve_global(self):
-        print(
+        logging.info(
             f"{CmdColors.OKBLUE}[TestCurveFcns]{CmdColors.ENDC} Running "
             "test_resample_curve_global."
         )
