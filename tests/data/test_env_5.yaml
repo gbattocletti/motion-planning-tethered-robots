@@ -1,0 +1,38 @@
+# Test Environment 5
+
+# environment properties
+env:
+    name: "Test Env 5"
+    dimension: 2
+    origin: [0.0, 0.0]
+    size: [10.0, 10.0]
+
+# obstacles properties
+obstacles: 
+    vertices: [
+        [[2.0, 2.0], [4.0, 2.0], [4.0, 4.0], [2.0, 4.0]],
+        [[6.0, 6.0], [8.0, 6.0], [8.0, 8.0], [6.0, 8.0]]
+    ]
+
+# generators properties
+generators:
+    vertices: [
+        [[3.0, 4.0], [3.0, 10.0]],
+        [[7.0, 8.0], [7.0, 10.0]]
+    ]  
+
+goal:
+    vertices: []
+    
+# robot properties
+robot:
+    anchor_point: [5.0, 5.0]
+    initial_state: [3.0, 7.0]
+    radius: 0.0
+
+# tether properties
+tether:
+    max_length: 10.0
+    initial_state: [
+        [5.0, 5.0], [3.0, 7.0]
+    ]

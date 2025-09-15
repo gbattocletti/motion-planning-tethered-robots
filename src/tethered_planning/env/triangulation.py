@@ -252,7 +252,7 @@ class Triangulation:
         closed_queue: list[int] = []  # list of triangles already visited
 
         # Initialize counter (termination condition)
-        n_max: int = 300  # max number of triangles
+        n_max: int = 20  # max number of triangles
         n: int = 0
 
         # Initial conditions
@@ -288,6 +288,7 @@ class Triangulation:
             for neighbor_idx in self.get_neighbors(idx):
                 edge = self.vertices_dual[[idx, neighbor_idx], :]
                 neighbor_sign = sign + curves.compute_signature(edge, self.env)
+                neighbor_sign = curves.simplify_signature(neighbor_sign)
                 if (neighbor_idx, neighbor_sign) not in closed_queue:
                     open_queue.append((neighbor_idx, neighbor_sign, n))
 

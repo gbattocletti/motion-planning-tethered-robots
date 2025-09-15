@@ -8,15 +8,17 @@ import numpy as np
 from matplotlib.colors import ListedColormap
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from shapely.geometry import LineString, MultiLineString, MultiPolygon, Point, Polygon
 from shapely.plotting import plot_line, plot_points, plot_polygon
 
 from ..utils.colors import PlotColors
 
 if TYPE_CHECKING:
+    from mpl_toolkits.mplot3d import Axes3D
+
     from ..env.env_2d import Env2D
-    from ..plan.rrt import RRT
-    from ..plan.rrt_star import RRTStar
+    from ..env.triangulation import Triangulation
     from .settings import Settings
 
 # NOTE: Plots implementation details:
@@ -556,11 +558,15 @@ def plot_graph(
     if edges_dual is None:
         edges_dual = []
 
-    # Default plot_env kwargs values (if not specified by user)
+    # Default kwargs values for plot_env (if not specified by user)
     if "show_tether" not in kwargs:
-        kwargs["show_tether"] = True
+        kwargs["show_tether"] = False
+    if "show_robot" not in kwargs:
+        kwargs["show_robot"] = False
+    if "show_anchor" not in kwargs:
+        kwargs["show_anchor"] = False
     if "show_goal" not in kwargs:
-        kwargs["show_goal"] = True
+        kwargs["show_goal"] = False
     if "show_legend" not in kwargs:
         kwargs["show_legend"] = True
 
@@ -577,6 +583,7 @@ def plot_graph(
             Point(n),
             ax=ax,
             color=PlotColors.node_color,
+            markeredgecolor=PlotColors.node_color,
             markersize=6,
             marker=".",
             zorder=8,
@@ -597,6 +604,7 @@ def plot_graph(
             Point(n),
             ax=ax,
             color=PlotColors.node_dual_color,
+            markeredgecolor=PlotColors.node_dual_color,
             markersize=6,
             marker=".",
             zorder=8,
@@ -618,6 +626,7 @@ def plot_graph(
         marker=".",
         markersize=6,
         markerfacecolor=PlotColors.node_color,
+        markeredgecolor=PlotColors.node_color,
         label="Nodes",
         linestyle="None",
     )
@@ -628,17 +637,20 @@ def plot_graph(
         lw=1,
         label="Edges",
     )
-    if nodes_dual:
+    nodes_dual_handle = None  # to avoid reference before assignment error
+    edges_dual_handle = None
+    if nodes_dual is not None:
         nodes_dual_handle = Line2D(
             [],
             [],
             marker=".",
             markersize=6,
             markerfacecolor=PlotColors.node_dual_color,
+            markeredgecolor=PlotColors.node_dual_color,
             label="Nodes (Dual)",
             linestyle="None",
         )
-    if edges_dual:
+    if edges_dual is not None:
         edges_dual_handle = Line2D(
             [],
             [],
@@ -651,9 +663,9 @@ def plot_graph(
     if ax.get_legend() is not None:
         handles = ax.get_legend().legend_handles
         handles.extend([nodes_handle, edges_handle])
-        if nodes_dual:
+        if nodes_dual is not None:
             handles.append(nodes_dual_handle)
-        if edges_dual:
+        if edges_dual is not None:
             handles.append(edges_dual_handle)
         ax.legend(handles=handles, **legend_settings)
 
@@ -702,4 +714,101 @@ def plot_free_space(
     ax.set_title(rf"Free-Space Diagram ($\delta$ = {delta:.2f})")
 
     # Return fig and ax objects
+    return fig, ax
+
+
+def plot_lifted_triangulation(
+    triangulation: Triangulation,
+    env: Env2D,
+    settings: Settings,
+    **kwargs,
+) -> tuple[plt.Figure, plt.Axes]:
+    """
+    Plot the lifted triangulation.
+
+    Args:
+        triangulation (Triangulation): Triangulation object to plot
+        env (Env2D): Env object to plot
+        settings (Settings): Settings object with the plot settings. Note: the plot
+        colors depend on the PlotColors class and not on the Settings object.
+
+    Kwargs:
+        # TODO
+
+    Returns:
+        tuple[plt.Figure, plt.Axes]: Figure and Axes objects
+    """
+    # Default kwarg values
+    # TODO
+
+    # Parse Kwargs
+    # TODO
+
+    ### PREPROCESSING ###
+    # Find all unique signatures
+    sign_list: list[tuple] = [tuple(tri[1]) for tri in triangulation.triangles_lift]
+    sign_set: set[tuple] = {*sign_list}  # get unique signatures
+    unique_sign_list: list[list] = [
+        list(s) for s in sign_set
+    ]  # convert signatures back to lists
+    unique_sign_list.sort()  # sort the signatures
+    n_sign = len(unique_sign_list)  # number of unique signatures
+
+    # Sort the signature in a custom order for clearer visualization
+    # TODO: re-sort the signatures with the order in which the layers must be plotted.
+
+    ### GENERATE FIGURE ###
+    # Initialize 3d axes
+    fig: plt.Figure = plt.figure(figsize=(8, 8))
+    ax: Axes3D = fig.add_subplot(projection="3d")
+
+    # Add title and labels
+    ax.set_title("Lifted Triangulation")
+    ax.set_xlabel("X")
+    ax.set_ylabel("Y")
+    ax.set_zlabel("$h$")
+
+    # Set limits and aspect
+    ax.set_xlim(0, env.size[0])
+    ax.set_ylim(0, env.size[1])
+    ax.set_zlim(0, n_sign)
+    ax.set_aspect("equalxy")
+
+    # Set view angle
+    ax.view_init(elev=30, azim=45, roll=15)
+
+    # PLOT LIFTED TRIANGULATION
+    # Plot each layer of the lifted triangulation
+    for layer_idx, sign in enumerate(unique_sign_list):
+
+        # Select triangles with the same signature and plot them on the same level
+        triangle_idx_list: list[int] = [
+            tri[0] for tri in triangulation.triangles_lift if tri[1] == sign
+        ]
+
+        # Plot each triangle
+        for triangle_idx in triangle_idx_list:
+
+            # get indexes to triangle vertices (coords are in triangulation.vertices)
+            vertices_idx = triangulation.triangles[triangle_idx]
+            v1 = triangulation.vertices[vertices_idx[0], :]
+            v2 = triangulation.vertices[vertices_idx[1], :]
+            v3 = triangulation.vertices[vertices_idx[2], :]
+
+            # Build triangle vertices by collecting their [x, y, z] coordinates
+            vert_3d = [
+                [v1[0], v1[1], layer_idx],
+                [v2[0], v2[1], layer_idx],
+                [v3[0], v3[1], layer_idx],
+            ]
+
+            # Add triangle to plot
+            poly = Poly3DCollection(
+                vert_3d,
+                facecolors="cyan",
+                edgecolors="black",
+                alpha=0.7,
+            )
+            ax.add_collection3d(poly)
+
     return fig, ax

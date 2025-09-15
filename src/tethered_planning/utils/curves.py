@@ -7,7 +7,7 @@ and visual generation.
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.backend_bases import KeyEvent, MouseEvent
-from shapely.geometry import LineString, Point
+from shapely.geometry import LineString, MultiLineString, Point
 
 from ..env.env_2d import Env2D
 from .colors import CmdColors, PlotColors
@@ -288,11 +288,22 @@ def compute_signature(
 
         # find crossings of segment with generators
         crossings = []
-        for gen_idx, gen in enumerate(env.generators.geoms):
-            if segment.intersects(gen):
+        if isinstance(env.generators, LineString):
+            if segment.intersects(env.generators):
                 crossings.append(
-                    [gen_idx + 1, list(segment.intersection(gen).coords[0])]
+                    [1, list(segment.intersection(env.generators).coords[0])]
                 )
+        elif isinstance(env.generators, MultiLineString):
+            for gen_idx, gen in enumerate(env.generators.geoms):
+                if segment.intersects(gen):
+                    crossings.append(
+                        [gen_idx + 1, list(segment.intersection(gen).coords[0])]
+                    )
+        else:
+            raise TypeError(
+                "Expected LineString or MultiLineString for env.generators, "
+                f"got {type(env.generators)} instead."
+            )
 
         # sort crossings by x coordinate
         if direction == 1:

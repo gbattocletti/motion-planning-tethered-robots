@@ -49,7 +49,7 @@ class Env2D:
         self.free_workspace: Polygon = None
         self.generators_vertices: np.ndarray = None
         self.generators_list: list[LineString] = None
-        self.generators: MultiLineString = None
+        self.generators: LineString | MultiLineString = None
         self.goal_vertices: np.ndarray = None
         self.goal_polygons: list[Polygon] = None
         self.goal_region: MultiPolygon = None
