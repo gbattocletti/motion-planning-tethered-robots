@@ -30,8 +30,13 @@ settings.env_name = filename
 env = env_2d.Env2D(settings)
 
 # Plot the environment
-fig, _ = plot.plot_env(env, settings)
-# TODO: add option to plot tether and robot
+fig, _ = plot.plot_env(
+    env,
+    settings,
+    show_tether=True,
+    show_robot=True,
+    show_anchor=True,
+)
 
 # Save the figure
 fig_name = filename.replace("_", "-")

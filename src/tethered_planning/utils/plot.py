@@ -4,22 +4,20 @@ from typing import TYPE_CHECKING
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import networkx as nx
 import numpy as np
 from matplotlib.colors import ListedColormap
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
-from shapely.geometry import LineString, MultiLineString
-from shapely.plotting import plot_line, plot_polygon
+from shapely.geometry import LineString, MultiLineString, MultiPolygon, Point, Polygon
+from shapely.plotting import plot_line, plot_points, plot_polygon
 
 from ..utils.colors import PlotColors
 
 if TYPE_CHECKING:
     from ..env.env_2d import Env2D
+    from ..plan.rrt import RRT
+    from ..plan.rrt_star import RRTStar
     from .settings import Settings
-
-# TODO: merge all the plot functions in a single one with many kwargs that can be
-# passed to control which elements are plotted.
 
 # NOTE: Plots implementation details:
 # - To modify the colors of the plot, change the values in the PlotColors class
@@ -71,49 +69,177 @@ def plot_env(env: Env2D, settings: Settings, **kwargs) -> tuple[plt.Figure, plt.
         show_goal (bool, **kwargs): flag to display the goal region
         show_legend (bool, **kwargs): flag to display the legend
         show_generators (bool, **kwargs): flag to display the generators
-        label_generators (bool, **kwargs): flag to label the generators
+        show_generators_labels (bool, **kwargs): add labels to the generators
 
     Returns:
         tuple[plt.Figure, plt.Axes]: Figure and Axes objects
 
     Raises:
-        ValueError: If any of the kwargs are not of the expected type.
+        TypeError: If any of the kwargs are not of the expected type.
+        ValueError: If any of the kwargs are not recognized.
     """
     # Kwargs default values
-    show_anchor: bool = True  # show the anchor point
+    show_anchor: bool = False  # show the anchor point
+    show_robot: bool = False  # show the robot location
+    show_tether: bool = False  # show the tether
+    tether: LineString | np.ndarray | None = None  # tether configuration
     show_goal: bool = True  # show the goal region
     show_legend: bool = settings.plot.show_legend  # display the legend
     show_generators: bool = True  # display the generators
-    label_generators: bool = True  # label the generators
+    show_generators_labels: bool = True  # label the generators
+    points: list[Point | np.ndarray] = []  # list of points to plot
+    show_points_labels: bool = False  # label the points
+    curves: list[LineString | np.ndarray] = []  # list of curves to plot
+    show_curves_nodes: bool = False  # show the nodes (points) of the curves
+    show_curves_labels: bool = False  # label the curves
+    polygons: list[Polygon | MultiPolygon | np.ndarray] = []  # list of polygons to plot
+    show_polygons_nodes: bool = False  # show the nodes (points) of the polygons
+    show_polygons_labels: bool = False  # label the polygons
+    title: str = ""  # plot title
 
     # Parse kwargs
     for key, value in kwargs.items():
         if key == "show_anchor":
             if not isinstance(value, bool):
-                raise ValueError(
+                raise TypeError(
                     f"Expected bool for show_anchor, got {type(value)} instead."
                 )
             show_anchor = value
+        elif key == "show_robot":
+            if not isinstance(value, bool):
+                raise TypeError(
+                    f"Expected bool for show_robot, got {type(value)} instead."
+                )
+            show_robot = value
+        elif key == "show_tether":
+            if not isinstance(value, bool):
+                raise TypeError(
+                    f"Expected bool for show_tether, got {type(value)} instead."
+                )
+            show_tether = value
+            if "tether" not in kwargs:
+                tether = env.tether_configuration  # automatically select tether
+        elif key == "tether":
+            if not isinstance(value, (LineString, np.ndarray)):
+                raise TypeError(
+                    f"Expected LineString or np.ndarray for tether, "
+                    f"got {type(value)} instead."
+                )
+            tether = value
+            show_tether = True  # auto enable show_tether (can be overriden manually)
         elif key == "show_goal":
             if not isinstance(value, bool):
-                raise ValueError(
+                raise TypeError(
                     f"Expected bool for show_goal, got {type(value)} instead."
                 )
             show_goal = value
         elif key == "show_legend":
             if not isinstance(value, bool):
-                raise ValueError(
+                raise TypeError(
                     f"Expected bool for show_legend, got {type(value)} instead."
                 )
             show_legend = value
-        elif key == "label_generators":
+        elif key == "show_generators":
             if not isinstance(value, bool):
-                raise ValueError(
-                    f"Expected bool for label_generators, got {type(value)} instead."
+                raise TypeError(
+                    f"Expected bool for show_generators, got {type(value)} instead."
                 )
-            label_generators = value
+            show_generators = value
+        elif key == "show_generators_labels":
+            if not isinstance(value, bool):
+                raise TypeError(
+                    "Expected bool for show_generators_labels, "
+                    f"got {type(value)} instead."
+                )
+            if show_generators is False:
+                print(
+                    "[PLOT] Warning: show_generators_labels is True but "
+                    "show_generators is False. This is inconsistent and will have no "
+                    "effect."
+                )
+            show_generators_labels = value
+        elif key == "points":
+            if not isinstance(value, list):
+                if isinstance(value, (Point, np.ndarray)):
+                    value = [value]  # convert to list
+                else:
+                    raise TypeError(
+                        f"Expected list for points, got {type(value)} instead."
+                    )
+            for i, p in enumerate(value):
+                if not isinstance(p, (Point, np.ndarray)):
+                    raise TypeError(
+                        f"Expected Point or np.ndarray for points[{i}], "
+                        f"got {type(p)} instead."
+                    )
+            points = value
+        elif key == "show_points_labels":
+            if not isinstance(value, bool):
+                raise TypeError(
+                    f"Expected bool for show_points_labels, got {type(value)} instead."
+                )
+            show_points_labels = value
+        elif key == "curves":
+            if not isinstance(value, list):
+                if isinstance(value, (LineString, np.ndarray)):
+                    value = [value]  # convert to list
+                else:
+                    raise TypeError(
+                        f"Expected list for curves, got {type(value)} instead."
+                    )
+            for i, c in enumerate(value):
+                if not isinstance(c, (LineString, np.ndarray)):
+                    raise TypeError(
+                        f"Expected LineString or np.ndarray for curves[{i}], "
+                        f"got {type(c)} instead."
+                    )
+            curves = value
+        elif key == "show_curves_nodes":
+            if not isinstance(value, bool):
+                raise TypeError(
+                    f"Expected bool for show_curves_nodes, got {type(value)} instead."
+                )
+            show_curves_nodes = value
+        elif key == "show_curves_labels":
+            if not isinstance(value, bool):
+                raise TypeError(
+                    f"Expected bool for show_curves_labels, got {type(value)} instead."
+                )
+            show_curves_labels = value
+        elif key == "polygons":
+            if not isinstance(value, list):
+                if isinstance(value, (Polygon, MultiPolygon, np.ndarray)):
+                    value = [value]  # convert to list
+                else:
+                    raise TypeError(
+                        f"Expected list for polygons, got {type(value)} instead."
+                    )
+            for i, poly in enumerate(value):
+                if not isinstance(poly, (Polygon, MultiPolygon, np.ndarray)):
+                    raise TypeError(
+                        f"Expected Polygon, MultiPolygon or np.ndarray for "
+                        f"polygons[{i}], got {type(poly)} instead."
+                    )
+            polygons = value
+        elif key == "show_polygons_nodes":
+            if not isinstance(value, bool):
+                raise TypeError(
+                    f"Expected bool for show_polygons_nodes, got {type(value)} instead."
+                )
+            show_polygons_nodes = value
+        elif key == "show_polygons_labels":
+            if not isinstance(value, bool):
+                raise TypeError(
+                    "Expected bool for show_polygons_labels, "
+                    f"got {type(value)} instead."
+                )
+            show_polygons_labels = value
+        elif key == "title":
+            if not isinstance(value, str):
+                raise TypeError(f"Expected str for title, got {type(value)} instead.")
+            title = value
         else:
-            pass  # ignore unknown kwargs
+            raise ValueError(f"Unknown kwarg: {key}")
 
     # Create figure object
     fig = plt.figure(figsize=settings.plot.figsize)
@@ -124,6 +250,15 @@ def plot_env(env: Env2D, settings: Settings, **kwargs) -> tuple[plt.Figure, plt.
     ax.grid(True, which="major", linestyle=":", color="gray", linewidth=0.5, zorder=1)
     ax.grid(True, which="minor", linestyle=":", color="gray", linewidth=0.3, zorder=1)
     ax.minorticks_on()
+    ax.set_title(
+        title,
+        **{
+            "fontsize": 12,
+            "fontweight": "bold",
+        },
+    )
+    ax.set_xlabel(settings.plot.x_label, rotation=0)
+    ax.set_ylabel(settings.plot.y_label, rotation=0)
 
     # Plot the obstacle region
     if not env.obstacle_region.is_empty:
@@ -151,7 +286,9 @@ def plot_env(env: Env2D, settings: Settings, **kwargs) -> tuple[plt.Figure, plt.
                 add_points=False,
                 zorder=3,
             )
-            if label_generators:
+
+            # Label the generators
+            if show_generators_labels:
                 if isinstance(env.generators, MultiLineString):
                     for idx, generator in enumerate(env.generators.geoms):
                         ax.text(
@@ -167,6 +304,8 @@ def plot_env(env: Env2D, settings: Settings, **kwargs) -> tuple[plt.Figure, plt.
                         f"$g_{1}$",  # latex mathmode
                         fontsize=6,
                     )
+
+        # Create a handle for the legend
         generators_handle = Line2D(
             [], [], color=PlotColors.generators_color, lw=1, label="Generators"
         )
@@ -208,115 +347,6 @@ def plot_env(env: Env2D, settings: Settings, **kwargs) -> tuple[plt.Figure, plt.
             fontsize=10,
         )
 
-    # Add labels and title
-    ax.set_title(
-        settings.plot.title,
-        **{
-            "fontsize": 12,
-            "fontweight": "bold",
-        },
-    )
-    ax.set_xlabel(settings.plot.x_label, rotation=0)
-    ax.set_ylabel(settings.plot.y_label, rotation=0)
-
-    # Add legend
-    # https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.legend.html#matplotlib.axes.Axes.legend
-    # https://stackoverflow.com/questions/4700614/how-to-put-the-legend-outside-the-plot
-    if show_legend:
-        box = ax.get_position()
-        ax.set_position(
-            [
-                box.x0,
-                box.y0,
-                box.width * 0.8,
-                box.height,
-            ]
-        )
-        handles = [obs_handle]
-        if show_generators:
-            handles.append(generators_handle)
-        if show_goal:
-            handles.append(goal_handle)
-        if show_anchor:
-            handles.append(anchor_handle)
-        ax.legend(handles=handles, **legend_settings)
-
-    return fig, ax
-
-
-def plot_tether(
-    env: Env2D, settings: Settings, **kwargs
-) -> tuple[plt.Figure, plt.Axes]:
-    """
-    Plot the environment with the tether configuration and the robot.
-
-    Args:
-        env (Env2D): Env object to plot. It contains also the information on the robot
-            location and the tether configuration.
-        settings (Settings): Settings object with the plot settings.
-
-    Kwargs:
-        tether (LineString): Tether object (if not specified the tether configuration
-            is obtained from the env object).
-        show_legend (bool): Display the legend.
-        show_robot (bool): Display the robot location.
-        **kwargs: The function accepts all the kwargs of the plot_env function.
-
-    Returns:
-        tuple[plt.Figure, plt.Axes]: Figure and Axes objects.
-
-    Raises:
-        ValueError: If any of the kwargs are not of the expected type.
-    """
-
-    # Kwargs default values
-    tether: LineString = None  # tether object
-    show_robot: bool = True  # show the robot location
-    show_legend: bool = settings.plot.show_legend  # display the legend
-
-    # Parse kwargs
-    for key, value in kwargs.items():
-        if key == "tether":
-            if not isinstance(value, LineString):
-                raise ValueError(
-                    f"Expected LineString for tether, got {type(value)} instead."
-                )
-            tether = value
-        if key == "show_robot":
-            if not isinstance(value, bool):
-                raise ValueError(
-                    f"Expected bool for show_robot, got {type(value)} instead."
-                )
-            show_robot = value
-        if key == "show_legend":
-            if not isinstance(value, bool):
-                raise ValueError(
-                    f"Expected bool for show_legend, got {type(value)} instead."
-                )
-            show_legend = value
-        else:
-            pass  # ignore unknown kwargs
-
-    # Default tether object (if not provided)
-    if tether is None:
-        tether = env.tether_configuration
-
-    # Create figure object with the plot_world function
-    fig, ax = plot_env(env, settings, **kwargs)
-
-    # Plot the tether configuration
-    plot_line(
-        tether,
-        ax=ax,
-        color=PlotColors.tether_color,
-        linewidth=1.5,
-        add_points=False,
-        zorder=8,
-    )
-    tether_handle = Line2D(
-        [], [], color=PlotColors.tether_color, lw=1.5, label="Tether"
-    )
-
     # Plot robot
     if show_robot:
         (robot_handle,) = plt.plot(
@@ -339,123 +369,157 @@ def plot_tether(
             fontsize=10,
         )
 
-    # Update legend with additional handles and labels
-    if show_legend:
-        handles = ax.get_legend().legend_handles
-        handles.append(tether_handle)
-        if show_robot:
-            handles.append(robot_handle)
-        ax.legend(handles=handles, **legend_settings)
-
-    # Return fig and ax objects
-    return fig, ax
-
-
-def plot_curves(
-    env: Env2D, settings: Settings, curves: list[LineString | list], **kwargs
-) -> tuple[plt.Figure, plt.Axes]:
-    """
-    Plot the environment and a number of curves in it.
-
-    Args:
-        env (Env2D): World object to plot.
-        settings (Settings): Settings object with the plot settings.
-        curves (list[Linestring | np.ndarray]): List of curves to plot.
-
-    Kwargs:
-        show_legend (bool): Display the legend
-        show_points (bool): Display the points of the curves
-        label_curves (bool): Display the curve labels
-        **kwargs: The function accepts all the kwargs of the plot_env function.
-
-    Returns:
-        tuple[plt.Figure, plt.Axes]: Figure and Axes objects.
-
-    Raises:
-        ValueError: If any of the kwargs are not of the expected type.
-    """
-
-    # Kwargs default values
-    show_legend: bool = settings.plot.show_legend  # display the legend
-    show_points: bool = False  # display the points along the curve
-    label_curves: bool = True  # display the curve labels
-
-    # Parse kwargs
-    for key, value in kwargs.items():
-        if key == "show_legend":
-            if not isinstance(value, bool):
-                raise ValueError(
-                    f"Expected bool for show_legend, got {type(value)} instead."
-                )
-            show_legend = value
-        elif key == "show_points":
-            if not isinstance(value, bool):
-                raise ValueError(
-                    f"Expected bool for show_points, got {type(value)} instead."
-                )
-            show_points = value
-        elif key == "label_curves":
-            if not isinstance(value, bool):
-                raise ValueError(
-                    f"Expected bool for label_curves, got {type(value)} instead."
-                )
-            label_curves = value
-        else:
-            pass
-
-    # Create figure object with the plot_world function
-    fig, ax = plot_env(env, settings, **kwargs)
-
-    # Plot curves
-    cmap = PlotColors.other_curves_cmap  # colormap for curves
-    n = PlotColors.other_curves_n  # number of colors in the cmap
-    for idx, curve in enumerate(curves):
-        if not isinstance(curve, LineString):
-            curve = LineString(curve)
-        curve_points = curve.coords
+    # Plot tether configuration
+    if show_tether:
         plot_line(
-            curve,
+            tether,
             ax=ax,
-            color=cmap[idx % n],
+            color=PlotColors.tether_color,
             linewidth=1.5,
-            add_points=show_points,
+            add_points=False,
             zorder=8,
         )
-        if label_curves:
-            ax.text(
-                curve_points[0][0] - 0.5,
-                curve_points[0][1] - 0.5,
-                rf"$\gamma_\mathrm{idx}$",  # latex mathmode
-                fontsize=10,
-            )
-    curves_handle = Line2D(
-        [], [], color=PlotColors.tether_color, lw=1.5, label="Curves"
-    )
+        tether_handle = Line2D(
+            [], [], color=PlotColors.tether_color, lw=1.5, label="Tether"
+        )
 
-    # Update legend with additional handles and labels
+    # Plot points
+    if points:
+        for idx, point in enumerate(points):
+            if not isinstance(point, Point):
+                point = Point(point)
+            plot_points(
+                point,
+                ax=ax,
+                color=PlotColors.points_color,
+                markersize=6,
+                marker=".",
+                zorder=8,
+            )
+            if show_points_labels:
+                ax.text(
+                    point.coords[0][0] - 0.5,
+                    point.coords[0][1] - 0.5,
+                    rf"$\gamma_\mathrm{idx}$",  # latex mathmode
+                    fontsize=10,
+                )
+        points_handle = Line2D(
+            [],
+            [],
+            marker=".",
+            markersize=6,
+            markerfacecolor=PlotColors.points_color,
+            label="Points",
+            linestyle="None",
+        )
+
+    # Plot curves
+    if curves:
+        cmap = PlotColors.curves_cmap  # colormap for curves
+        n = PlotColors.curves_n  # number of colors in the cmap
+        for idx, curve in enumerate(curves):
+            if not isinstance(curve, LineString):
+                curve = LineString(curve)
+            plot_line(
+                curve,
+                ax=ax,
+                color=cmap[idx % n],
+                linewidth=1.5,
+                add_points=show_curves_nodes,
+                zorder=8,
+            )
+            if show_curves_labels:
+                ax.text(
+                    curve.coords[0][0] - 0.5,
+                    curve.coords[0][1] - 0.5,
+                    rf"$\gamma_\mathrm{idx}$",  # latex mathmode
+                    fontsize=10,
+                )
+        curves_handle = Line2D([], [], color=cmap[0], lw=1.5, label="Curves")
+
+    # Plot polygons
+    if polygons:
+        for idx, poly in enumerate(polygons):
+            if not isinstance(poly, Polygon):
+                poly = Polygon(poly)
+            plot_line(
+                poly,
+                ax=ax,
+                color=PlotColors.polygons_color,
+                add_points=show_polygons_nodes,
+                zorder=8,
+            )
+            if show_polygons_labels:
+                ax.text(
+                    poly.coords[0][0] - 0.5,
+                    poly.coords[0][1] - 0.5,
+                    rf"$\gamma_\mathrm{idx}$",  # latex mathmode
+                    fontsize=10,
+                )
+        polygons_handle = Patch(
+            facecolor=PlotColors.polygons_color,
+            edgecolor=PlotColors.polygons_color,
+            label="Polygons",
+        )
+
+    # Add legend
+    # https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.legend.html#matplotlib.axes.Axes.legend
+    # https://stackoverflow.com/questions/4700614/how-to-put-the-legend-outside-the-plot
     if show_legend:
-        handles = ax.get_legend().legend_handles
-        handles.append(curves_handle)
+        box = ax.get_position()
+        ax.set_position(
+            [
+                box.x0,
+                box.y0,
+                box.width * 0.8,
+                box.height,
+            ]
+        )
+        handles = [obs_handle]
+        if show_generators:
+            handles.append(generators_handle)
+        if show_goal:
+            handles.append(goal_handle)
+        if show_anchor:
+            handles.append(anchor_handle)
+        if show_robot:
+            handles.append(robot_handle)
+        if show_tether:
+            handles.append(tether_handle)
+        if points:
+            handles.append(points_handle)
+        if curves:
+            handles.append(curves_handle)
+        if polygons:
+            handles.append(polygons_handle)
         ax.legend(handles=handles, **legend_settings)
 
-    # Return fig and ax objects
     return fig, ax
 
 
 def plot_graph(
-    env: Env2D, graph: nx.Graph, settings: Settings, **kwargs
+    nodes: np.ndarray | list[list],
+    edges: np.ndarray | list[list],
+    env: Env2D,
+    settings: Settings,
+    nodes_dual: np.ndarray | list[list] = None,
+    edges_dual: np.ndarray | list[list] = None,
+    **kwargs,
 ) -> tuple[plt.Figure, plt.Axes]:
     """
-    Plot the environment and the graph generated by the planner.
+    Plot the environment and a planar graph on top of it.
 
     Args:
+        nodes (np.ndarray | list[list]): List of nodes of the graph
+        edges (np.ndarray | list[list]): List of edges of the graph
         env (Env2D): Env object to plot
-        graph (nx.Graph): Graph object to plot
         settings (Settings): Settings object with the plot settings
 
     Kwargs:
-        show_legend (bool): Display the legend
-        show_node_labels (bool): Display the node labels
+        nodes_dual (np.ndarray | list[list], optional): List of nodes of the dual
+            graph. Defaults to None.
+        edges_dual (np.ndarray | list[list], optional): List of edges of the dual
+            graph. Defaults to None.
         **kwargs: The function accepts all the kwargs of the plot_env function.
 
     Returns
@@ -464,62 +528,133 @@ def plot_graph(
     Raises:
         ValueError: If any of the kwargs are not of the expected type.
     """
-    # Kwargs default values
-    show_legend: bool = settings.plot.show_legend  # display the legend
-    show_node_labels: bool = False  # display the node labels
-
     # Parse kwargs
-    for key, value in kwargs.items():
-        if key == "show_legend":
-            if not isinstance(value, bool):
-                raise ValueError(
-                    f"Expected bool for show_legend, got {type(value)} instead."
+    # Iteration is done over list(keys) to allow deletion of keys during iteration
+    for key in list(kwargs.keys()):
+        if key == "nodes_dual":
+            if not isinstance(kwargs[key], (np.ndarray, list)):
+                raise TypeError(
+                    f"Expected np.ndarray or list for nodes_dual, "
+                    f"got {type(kwargs[key])} instead."
                 )
-            show_legend = value
-        elif key == "show_node_labels":
-            if not isinstance(value, bool):
-                raise ValueError(
-                    f"Expected bool for show_node_labels, got {type(value)} instead."
+            nodes_dual = kwargs[key]
+            del kwargs["nodes_dual"]
+        elif key == "edges_dual":
+            if not isinstance(kwargs[key], (np.ndarray, list)):
+                raise TypeError(
+                    f"Expected np.ndarray or list for edges_dual, "
+                    f"got {type(kwargs[key])} instead."
                 )
-            show_node_labels = value
+            edges_dual = kwargs[key]
+            del kwargs["edges_dual"]
         else:
-            pass  # ignore unknown kwargs
+            pass  # leave other kwargs for plot_env (ValueError will be raised there)
 
-    # Create figure object starting from the plot_tether function
-    fig, ax = plot_tether(env, settings, **kwargs)
+    # Default dual graph to empty lists if None (to avoid iteration errors)
+    if nodes_dual is None:
+        nodes_dual = []
+    if edges_dual is None:
+        edges_dual = []
 
-    # Extract nodes information from graph
-    n_nodes = graph.number_of_nodes()
-    pos = dict.fromkeys(range(0, n_nodes))
-    for idx in range(0, n_nodes):
-        pos[idx] = graph.nodes[idx]["pos"]
+    # Default plot_env kwargs values (if not specified by user)
+    if "show_tether" not in kwargs:
+        kwargs["show_tether"] = True
+    if "show_goal" not in kwargs:
+        kwargs["show_goal"] = True
+    if "show_legend" not in kwargs:
+        kwargs["show_legend"] = True
 
-    # Plot graph
-    node_color = np.array(PlotColors.node_color).reshape(1, -1)
-    edge_color = np.array(PlotColors.edge_color).reshape(1, -1)
-    nodes = nx.draw_networkx_nodes(
-        graph,
-        pos,
-        node_size=4,
-        node_color=node_color,
-        alpha=1,
-        label="Nodes",
+    # Initialize figure object starting from the plot_tether function
+    fig, ax = plot_env(
+        env,
+        settings,
+        **kwargs,
     )
-    edges = nx.draw_networkx_edges(
-        graph,
-        pos,
-        width=0.8,
-        edge_color=edge_color,
-        alpha=1,
+
+    # Plot primary graph
+    for n in nodes:
+        plot_points(
+            Point(n),
+            ax=ax,
+            color=PlotColors.node_color,
+            markersize=6,
+            marker=".",
+            zorder=8,
+        )
+    for e in edges:
+        plot_line(
+            LineString([nodes[int(e[0])], nodes[int(e[1])]]),
+            ax=ax,
+            color=PlotColors.edge_color,
+            linewidth=1,
+            add_points=False,
+            zorder=7,
+        )
+
+    # Plot dual graph
+    for n in nodes_dual:
+        plot_points(
+            Point(n),
+            ax=ax,
+            color=PlotColors.node_dual_color,
+            markersize=6,
+            marker=".",
+            zorder=8,
+        )
+    for e in edges_dual:
+        plot_line(
+            LineString([nodes_dual[int(e[0])], nodes_dual[int(e[1])]]),
+            ax=ax,
+            color=PlotColors.edge_dual_color,
+            linewidth=1,
+            add_points=False,
+            zorder=7,
+        )
+
+    # Create legend handles
+    nodes_handle = Line2D(
+        [],
+        [],
+        marker=".",
+        markersize=6,
+        markerfacecolor=PlotColors.node_color,
+        label="Nodes",
+        linestyle="None",
+    )
+    edges_handle = Line2D(
+        [],
+        [],
+        color=PlotColors.edge_color,
+        lw=1,
         label="Edges",
     )
-    if show_node_labels:
-        nx.draw_networkx_labels(graph, pos, font_size=4)
+    if nodes_dual:
+        nodes_dual_handle = Line2D(
+            [],
+            [],
+            marker=".",
+            markersize=6,
+            markerfacecolor=PlotColors.node_dual_color,
+            label="Nodes (Dual)",
+            linestyle="None",
+        )
+    if edges_dual:
+        edges_dual_handle = Line2D(
+            [],
+            [],
+            color=PlotColors.edge_dual_color,
+            lw=1,
+            label="Edges (Dual)",
+        )
 
     # Add handles and labels to legend
-    if show_legend:
+    if ax.get_legend() is not None:
         handles = ax.get_legend().legend_handles
-        handles.extend([nodes, edges])
+        handles.extend([nodes_handle, edges_handle])
+        if nodes_dual:
+            handles.append(nodes_dual_handle)
+        if edges_dual:
+            handles.append(edges_dual_handle)
         ax.legend(handles=handles, **legend_settings)
 
     # Return fig and ax objects

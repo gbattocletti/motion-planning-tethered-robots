@@ -11,7 +11,7 @@ from shapely.geometry import LineString, Point
 
 from ..env.env_2d import Env2D
 from .colors import CmdColors, PlotColors
-from .plot import plot_env, plot_tether
+from .plot import plot_env
 from .settings import Settings
 
 
@@ -367,18 +367,17 @@ def generate_curve(
         init_curve (**kwargs): Initial curve to which the new curve is appended
             (default None). If set to different from None, init_point is set to be the
             terminal point of init_curve.
-        other_curves (**kwargs): List of other curves to display (default None).
         check_obs (**kwargs): Check collisions of the generated curve with the
             obstacles present in the environment (default True).
         check_self_intersection (**kwargs): Check self-intersections of the curve,
             preventing the creation of loops (default False).
+        other_curves (**kwargs): List of other curves to display (default None).
         check_other_curves (**kwargs): Check intersections of the curve with the
             other curves, preventing intersections (default False).
         label_other_curves (**kwargs): Label the other curves in the plot (default
             True).
         max_points (**kwargs): Maximum number of points in the curve (default 20).
         title (**kwargs): Title of the plot (default "Interactive curve generation").
-        show_legend (**kwargs): Show the legend in the plot (default True).
         **kwargs (**kwargs): The function accepts all kwargs of the plot_env function.
             These kwargs are passed directly to the plot_env function.
 
@@ -393,114 +392,101 @@ def generate_curve(
     # kwargs default values
     output_type: str = "linestring"  # type of output to generate
     init_point: Point | np.ndarray[float] | list[float] = None  # initial point
-    init_curve: LineString = None  # initial curve to which the new curve is appended
-    other_curves: list[LineString] = []  # list of other curves to display
+    init_curve: np.ndarray | LineString = None  # curve to start generation from
     check_obs: bool = True  # prevent collisions of the curve with the obstacles
     check_self_intersection: bool = False  # prevent self-intersections of the curve
+    other_curves: list[np.ndarray | LineString] = []  # list of other curves to display
     check_other_curves: bool = False  # prevent intersections with other curves
     label_other_curves: bool = True  # label the other curves in the plot
     max_points: int = 20  # maximum number of points in the curve
-    title: str = "Interactive curve generation (`esc' to terminate)."  # plot title
-    show_legend: bool = True  # show the legend in the plot
-    # An alternative implementation is to use the kwargs.pop method to remove the
-    # kwargs from the dictionary and assign them to the variables. However, this
-    # approach makes the default values less visible.
 
-    # unpack kwargs
-    # TODO: it may be necessary to pop the kwargs from the dictionary to avoid passing
-    # duplicate arguments to the plot_env function. Alternatively, a better management
-    # of the kwargs could be implemented, e.g., by ensuring that any kwarg of the
-    # plot_env function is added directly to the kwargs dictionary of the
-    # generate_curve, and is not passed as a separate argument.
-    for key, value in kwargs.items():
+    # Parse kwargs
+    # Iteration is done over list(keys) to allow deletion of keys during iteration
+    for key in list(kwargs.keys()):
         if key == "output_type":
-            if not isinstance(value, str):
+            if not isinstance(kwargs[key], str):
                 raise TypeError(
-                    f"Expected str for output_type, got {type(value)} instead."
+                    f"Expected str for output_type, got {type(kwargs[key])} instead."
                 )
-            if value in ["LineString", "linestring"]:
+            if kwargs[key] in ["LineString", "linestring"]:
                 output_type = "linestring"
-            elif value in ["array", "numpy", "ndarray"]:
+            elif kwargs[key] in ["array", "numpy", "ndarray"]:
                 output_type = "array"
             else:
-                raise ValueError(f"Invalid value for output_type: {value}")
-            kwargs.pop("output_type")
+                raise ValueError(f"Invalid value for output_type: {kwargs[key]}")
+            del kwargs["output_type"]
         if key == "init_point":
-            if not isinstance(value, (Point, np.ndarray, list)):
+            if not isinstance(kwargs[key], (Point, np.ndarray, list)):
                 raise TypeError(
                     "Expected Point, np.ndarray, or list for init_point, got "
-                    f"{type(value)} instead."
+                    f"{type(kwargs[key])} instead."
                 )
-            init_point = value
-            kwargs.pop("init_point")
+            init_point = kwargs[key]
+            del kwargs["init_point"]
         elif key == "init_curve":
-            if not isinstance(value, LineString):
+            if not isinstance(kwargs[key], LineString):
                 raise TypeError(
-                    f"Expected LineString for init_curve, got {type(value)} instead."
+                    "Expected LineString for init_curve, "
+                    f"got {type(kwargs[key])} instead."
                 )
-            init_curve = value
-            kwargs.pop("init_curve")
+            init_curve = kwargs[key]
+            del kwargs["init_curve"]
+        elif key == "check_obs":
+            if not isinstance(kwargs[key], bool):
+                raise TypeError(
+                    f"Expected bool for check_obs, got {type(kwargs[key])} instead."
+                )
+            check_obs = kwargs[key]
+            del kwargs["check_obs"]
+        elif key == "check_self_intersection":
+            if not isinstance(kwargs[key], bool):
+                raise TypeError(
+                    "Expected bool for check_self_intersection, "
+                    f"got {type(kwargs[key])} instead."
+                )
+            check_self_intersection = kwargs[key]
+            del kwargs["check_self_intersection"]
         elif key == "other_curves":
-            if not isinstance(value, list):
+            if not isinstance(kwargs[key], list):
                 raise TypeError(
-                    f"Expected list for other_curves, got {type(value)} instead."
+                    f"Expected list for other_curves, got {type(kwargs[key])} instead."
                 )
-            elif not all(isinstance(curve, LineString) for curve in value):
+            elif not all(isinstance(curve, LineString) for curve in kwargs[key]):
                 # note: skipped in case of empty list
                 raise TypeError("Expected list of LineString objects for other_curves.")
-            other_curves = value
-            kwargs.pop("other_curves")
-        elif key == "check_obs":
-            if not isinstance(value, bool):
-                raise TypeError(
-                    f"Expected bool for check_obs, got {type(value)} instead."
-                )
-            check_obs = value
-            kwargs.pop("check_obs")
-        elif key == "check_self_intersection":
-            if not isinstance(value, bool):
-                raise TypeError(
-                    f"Expected bool for check_self_intersection, got {type(value)} "
-                    "instead."
-                )
-            check_self_intersection = value
-            kwargs.pop("check_self_intersection")
+            other_curves = kwargs[key]
+            del kwargs["other_curves"]
         elif key == "check_other_curves":
-            if not isinstance(value, bool):
+            if not isinstance(kwargs[key], bool):
                 raise TypeError(
-                    f"Expected bool for check_other_curves, got {type(value)} "
+                    f"Expected bool for check_other_curves, got {type(kwargs[key])} "
                     "instead."
                 )
-            check_other_curves = value
-            kwargs.pop("check_other_curves")
+            check_other_curves = kwargs[key]
+            del kwargs["check_other_curves"]
         elif key == "label_other_curves":
-            if not isinstance(value, bool):
+            if not isinstance(kwargs[key], bool):
                 raise TypeError(
-                    f"Expected bool for label_other_curves, got {type(value)} instead."
+                    f"Expected bool for label_other_curves, "
+                    f"got {type(kwargs[key])} instead."
                 )
-            label_other_curves = value
-            kwargs.pop("label_other_curves")
+            label_other_curves = kwargs[key]
+            del kwargs["label_other_curves"]
         elif key == "max_points":
-            if not isinstance(value, int):
+            if not isinstance(kwargs[key], int):
                 raise TypeError(
-                    f"Expected int for max_points, got {type(value)} instead."
+                    f"Expected int for max_points, got {type(kwargs[key])} instead."
                 )
-            max_points = value
-            kwargs.pop("max_points")
-        elif key == "title":
-            if not isinstance(value, str):
-                raise TypeError(f"Expected str for title, got {type(value)} instead.")
-            title = value
-            kwargs.pop("title")
-        elif key == "show_legend":
-            if not isinstance(value, bool):
-                raise TypeError(
-                    f"Expected bool for show_legend, got {type(value)} instead."
-                )
-            show_legend = value
-            kwargs.pop("show_legend")
+            max_points = kwargs[key]
+            del kwargs["max_points"]
         else:
-            pass  # ignore unknown kwargs
+            pass  # leave other kwargs for plot_env (ValueError will be raised there)
+
+    # Set title and legend visibility (default values)
+    if "title" not in kwargs:
+        kwargs["title"] = "Interactive curve generation (`esc' to terminate)."
+    if "show_legend" not in kwargs:
+        kwargs["show_legend"] = True
 
     ## EVENT MANAGEMENT ##
     # event management for keyboard input
@@ -626,39 +612,31 @@ def generate_curve(
         points = [env.anchor_point]
     else:
         points = []
+    kwargs["show_anchor"] = init_point is not None  # show anchor if init_point is set
+
+    # manage initial curve
+    if init_curve:
+        kwargs["tether"] = init_curve
+        kwargs["show_tether"] = True
+        kwargs["show_anchor"] = True
+        kwargs["show_robot"] = True
+
+    # manage other curves
+    if other_curves:
+        kwargs["curves"] = other_curves
+        kwargs["show_curves_labels"] = label_other_curves
+    else:
+        kwargs["curves"] = []
+        kwargs["show_curves_labels"] = False
 
     # plot environment
-    show_anchor = not init_point is None
-    kwargs["show_anchor"] = show_anchor
-    if init_curve:
-        fig, ax = plot_tether(
-            env,
-            settings,
-            tether=init_curve,
-            show_legend=show_legend,
-            **kwargs,
-        )
-    else:
-        fig, ax = plot_env(
-            env,
-            settings,
-            show_legend=show_legend,
-            **kwargs,
-        )
-    ax.title.set_text(title)
-    if other_curves:
-        cmap = PlotColors.other_curves_cmap  # colormap for curves
-        n = PlotColors.other_curves_n  # number of colors in the cmap
-        for idx, curve in enumerate(other_curves):
-            curve_points = list(curve.coords)
-            ax.plot(*zip(*curve_points), color=cmap[idx % n], zorder=7)
-            if label_other_curves:
-                ax.text(
-                    curve_points[0][0] - 0.5,
-                    curve_points[0][1] - 0.5,
-                    rf"$\gamma_\mathrm{idx}$",  # latex mathmode
-                    fontsize=10,
-                )
+    fig, ax = plot_env(
+        env,
+        settings,
+        **kwargs,
+    )
+
+    # Initialize interactive curve
     (polyline,) = ax.plot(
         [],
         [],

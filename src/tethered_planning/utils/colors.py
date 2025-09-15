@@ -24,23 +24,41 @@ class CustomColors:
     Custom color palette for the simulations visualization.
     """
 
-    # Colors are defined as [R G B] lists (note: values must be between 0 and 1)
+    # Colors are defined as hex RGB lists so that VSCode shows a preview.
     # https://matplotlib.org/stable/tutorials/colors/colors.html
 
     # Base colors
-    white = [1, 1, 1]
-    black = [0, 0, 0]
-    darker_gray = [0.502, 0.502, 0.502]
-    dark_gray = [0.663, 0.663, 0.663]
-    light_gray = [0.827, 0.827, 0.827]
-    lighter_gray = [0.941, 0.941, 0.941]
+    white = "#FFFFFF"
+    black = "#000000"
+    darker_gray = "#808080"
+    dark_gray = "#A9A9A9"
+    light_gray = "#D0D0D0"
+    lighter_gray = "#F0F0F0"
 
     # Custom colors
-    yellow = [0.866, 0.643, 0.282]
-    blue1 = [0.282, 0.643, 0.866]
-    blue2 = [0.106, 0.149, 0.31]
-    blue3 = [0.431, 0.706, 0.82]
-    red = [0.635, 0.243, 0.282]
+    yellow = "#DFAF45"
+    yellow1 = "#B49900"
+    yellow2 = "#DAC892"
+    blue = "#0080FF"
+    blue1 = "#1A2A4D"
+    blue2 = "#48A1B0"
+    red = "#CC3F3F"
+    red1 = "#8B0000"
+    red2 = "#C98383"
+
+    # Cmap
+    blue_cmap = [
+        "#000033",
+        "#000066",
+        "#000099",
+        "#0000CC",
+        "#0000FF",
+        "#003366",
+        "#003399",
+        "#0033CC",
+        "#0033FF",
+        "#006699",
+    ]
 
 
 class PlotColors(CustomColors):
@@ -62,7 +80,7 @@ class PlotColors(CustomColors):
     goal_edge_color = goal_color
 
     # robot
-    robot_color = CustomColors.blue3
+    robot_color = CustomColors.blue
     robot_edge_color = robot_color
 
     # anchor
@@ -73,20 +91,13 @@ class PlotColors(CustomColors):
     tether_color = CustomColors.black
 
     # graph
-    node_color = CustomColors.blue2
-    edge_color = CustomColors.blue1
+    node_color = CustomColors.blue1
+    edge_color = CustomColors.blue2
+    node_dual_color = CustomColors.red1
+    edge_dual_color = CustomColors.red2
 
-    # other curves
-    other_curves_cmap = [
-        "#000033",
-        "#000066",
-        "#000099",
-        "#0000CC",
-        "#0000FF",
-        "#003366",
-        "#003399",
-        "#0033CC",
-        "#0033FF",
-        "#006699",
-    ]
-    other_curves_n = len(other_curves_cmap)
+    # points, curves, polygons
+    points_color = CustomColors.blue
+    curves_cmap = CustomColors.blue_cmap
+    curves_n = len(curves_cmap)
+    polygons_color = CustomColors.blue

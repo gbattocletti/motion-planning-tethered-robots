@@ -24,7 +24,7 @@ class TestWorld(unittest.TestCase):
         io.clean_folder("results")
 
         # Set blocking and wait time for plots
-        cls.show = False
+        cls.show = True
         cls.blocking = False
         cls.wait_time = 1
 
@@ -35,9 +35,9 @@ class TestWorld(unittest.TestCase):
         )
         settings = Settings()  # default settings
         print(settings)
-        world = Env2D(settings)
+        env = Env2D(settings)
         if self.show:
-            plot.plot_env(world, settings)
+            plot.plot_env(env, settings)
             plt.show(block=self.blocking)
             plt.pause(self.wait_time)
             plt.close()
@@ -50,9 +50,9 @@ class TestWorld(unittest.TestCase):
         settings = Settings("test_settings")
         settings.env_name = "test_env_1.yaml"
         print(settings)
-        world = Env2D(settings)
+        env = Env2D(settings)
         if self.show:
-            plot.plot_env(world, settings)
+            plot.plot_env(env, settings)
             plt.show(block=self.blocking)
             plt.pause(self.wait_time)
             plt.close()
@@ -65,9 +65,9 @@ class TestWorld(unittest.TestCase):
         settings = Settings("test_settings")
         settings.env_name = "test_env_2.yaml"
         print(settings)
-        world = Env2D(settings)
+        env = Env2D(settings)
         if self.show:
-            plot.plot_env(world, settings)
+            plot.plot_env(env, settings)
             plt.show(block=self.blocking)
             plt.pause(self.wait_time)
             plt.close()
@@ -80,9 +80,9 @@ class TestWorld(unittest.TestCase):
         settings = Settings("test_settings")
         settings.env_name = "test_env_3.yaml"
         print(settings)
-        world = Env2D(settings)
+        env = Env2D(settings)
         if self.show:
-            plot.plot_env(world, settings)
+            plot.plot_env(env, settings)
             plt.show(block=self.blocking)
             plt.pause(self.wait_time)
             plt.close()
@@ -95,13 +95,13 @@ class TestWorld(unittest.TestCase):
         settings = Settings("test_settings")
         settings.env_name = "test_env_2.yaml"
         print(settings)
-        world = Env2D(settings)
-        self.assertEqual(world.is_valid_edge(np.array([2, 2]), np.array([2, 6])), True)
-        self.assertEqual(world.is_valid_edge(np.array([2, 2]), np.array([6, 2])), False)
-        self.assertEqual(world.is_valid_edge(np.array([2, 4]), np.array([4, 8])), True)
-        self.assertEqual(world.is_valid_edge(np.array([7, 2]), np.array([8, 2])), True)
-        self.assertEqual(world.is_valid_edge(np.array([2, 4]), np.array([8, 4])), False)
-        self.assertEqual(world.is_valid_edge(np.array([0, 2]), np.array([2, 2])), True)
+        env = Env2D(settings)
+        self.assertEqual(env.is_valid_edge(np.array([2, 2]), np.array([2, 6])), True)
+        self.assertEqual(env.is_valid_edge(np.array([2, 2]), np.array([6, 2])), False)
+        self.assertEqual(env.is_valid_edge(np.array([2, 4]), np.array([4, 8])), True)
+        self.assertEqual(env.is_valid_edge(np.array([7, 2]), np.array([8, 2])), True)
+        self.assertEqual(env.is_valid_edge(np.array([2, 4]), np.array([8, 4])), False)
+        self.assertEqual(env.is_valid_edge(np.array([0, 2]), np.array([2, 2])), True)
 
 
 if __name__ == "__main__":

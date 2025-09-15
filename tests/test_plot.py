@@ -24,8 +24,8 @@ class TestPlot(unittest.TestCase):
         io.clean_folder("results")
 
         # plot settings
-        cls.show = False
-        cls.blocking = False
+        cls.show = True
+        cls.blocking = True
         cls.wait_time = 1
 
     def setUp(self):
@@ -57,8 +57,7 @@ class TestPlot(unittest.TestCase):
             self.settings,
             show_goal=False,
             show_anchor=False,
-            label_generators=False,
-            dummy_kwarg=True,
+            show_generators_labels=False,
             show_legend=True,
         )
         self.show_plot()
@@ -73,7 +72,7 @@ class TestPlot(unittest.TestCase):
             self.settings,
             show_goal=True,
             show_anchor=True,
-            label_generators=True,
+            show_generators_labels=True,
             show_legend=True,
         )
         self.show_plot()
@@ -82,17 +81,17 @@ class TestPlot(unittest.TestCase):
         print(f"{CmdColors.OKBLUE}[TestPlot]{CmdColors.ENDC} Running test_plot_tether.")
         self.settings.plot.show_legend = True
         self.settings.plot.title = "Tether Plot"
-        plot.plot_tether(self.env, self.settings, tether=self.env.tether_configuration)
+        plot.plot_env(self.env, self.settings, tether=self.env.tether_configuration)
         self.show_plot()
 
     def test_plot_graph(self):
         print(f"{CmdColors.OKBLUE}[TestPlot]{CmdColors.ENDC} Running test_plot_graph.")
-        self.settings.anim.animate = True  # save graph history
-        self.settings.plot.show_legend = True
+        self.settings.anim.animate = False
         planner = rrt.RRT(self.env, self.settings)
-        graph_list = planner.plan()  # plan with rrt
-        graph = graph_list[-1]  # get final graph
-        plot.plot_graph(self.env, graph, self.settings, show_legend=True)
+        graph: dict = planner.plan()[0]  # plan with rrt
+        plot.plot_graph(
+            graph["nodes"], graph["edges"], self.env, self.settings, show_legend=True
+        )
         self.show_plot()
 
 

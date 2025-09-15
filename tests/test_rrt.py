@@ -33,7 +33,7 @@ class TestWorld(unittest.TestCase):
     def setUp(self):
         # Initialize instance variables
         self.settings = None
-        self.world = None
+        self.env = None
         self.planner = None
 
         # Load settings for planner
@@ -43,7 +43,7 @@ class TestWorld(unittest.TestCase):
         if self.settings.fix_seed:
             random.seed(self.settings.seed)
             np.random.seed(self.settings.seed)
-        self.world = env_2d.Env2D(self.settings)  # initialize 2d world
+        self.env = env_2d.Env2D(self.settings)  # initialize 2d world
 
     def show_plot(self):
         if not self.blocking:
@@ -56,46 +56,36 @@ class TestWorld(unittest.TestCase):
     @measureStats
     def test_rrt(self):
         print(f"{CmdColors.OKBLUE}[TestRRT]{CmdColors.ENDC} Running test_rrt.")
-        self.planner = rrt.RRT(self.world, self.settings)
+        self.planner = rrt.RRT(self.env, self.settings)
         self.planner.plan()
 
     @measureStats
     def test_rrt_np(self):
         print(f"{CmdColors.OKBLUE}[TestRRT]{CmdColors.ENDC} Running test_rrt_np.")
-        self.planner = outdated.RRT_networkx_numpy(self.world, self.settings)
+        self.planner = outdated.RRT_networkx_numpy(self.env, self.settings)
         self.planner.plan()
 
     @measureStats
     def test_rrt_tuple(self):
         print(f"{CmdColors.OKBLUE}[TestRRT]{CmdColors.ENDC} Running test_rrt_tuple.")
-        self.planner = outdated.RRT_networkx_tuple(self.world, self.settings)
+        self.planner = outdated.RRT_networkx_tuple(self.env, self.settings)
         self.planner.plan()
 
     @measureStats
     def test_rrt_star(self):
         print(f"{CmdColors.OKBLUE}[TestRRT]{CmdColors.ENDC} Running test_rrt_star.")
-        self.planner = rrt_star.RRTStar(self.world, self.settings)
+        self.planner = rrt_star.RRTStar(self.env, self.settings)
         self.planner.plan()
 
-    @unittest.skip("Skipping plot test test_plot_rrt")
     def test_plot_rrt_np(self):
-        self.planner = rrt.RRT(self.world, self.settings)
+        self.planner = rrt.RRT(self.env, self.settings)
         self.planner.plan()
-        plot.plot_graph(self.world, self.planner.graph, self.settings)
-        self.show_plot()
-
-    @unittest.skip("Skipping plot test test_plot_rrt_tuple")
-    def test_plot_rrt_tuple(self):
-        self.planner = outdated.RRT_networkx_tuple(self.world, self.settings)
-        self.planner.plan()
-        plot.plot_graph(self.world, self.planner.graph, self.settings)
-        self.show_plot()
-
-    @unittest.skip("Skipping plot test test_plot_rrt_star")
-    def test_plot_rrt_star(self):
-        self.planner = rrt_star.RRTStar(self.world, self.settings)  # plan with rrt star
-        self.planner.plan()
-        plot.plot_graph(self.world, self.planner.graph, self.settings)
+        plot.plot_graph(
+            self.planner.nodes[: self.planner.n_nodes + 1],
+            self.planner.edges[: self.planner.n_nodes + 1],
+            self.env,
+            self.settings,
+        )
         self.show_plot()
 
 
