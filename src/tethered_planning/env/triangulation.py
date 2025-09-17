@@ -30,7 +30,10 @@ class Triangulation:
         if env.anchor_point is not None:
             self.anchor_point = env.anchor_point
         else:
-            print(f"{CmdColors.WARNING}[Triang]{CmdColors.WARNING} .")
+            print(
+                f"{CmdColors.WARNING}[Triang]{CmdColors.WARNING} Undefined anchor "
+                "point in Triangulation."
+            )
 
         # Max dist between anchor point and vertices (termination criterion for lifting)
         self.max_dist: float  # Maximum distance between anchor point and vertices
@@ -280,7 +283,8 @@ class Triangulation:
             # Add element to graph; append it to closed queue; increase counter
             n += 1  # Increase counter
             self.triangles_lift.append((idx, sign))
-            self.edges_lift.append([n, parent_idx])
+            i, j = sorted((n, parent_idx))  # sort edge indices (smaller first)
+            self.edges_lift.append((i, j))
             closed_queue.append((idx, sign))
 
             # Add new triangles to the open queue
