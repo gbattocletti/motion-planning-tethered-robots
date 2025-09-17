@@ -34,6 +34,26 @@ def unpack_curve(curve: LineString) -> np.ndarray:
     return points
 
 
+def measure_length(curve: LineString | np.ndarray) -> float:
+    """
+    Measures the length of a curve.
+    Args:
+        curve (LineString | np.ndarray): input curve
+
+    Returns:
+        float: length of the curve
+
+    Raises:
+        TypeError: if the input type is not LineString or np.ndarray
+    """
+    if isinstance(curve, LineString):
+        return curve.length
+    elif isinstance(curve, np.ndarray):
+        return np.sum(np.linalg.norm(np.diff(curve, axis=0), axis=1))
+    else:
+        raise TypeError("Input curve must be a LineString or a numpy array")
+
+
 def resample_curve(
     curve: LineString | np.ndarray, n: int, resampling_type: str
 ) -> LineString | np.ndarray:
@@ -67,6 +87,7 @@ def resample_curve(
         raise ValueError("Invalid resampling_type. Expected 'global' or 'segment'.")
 
     # unpack curve
+    points: np.ndarray
     if isinstance(curve, LineString):
         points = unpack_curve(curve)
     elif isinstance(curve, np.ndarray):
@@ -81,13 +102,13 @@ def resample_curve(
     if resampling_type == "global":
 
         points_stack = []  # initialize empty stack of new points
-        len_tot = curve.length  # total length of the curve
+        len_tot = measure_length(curve)  # total length of the curve
 
         for i in range(0, len(points) - 1):
 
             # compute number of points to add between each pair of adjacent points.
             # Round up to avoid missing points.
-            len_seg = LineString([points[i], points[i + 1]]).length
+            len_seg = measure_length(LineString([points[i], points[i + 1]]))
             res_seg = int(np.ceil(n * len_seg / len_tot))
 
             # interpolation coefficients for current segment
