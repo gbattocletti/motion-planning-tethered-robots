@@ -87,21 +87,30 @@ class Triangulation:
         self.triang_tree = shapely.STRtree(
             self.triang.geoms
         )  # for fast geometry lookup
-        self.root_idx = self.triang_tree.query(
-            Point(self.env.anchor_point),
-            predicate="intersects",
-        )[
-            0
-        ]  # find index root triangle (where anchor point lies)
+        self.n_triangs = len(self.triang.geoms)  # number of triangles in triangulation
+
+        # find index root triangle (where anchor point lies)
+        self.root_idx = int(
+            self.triang_tree.query(
+                Point(self.env.anchor_point),
+                predicate="intersects",
+            )[0]
+        )
 
         # Fill triangulation components
-        # NOTE: the triangles indexes (and thus the dual graph vertices indexes) are the
-        #       same as the Shapely-generated Delaunay triangulation
-        # NOTE: the edges are defined as [idx_1, idx_2] where idx_1 < idx_2
-        # NOTE: the triangles are defined as [idx_1, idx_2, idx_3] in CW order starting
-        #       from the lowest index
-
-        # Fill primary vertices
+        #     - vertices is a list of [x, y] coordinates
+        #     - edges is a list of [idx_1, idx_2] pairs with idx_1 < idx_2, where idx_i
+        #       is the index of a vertex in self.vertices
+        #     - vertices_dual is a list of [x, y] coordinates of the centroids of the
+        #       triangles
+        #     - edges_dual is a list of [idx_1, idx_2] pairs with idx_1 < idx_2, where
+        #       idx_i is the index of a vertex in self.vertices_dual
+        #     - triangles are defined as a [idx_1, idx_2, idx_3] list, where the indexes
+        #       are sorted in increasing order and refer to elements of self.vertices
+        #     - for simplicity, the triangles indexes are the same as the
+        #       Shapely-generated Delaunay triangulation. More importantly, the nodes
+        #       of the dual graph (i.e., the triangles centroids) are indexed the same
+        #       way, which means the centroids and triangles share the same indices.
         self.vertices = np.unique(
             np.array(
                 [
@@ -111,33 +120,28 @@ class Triangulation:
                 ]
             ),
             axis=0,
-        )
-
-        # Fill dual vertices
-        self.vertices_dual = np.array(
-            [triangle.centroid.coords[0] for triangle in self.triang.geoms]
-        )
-
-        # Fill edges, edges_dual, and triangles lists
-        self.edges = np.array([]).reshape(0, 3)  # [v1, v2, len]
-        self.edges_dual = np.array([]).reshape(0, 3)  # [v1, v2, len]
-        self.triangles = np.array([]).reshape(0, 3)  # [v1, v2, v3]
+        )  # [x, y]
+        self.edges = np.array([], dtype=int).reshape(0, 2)  # [v1, v2]
+        self.vertices_dual = np.zeros([self.n_triangs, 2], dtype=float)  # [x, y]
+        self.edges_dual = np.array([], dtype=int).reshape(0, 2)  # [v1, v2]
+        self.triangles = np.zeros([self.n_triangs, 3], dtype=int)  # [v1, v2, v3]
         for idx, triang in enumerate(self.triang.geoms):
 
-            # Fill triangles list
-            # Find triangles vertices indexes
-            indexes = np.array(
+            # Dual vertices
+            self.vertices_dual[idx] = triang.centroid.coords[0]
+
+            # Triangles vertices indexes
+            indexes: np.ndarray = np.array(
                 [
                     int(self.find_vertex_idx(triang.boundary.coords[0])),
                     int(self.find_vertex_idx(triang.boundary.coords[1])),
                     int(self.find_vertex_idx(triang.boundary.coords[2])),
                 ]
             )
-
-            # Add triangle to the list
-            self.triangles = np.append(self.triangles, [np.sort(indexes)], axis=0)
+            self.triangles[idx] = np.sort(indexes)
 
             # Fill edges and dual edges
+            edge: LineString
             for edge in self.list_triangle_edges(triang):
 
                 # Find indexes of endpoints of edge
@@ -145,39 +149,27 @@ class Triangulation:
                 idx2 = int(self.find_vertex_idx(edge.coords[1]))
                 idx1, idx2 = (idx1, idx2) if idx1 <= idx2 else (idx2, idx1)  # sort
 
-                # Find edge length
-                dist = np.linalg.norm(self.vertices[idx1] - self.vertices[idx2])
-
                 # Append edge to list
-                self.edges = np.append(self.edges, [[idx1, idx2, dist]], axis=0)
+                if not ((self.edges == [idx1, idx2]).all(axis=1).any()):
+                    self.edges = np.append(self.edges, [[idx1, idx2]], axis=0)
 
-                # Find index of dual edge endpoints (triang and triangle across edge)
-                indexes = list(self.triang_tree.query(edge, predicate="covered_by"))
+                # Find index of the triangles sharing the edge
+                indexes: list[int] = list(
+                    self.triang_tree.query(edge, predicate="covered_by")
+                )
                 idx1 = int(idx)  # current triangle index
                 if len(indexes) == 2:
                     indexes.remove(idx1)
                     idx2 = int(indexes[0])  # neighboring triangle index
                     idx1, idx2 = (idx1, idx2) if idx1 <= idx2 else (idx2, idx1)  # sort
                 else:
-                    continue
-
-                # Find edge length
-                dist = np.linalg.norm(
-                    self.vertices_dual[idx1] - self.vertices_dual[idx2]
-                )
+                    continue  # boundary edge
 
                 # Add edge to list
-                self.edges_dual = np.append(
-                    self.edges_dual, [[idx1, idx2, dist]], axis=0
-                )
-
-        # Remove duplicates from arrays (arrays are already sorted along axis 1)
-        self.edges = np.unique(self.edges, axis=0)
-        self.edges_dual = np.unique(self.edges_dual, axis=0)
-        self.triangles = np.unique(self.triangles, axis=0)  # should not need changes
+                if not ((self.edges_dual == [idx1, idx2]).all(axis=1).any()):
+                    self.edges_dual = np.append(self.edges_dual, [[idx1, idx2]], axis=0)
 
         # Update counters
-        self.n_triangs = len(self.triang.geoms)
         self.n_vertices = self.vertices.shape[0]
         self.n_edges = self.edges.shape[0]
         self.n_edges_dual = self.edges_dual.shape[0]
@@ -255,14 +247,14 @@ class Triangulation:
         closed_queue: list[int] = []  # list of triangles already visited
 
         # Initialize counter (termination condition)
-        n_max: int = 20  # max number of triangles
+        n_max: int = 40  # max number of triangles
         n: int = 0
 
         # Initial conditions
         # TODO: the distance between the anchor and the vertices should technically be
         # checked before adding it, but for the time being we assume that they are valid
         # as otherwise the triangle could not be added at all
-        open_queue.append((self.root_idx, [], -1))
+        open_queue.append((self.root_idx, [], 0))
 
         # Initialize temporary variables
         idx: int  # index of the current triangle (dual node)
@@ -283,7 +275,7 @@ class Triangulation:
             # Add element to graph; append it to closed queue; increase counter
             n += 1  # Increase counter
             self.triangles_lift.append((idx, sign))
-            i, j = sorted((n, parent_idx))  # sort edge indices (smaller first)
+            i, j = sorted((n - 1, parent_idx))  # sort edge indices (smaller first)
             self.edges_lift.append((i, j))
             closed_queue.append((idx, sign))
 
@@ -294,7 +286,7 @@ class Triangulation:
                 neighbor_sign = sign + curves.compute_signature(edge, self.env)
                 neighbor_sign = curves.simplify_signature(neighbor_sign)
                 if (neighbor_idx, neighbor_sign) not in closed_queue:
-                    open_queue.append((neighbor_idx, neighbor_sign, n))
+                    open_queue.append((neighbor_idx, neighbor_sign, n - 1))
 
         # Print debug info
         if self.DEBUG:

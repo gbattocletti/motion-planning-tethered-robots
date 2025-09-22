@@ -522,6 +522,12 @@ def plot_graph(
             graph. Defaults to None.
         edges_dual (np.ndarray | list[list], optional): List of edges of the dual
             graph. Defaults to None.
+        show_dual_graph (bool, optional): Flag to enable the display of the dual
+            graph. Defaults to True. Its intended use is to disable the dual graph when
+            the dual graph is passed only for the triangles labeling.
+        label_nodes (bool, optional): Flag to label the main graph nodes. Defaults to
+            False. Mainly intended for debugging purposes.
+        label_triangles (bool, optional): Flag to label the triangles (dual nodes).
         **kwargs: The function accepts all the kwargs of the plot_env function.
 
     Returns
@@ -529,7 +535,15 @@ def plot_graph(
 
     Raises:
         ValueError: If any of the kwargs are not of the expected type.
+        TypeError: If any of the kwargs are not of the expected type.
+        NotImplementedError: If label_triangles is True but the dual graph is not
+            provided.
     """
+    # Default kwarg values
+    label_nodes = False  # label the main graph nodes
+    label_triangles = False  # label the triangles (dual nodes)
+    show_dual_graph = True  # enable the display of the dual graph
+
     # Parse kwargs
     # Iteration is done over list(keys) to allow deletion of keys during iteration
     for key in list(kwargs.keys()):
@@ -549,8 +563,39 @@ def plot_graph(
                 )
             edges_dual = kwargs[key]
             del kwargs["edges_dual"]
+        elif key == "show_dual_graph":
+            if not isinstance(kwargs[key], bool):
+                raise TypeError(
+                    "Expected bool for show_dual_graph, "
+                    f"got {type(kwargs[key])} instead."
+                )
+            show_dual_graph = kwargs[key]
+            del kwargs["show_dual_graph"]
+        elif key == "label_nodes":
+            if not isinstance(kwargs[key], bool):
+                raise TypeError(
+                    "Expected bool for label_nodes, "
+                    f"got {type(kwargs[key])} instead."
+                )
+            label_nodes = kwargs[key]
+            del kwargs["label_nodes"]
+        elif key == "label_triangles":
+            if not isinstance(kwargs[key], bool):
+                raise TypeError(
+                    "Expected bool for label_triangles, "
+                    f"got {type(kwargs[key])} instead."
+                )
+            label_triangles = kwargs[key]
+            del kwargs["label_triangles"]
         else:
             pass  # leave other kwargs for plot_env (ValueError will be raised there)
+
+    # Check kwargs consistency
+    if label_triangles is True and nodes_dual is None:
+        raise NotImplementedError(
+            "The current implementation of the plot_graph function requires the "
+            "dual graph nodes to be specified to be able to label the triangles."
+        )
 
     # Default dual graph to empty lists if None (to avoid iteration errors)
     if nodes_dual is None:
@@ -558,7 +603,7 @@ def plot_graph(
     if edges_dual is None:
         edges_dual = []
 
-    # Default kwargs values for plot_env (if not specified by user)
+    # Default kwargs values to forward to plot_env (if not specified by user)
     if "show_tether" not in kwargs:
         kwargs["show_tether"] = False
     if "show_robot" not in kwargs:
@@ -599,25 +644,46 @@ def plot_graph(
         )
 
     # Plot dual graph
-    for n in nodes_dual:
-        plot_points(
-            Point(n),
-            ax=ax,
-            color=PlotColors.node_dual_color,
-            markeredgecolor=PlotColors.node_dual_color,
-            markersize=6,
-            marker=".",
-            zorder=8,
-        )
-    for e in edges_dual:
-        plot_line(
-            LineString([nodes_dual[int(e[0])], nodes_dual[int(e[1])]]),
-            ax=ax,
-            color=PlotColors.edge_dual_color,
-            linewidth=1,
-            add_points=False,
-            zorder=7,
-        )
+    if show_dual_graph is True:
+        for n in nodes_dual:
+            plot_points(
+                Point(n),
+                ax=ax,
+                color=PlotColors.node_dual_color,
+                markeredgecolor=PlotColors.node_dual_color,
+                markersize=6,
+                marker=".",
+                zorder=8,
+            )
+        for e in edges_dual:
+            plot_line(
+                LineString([nodes_dual[int(e[0])], nodes_dual[int(e[1])]]),
+                ax=ax,
+                color=PlotColors.edge_dual_color,
+                linewidth=1,
+                add_points=False,
+                zorder=7,
+            )
+
+    # Label the nodes of the main graph
+    if label_nodes is True:
+        for idx, n in enumerate(nodes):
+            ax.text(
+                n[0] + 0.15,
+                n[1] + 0.15,
+                f"${idx}$",  # latex mathmode
+                fontsize=6,
+            )
+
+    # Label the triangles (dual nodes)
+    if label_triangles is True:
+        for idx, n in enumerate(nodes_dual):
+            ax.text(
+                n[0] + 0.15,
+                n[1] + 0.15,
+                f"${idx}$",  # latex mathmode
+                fontsize=6,
+            )
 
     # Create legend handles
     nodes_handle = Line2D(
@@ -733,16 +799,46 @@ def plot_lifted_triangulation(
         colors depend on the PlotColors class and not on the Settings object.
 
     Kwargs:
-        # TODO
+        connect_layers (bool): shared edges of triangles plotted on different layers
+            are connected with vertical lines. Default is False.
+        multi_layer_triangles (bool): triangles can span multiple layers. This means
+            that the homotopy class of the triangle is not uniquely defined, and is
+            instead evaluated for each vertex separately. Default is False. This option
+            cannot be used at the same time of connect_layers and has precedence over it
 
     Returns:
         tuple[plt.Figure, plt.Axes]: Figure and Axes objects
     """
     # Default kwarg values
-    # TODO
+    connect_layers: bool = False  # connect the layers with vertical lines
+    multi_layer_triangles: bool = False  # triangles can span multiple layers
 
     # Parse Kwargs
-    # TODO
+    for key in kwargs:
+        if key == "connect_layers":
+            if not isinstance(kwargs["connect_layers"], bool):
+                raise TypeError(
+                    "Expected bool for connect_layers, "
+                    f"got {type(kwargs['connect_layers'])} instead."
+                )
+            connect_layers = kwargs["connect_layers"]
+        elif key == "multi_layer_triangles":
+            if not isinstance(kwargs["multi_layer_triangles"], bool):
+                raise TypeError(
+                    "Expected bool for multi_layer_triangles, "
+                    f"got {type(kwargs['multi_layer_triangles'])} instead."
+                )
+            multi_layer_triangles = kwargs["multi_layer_triangles"]
+        else:
+            pass  # ignore other kwargs
+    if multi_layer_triangles is True:
+        if connect_layers is True:
+            print(
+                "[PLOT] Warning: multi_layer_triangles is True but connect_layers "
+                "is also True. Both cannot be True at the same time so "
+                "connect_layers will be set to False."
+            )
+        connect_layers = False  # override connect_layers (cannot be used toghether)
 
     ### PREPROCESSING ###
     # Find all unique signatures
@@ -762,12 +858,6 @@ def plot_lifted_triangulation(
     fig: plt.Figure = plt.figure(figsize=(8, 8))
     ax: Axes3D = fig.add_subplot(projection="3d")
 
-    # Add title and labels
-    ax.set_title("Lifted Triangulation")
-    ax.set_xlabel("X")
-    ax.set_ylabel("Y")
-    ax.set_zlabel("$h$")
-
     # Set limits and aspect
     ax.set_xlim(0, env.size[0])
     ax.set_ylim(0, env.size[1])
@@ -776,6 +866,33 @@ def plot_lifted_triangulation(
 
     # Set view angle
     ax.view_init(elev=30, azim=45, roll=15)
+
+    # Plot layers and label them by h signature
+    layer_list: list[np.ndarray] = []
+    for layer_idx in range(n_sign):
+
+        # Define the rectangle of the layer
+        layer = np.array(
+            [
+                [0, 0, layer_idx],
+                [env.size[0], 0, layer_idx],
+                [env.size[0], env.size[1], layer_idx],
+                [0, env.size[1], layer_idx],
+                [0, 0, layer_idx],  # repeat first vertex to close rectangle
+            ]
+        )
+        layer_list.append(layer)
+
+    # Plot triangles in layer
+    layer_list = np.array(layer_list)
+    ax.add_collection3d(
+        Poly3DCollection(
+            layer_list,
+            facecolors="lightgrey",
+            edgecolors="black",
+            alpha=0.2,
+        )
+    )
 
     # PLOT LIFTED TRIANGULATION
     # Plot each layer of the lifted triangulation
@@ -786,29 +903,121 @@ def plot_lifted_triangulation(
             tri[0] for tri in triangulation.triangles_lift if tri[1] == sign
         ]
 
-        # Plot each triangle
+        # Plot triangles in current layer
+        vert_3d_list: list[np.ndarray] = []  # list of triangle vertices in 3D
         for triangle_idx in triangle_idx_list:
 
             # get indexes to triangle vertices (coords are in triangulation.vertices)
-            vertices_idx = triangulation.triangles[triangle_idx]
-            v1 = triangulation.vertices[vertices_idx[0], :]
-            v2 = triangulation.vertices[vertices_idx[1], :]
-            v3 = triangulation.vertices[vertices_idx[2], :]
+            vertices_idx: np.ndarray = triangulation.triangles[triangle_idx]
+            vertices_idx = vertices_idx.astype(int)  # ensure right data type
+            v1: np.ndarray = triangulation.vertices[vertices_idx[0], :]
+            v2: np.ndarray = triangulation.vertices[vertices_idx[1], :]
+            v3: np.ndarray = triangulation.vertices[vertices_idx[2], :]
 
-            # Build triangle vertices by collecting their [x, y, z] coordinates
-            vert_3d = [
-                [v1[0], v1[1], layer_idx],
-                [v2[0], v2[1], layer_idx],
-                [v3[0], v3[1], layer_idx],
-            ]
+            # Build triangle by collecting [x, y, z] coordinates and add to list
+            vert_3d_list.append(
+                np.array(
+                    [
+                        [v1[0], v1[1], layer_idx],
+                        [v2[0], v2[1], layer_idx],
+                        [v3[0], v3[1], layer_idx],
+                        [
+                            v1[0],
+                            v1[1],
+                            layer_idx,
+                        ],  # repeat first vertex to close triangle
+                    ]
+                )
+            )
 
-            # Add triangle to plot
-            poly = Poly3DCollection(
-                vert_3d,
+        # Plot triangles in layer
+        vert_3d_list = np.array(vert_3d_list)
+        ax.add_collection3d(
+            Poly3DCollection(
+                vert_3d_list,
                 facecolors="cyan",
                 edgecolors="black",
                 alpha=0.7,
             )
-            ax.add_collection3d(poly)
+        )
+
+    # Add connections between layers (optional)
+    if connect_layers:
+
+        # Collect all the rectangles
+        rect_list: list[np.ndarray] = []  # list of vertical connecting rectangles
+        for edge in triangulation.edges_lift:
+
+            # check if signatures of centroids are different
+            if (
+                triangulation.triangles_lift[edge[0]][1]
+                != triangulation.triangles_lift[edge[1]][1]
+            ):
+                # get edge vertices (common vertices between the two triangles)
+                triang_1 = triangulation.triangles_lift[int(edge[0])]  # 2d triangle idx
+                triang_2 = triangulation.triangles_lift[int(edge[1])]
+                vert_idx_1 = triangulation.triangles[triang_1[0]]  # vertices indexes
+                vert_idx_2 = triangulation.triangles[triang_2[0]]
+                edge_idx = np.intersect1d(vert_idx_1, vert_idx_2)  # common indexes
+                if len(edge_idx) != 2:
+                    continue  # TEMP for debugging (should not happen)
+                v1 = triangulation.vertices[edge_idx[0], :]  # edge vertex coordinates
+                v2 = triangulation.vertices[edge_idx[1], :]
+
+                # Find the layer indexes of the two triangles sharing the edge
+                layer_idx_1 = unique_sign_list.index(
+                    list(triangulation.triangles_lift[edge[0]][1])
+                )
+                layer_idx_2 = unique_sign_list.index(
+                    list(triangulation.triangles_lift[edge[1]][1])
+                )
+
+                # Build connecting rectangle between layers
+                rect_list.append(
+                    np.array(
+                        [
+                            [v1[0], v1[1], layer_idx_1],
+                            [v1[0], v1[1], layer_idx_2],
+                            [v2[0], v2[1], layer_idx_2],
+                            [v2[0], v2[1], layer_idx_1],
+                            [v1[0], v1[1], layer_idx_1],  # repeat to close rectangle
+                        ]
+                    )
+                )
+
+        # Plot rectangles between layers
+        rect_list = np.array(rect_list)
+        ax.add_collection3d(
+            Poly3DCollection(
+                rect_list,
+                facecolors="black",
+                edgecolors="black",
+                alpha=0.4,
+            )
+        )
+
+    # Add title and labels
+    ax.set_title("Lifted Triangulation")
+    ax.set_xlabel("X")
+    ax.set_ylabel("Y")
+    ax.set_zlabel("$h$")
+
+    # Label z ticks with the signature
+    zticks = np.arange(0, n_sign, 1)
+    zticklabels: list[str] = []
+    for s in unique_sign_list:
+        parts = []
+        for i in s:
+            char = f"\\sigma_{{{abs(i)}}}"
+            if i < 0:
+                char += "^{-1}"
+            parts.append(char)
+        if not parts:
+            word = "`` ''"  # empty signature
+        else:
+            word = "``$" + "".join(parts) + "$''"  # latex mathmode
+        zticklabels.append(word)
+    ax.set_zticks(zticks)
+    ax.set_zticklabels(zticklabels)
 
     return fig, ax

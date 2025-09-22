@@ -49,6 +49,7 @@ def show_plot(SHOW_PLOT, BLOCKING, WAIT_TIME):
         "test_env_2.yaml",
         "test_env_3.yaml",
         "test_env_4.yaml",
+        "test_env_5.yaml",
     ],
 )
 def test_triangulation(settings, env, plot_settings):
@@ -68,6 +69,9 @@ def test_triangulation(settings, env, plot_settings):
         settings,
         nodes_dual=triang.vertices_dual,
         edges_dual=triang.edges_dual,
+        show_dual_graph=True,
+        label_nodes=True,
+        label_triangles=True,
     )
 
     # Show and/or save figure
@@ -81,6 +85,7 @@ def test_triangulation(settings, env, plot_settings):
     "env_name",
     [
         "test_env_1.yaml",
+        "test_env_5.yaml",
     ],
 )
 def test_lift_triangulation(settings, env, plot_settings):
@@ -94,7 +99,7 @@ def test_lift_triangulation(settings, env, plot_settings):
     triang.lift_triangulation()
 
     # Generate plot of lifted triangulation
-    fig, _ = plot.plot_lifted_triangulation(triang, env, settings)
+    fig, _ = plot.plot_lifted_triangulation(triang, env, settings, connect_layers=True)
 
     # Show and/or save figure
     show_plot(SHOW_PLOT, BLOCKING, WAIT_TIME)
