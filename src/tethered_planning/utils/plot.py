@@ -1,3 +1,5 @@
+# pylint: disable=too-many-lines
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -12,6 +14,7 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from shapely.geometry import LineString, MultiLineString, MultiPolygon, Point, Polygon
 from shapely.plotting import plot_line, plot_points, plot_polygon
 
+from ..utils import curves as curves_fcns
 from ..utils.colors import PlotColors
 
 if TYPE_CHECKING:
@@ -786,7 +789,6 @@ def plot_free_space(
 def plot_lifted_triangulation(
     triangulation: Triangulation,
     env: Env2D,
-    settings: Settings,
     **kwargs,
 ) -> tuple[plt.Figure, plt.Axes]:
     """
@@ -805,6 +807,10 @@ def plot_lifted_triangulation(
             that the homotopy class of the triangle is not uniquely defined, and is
             instead evaluated for each vertex separately. Default is False. This option
             cannot be used at the same time of connect_layers and has precedence over it
+        custom_sign_order (list[list[int]] | None, optional): custom order in which to
+            plot the layers corresponding to the different signatures. This argument
+            allows for custom tailoring of the signature order and is intended to be
+            used only for plotting specific examples with improved visualization.
 
     Returns:
         tuple[plt.Figure, plt.Axes]: Figure and Axes objects
@@ -812,6 +818,7 @@ def plot_lifted_triangulation(
     # Default kwarg values
     connect_layers: bool = False  # connect the layers with vertical lines
     multi_layer_triangles: bool = False  # triangles can span multiple layers
+    custom_sign_order: list[list[int]] | None = None  # custom order for signatures
 
     # Parse Kwargs
     for key in kwargs:
@@ -829,6 +836,13 @@ def plot_lifted_triangulation(
                     f"got {type(kwargs['multi_layer_triangles'])} instead."
                 )
             multi_layer_triangles = kwargs["multi_layer_triangles"]
+        elif key == "custom_sign_order":
+            if not isinstance(kwargs["custom_sign_order"], list):
+                raise TypeError(
+                    "Expected list for custom_sign_order, "
+                    f"got {type(kwargs['custom_sign_order'])} instead."
+                )
+            custom_sign_order = kwargs["custom_sign_order"]
         else:
             pass  # ignore other kwargs
     if multi_layer_triangles is True:
@@ -850,8 +864,19 @@ def plot_lifted_triangulation(
     unique_sign_list.sort()  # sort the signatures
     n_sign = len(unique_sign_list)  # number of unique signatures
 
-    # Sort the signature in a custom order for clearer visualization
-    # TODO: re-sort the signatures with the order in which the layers must be plotted.
+    # Specify custom order for the signature layers
+    if custom_sign_order is not None:
+        if len(custom_sign_order) != n_sign:
+            raise ValueError(
+                f"The length of custom_sign_order {len(custom_sign_order)} does not "
+                f"match the number of unique signatures {n_sign} in the triangulation."
+            )
+        for sign in unique_sign_list:
+            if sign not in custom_sign_order:
+                raise ValueError(
+                    f"The signature {sign} is not present in custom_sign_order"
+                )
+        unique_sign_list = custom_sign_order  # override the signature order
 
     ### GENERATE FIGURE ###
     # Initialize 3d axes
@@ -872,13 +897,14 @@ def plot_lifted_triangulation(
     for layer_idx in range(n_sign):
 
         # Define the rectangle of the layer
+        padding: float = 0  # extend layer beyond env limits for better visualization
         layer = np.array(
             [
-                [0, 0, layer_idx],
-                [env.size[0], 0, layer_idx],
-                [env.size[0], env.size[1], layer_idx],
-                [0, env.size[1], layer_idx],
-                [0, 0, layer_idx],  # repeat first vertex to close rectangle
+                [0 - padding, 0 - padding, layer_idx],
+                [env.size[0] + padding, 0 - padding, layer_idx],
+                [env.size[0] + padding, env.size[1] + padding, layer_idx],
+                [0 - padding, env.size[1] + padding, layer_idx],
+                [0 - padding, 0 - padding, layer_idx],  # repeat to close rectangle
             ]
         )
         layer_list.append(layer)
@@ -896,6 +922,7 @@ def plot_lifted_triangulation(
 
     # PLOT LIFTED TRIANGULATION
     # Plot each layer of the lifted triangulation
+    vert_3d_list: list[np.ndarray] = []  # list of triangle vertices in 3D
     for layer_idx, sign in enumerate(unique_sign_list):
 
         # Select triangles with the same signature and plot them on the same level
@@ -904,7 +931,6 @@ def plot_lifted_triangulation(
         ]
 
         # Plot triangles in current layer
-        vert_3d_list: list[np.ndarray] = []  # list of triangle vertices in 3D
         for triangle_idx in triangle_idx_list:
 
             # get indexes to triangle vertices (coords are in triangulation.vertices)
@@ -915,33 +941,81 @@ def plot_lifted_triangulation(
             v3: np.ndarray = triangulation.vertices[vertices_idx[2], :]
 
             # Build triangle by collecting [x, y, z] coordinates and add to list
-            vert_3d_list.append(
-                np.array(
-                    [
-                        [v1[0], v1[1], layer_idx],
-                        [v2[0], v2[1], layer_idx],
-                        [v3[0], v3[1], layer_idx],
-                        [
-                            v1[0],
-                            v1[1],
-                            layer_idx,
-                        ],  # repeat first vertex to close triangle
-                    ]
+            if multi_layer_triangles is True:
+
+                # Find signature index for each vertex separately. The signature of a
+                # vertex is defined as the signature of the centroid (signature of the
+                # triangle) plus the signature of the path from the centroid to the
+                # vertex. The signature is simplified and then the corresponding index
+                # from the unique_sign_list is found. This allows for triangles that
+                # span multiple layers.
+                sign_1 = curves_fcns.simplify_signature(
+                    sign
+                    + curves_fcns.compute_signature(
+                        np.array([triangulation.vertices_dual[triangle_idx], v1]),
+                        env,
+                        simplify=False,
+                    )
                 )
-            )
+                sign_2 = curves_fcns.simplify_signature(
+                    sign
+                    + curves_fcns.compute_signature(
+                        np.array([triangulation.vertices_dual[triangle_idx], v2]),
+                        env,
+                        simplify=False,
+                    )
+                )
+                sign_3 = curves_fcns.simplify_signature(
+                    sign
+                    + curves_fcns.compute_signature(
+                        np.array([triangulation.vertices_dual[triangle_idx], v3]),
+                        env,
+                        simplify=False,
+                    )
+                )
+                layer_idx_1: int = unique_sign_list.index(list(sign_1))
+                layer_idx_2: int = unique_sign_list.index(list(sign_2))
+                layer_idx_3: int = unique_sign_list.index(list(sign_3))
+                print([layer_idx_1, layer_idx_2, layer_idx_3])
 
-        # Plot triangles in layer
-        vert_3d_list = np.array(vert_3d_list)
-        ax.add_collection3d(
-            Poly3DCollection(
-                vert_3d_list,
-                facecolors="cyan",
-                edgecolors="black",
-                alpha=0.7,
-            )
+                # use signature index for z coordinate of each vertex
+                vert_3d_list.append(
+                    np.array(
+                        [
+                            [v1[0], v1[1], layer_idx_1],
+                            [v2[0], v2[1], layer_idx_2],
+                            [v3[0], v3[1], layer_idx_3],
+                            [v1[0], v1[1], layer_idx_1],
+                        ]
+                    )
+                )
+
+            else:
+
+                # use layer index for z coordinate of all vertices
+                vert_3d_list.append(
+                    np.array(
+                        [
+                            [v1[0], v1[1], layer_idx],
+                            [v2[0], v2[1], layer_idx],
+                            [v3[0], v3[1], layer_idx],
+                            [v1[0], v1[1], layer_idx],
+                        ]
+                    )
+                )
+
+    # Plot triangles
+    vert_3d_list = np.array(vert_3d_list)
+    ax.add_collection3d(
+        Poly3DCollection(
+            vert_3d_list,
+            facecolors="cyan",
+            edgecolors="black",
+            alpha=0.7,
         )
+    )
 
-    # Add connections between layers (optional)
+    # Add connections between layers (optional, alternative to multi_layer_triangles)
     if connect_layers:
 
         # Collect all the rectangles
@@ -1019,5 +1093,8 @@ def plot_lifted_triangulation(
         zticklabels.append(word)
     ax.set_zticks(zticks)
     ax.set_zticklabels(zticklabels)
+
+    # Add legend
+    # TODO: implement legend + add kwarg to enable/disable it
 
     return fig, ax

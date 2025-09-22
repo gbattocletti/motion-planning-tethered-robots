@@ -82,13 +82,16 @@ def test_triangulation(settings, env, plot_settings):
 
 
 @pytest.mark.parametrize(
-    "env_name",
+    "env_name, order",
     [
-        "test_env_1.yaml",
-        "test_env_5.yaml",
+        ("test_env_1.yaml", [[1, 1, 1], [1, 1], [1], [], [-1], [-1, -1]]),
+        # ("test_env_2.yaml", None),
+        # ("test_env_3.yaml", None),
+        # ("test_env_4.yaml", None),
+        # ("test_env_5.yaml", None),
     ],
 )
-def test_lift_triangulation(settings, env, plot_settings):
+def test_lift_triangulation(settings, env, order, plot_settings):
 
     # Unpack fixtures
     SHOW_PLOT, BLOCKING, WAIT_TIME, SAVE_PLOT = plot_settings
@@ -99,7 +102,13 @@ def test_lift_triangulation(settings, env, plot_settings):
     triang.lift_triangulation()
 
     # Generate plot of lifted triangulation
-    fig, _ = plot.plot_lifted_triangulation(triang, env, settings, connect_layers=True)
+    fig, _ = plot.plot_lifted_triangulation(
+        triang,
+        env,
+        connect_layers=True,
+        multi_layer_triangles=True,
+        custom_sign_order=order,
+    )
 
     # Show and/or save figure
     show_plot(SHOW_PLOT, BLOCKING, WAIT_TIME)
