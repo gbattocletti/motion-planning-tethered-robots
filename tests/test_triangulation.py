@@ -6,6 +6,7 @@ import pytest
 from tethered_planning.env import env_2d
 from tethered_planning.env.triangulation import Triangulation
 from tethered_planning.utils import io, plot
+from tethered_planning.utils.colors import CustomColors
 from tethered_planning.utils.settings import Settings
 
 
@@ -82,16 +83,20 @@ def test_triangulation(settings, env, plot_settings):
 
 
 @pytest.mark.parametrize(
-    "env_name, order",
+    "env_name, order, cmap",
     [
-        ("test_env_1.yaml", [[1, 1, 1], [1, 1], [1], [], [-1], [-1, -1]]),
-        # ("test_env_2.yaml", None),
-        # ("test_env_3.yaml", None),
-        # ("test_env_4.yaml", None),
-        # ("test_env_5.yaml", None),
+        (
+            "test_env_1.yaml",
+            [[1, 1, 1], [1, 1], [1], [], [-1], [-1, -1]],
+            CustomColors.layers_cmap[0:6],
+        ),
+        # ("test_env_2.yaml", None, None),
+        # ("test_env_3.yaml", None, None),
+        # ("test_env_4.yaml", None, None),
+        # ("test_env_5.yaml", None, None),
     ],
 )
-def test_lift_triangulation(settings, env, order, plot_settings):
+def test_lift_triangulation(settings, env, order, cmap, plot_settings):
 
     # Unpack fixtures
     SHOW_PLOT, BLOCKING, WAIT_TIME, SAVE_PLOT = plot_settings
@@ -108,6 +113,7 @@ def test_lift_triangulation(settings, env, order, plot_settings):
         connect_layers=True,
         multi_layer_triangles=True,
         custom_sign_order=order,
+        layers_colormap=cmap,
     )
 
     # Show and/or save figure

@@ -46,7 +46,7 @@ class CustomColors:
     red1 = "#8B0000"
     red2 = "#C98383"
 
-    # Cmap
+    # Colormaps
     blue_cmap = [
         "#000033",
         "#000066",
@@ -58,6 +58,22 @@ class CustomColors:
         "#0033CC",
         "#0033FF",
         "#006699",
+    ]
+
+    # colormap for homotopy-agumented triangulation. 10 colors are passed. The list
+    # needs to be sliced to match the number of unique signatures in the triangulation.
+    # If more than 10 signatures are present, the list must be extended.
+    layers_cmap = [
+        "#800000",
+        "#C54444",
+        "#D66969",
+        "#C47D21",
+        "#C9AA69",
+        "#FFEB3B",
+        "#BCD857",
+        "#11B92D",
+        "#3CFF4C",
+        "#80FA8A",
     ]
 
 

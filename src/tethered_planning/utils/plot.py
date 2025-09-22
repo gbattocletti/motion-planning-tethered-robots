@@ -811,14 +811,23 @@ def plot_lifted_triangulation(
             plot the layers corresponding to the different signatures. This argument
             allows for custom tailoring of the signature order and is intended to be
             used only for plotting specific examples with improved visualization.
+        layers_colormap (list[str] | None, optional): colormap to use for the layers
+            corresponding to the different signatures. The length must match the number
+            of unique signatures in the triangulation, or be one single color to be
+            used for all layers. If None (default) a default colormap will be used.
 
     Returns:
         tuple[plt.Figure, plt.Axes]: Figure and Axes objects
+
+    Raises:
+        TypeError: If any of the kwargs are not of the expected type.
+        ValueError: If any of the kwargs are not recognized or not consistent.
     """
     # Default kwarg values
     connect_layers: bool = False  # connect the layers with vertical lines
     multi_layer_triangles: bool = False  # triangles can span multiple layers
     custom_sign_order: list[list[int]] | None = None  # custom order for signatures
+    layers_colormap: list[str] | None = None  # colormap for the layers
 
     # Parse Kwargs
     for key in kwargs:
@@ -843,6 +852,13 @@ def plot_lifted_triangulation(
                     f"got {type(kwargs['custom_sign_order'])} instead."
                 )
             custom_sign_order = kwargs["custom_sign_order"]
+        elif key == "layers_colormap":
+            if not isinstance(kwargs["layers_colormap"], (list, type(None))):
+                raise TypeError(
+                    "Expected plt.Colormap, list or None for layers_colormap, "
+                    f"got {type(kwargs['layers_colormap'])} instead."
+                )
+            layers_colormap = kwargs["layers_colormap"]
         else:
             pass  # ignore other kwargs
     if multi_layer_triangles is True:
@@ -877,6 +893,20 @@ def plot_lifted_triangulation(
                     f"The signature {sign} is not present in custom_sign_order"
                 )
         unique_sign_list = custom_sign_order  # override the signature order
+
+    # Define colormap for the triangles (organized by layers)
+    triangles_colors: list[str] | str
+    if layers_colormap is not None:
+        if len(layers_colormap) != n_sign and len(layers_colormap) != 1:
+            raise ValueError(
+                "The length of layers_colormap must be either 1 (single color for "
+                f"all layers) or match the number of unique signatures {n_sign} in "
+                "the triangulation."
+            )
+        if len(layers_colormap) == 1:
+            triangles_colors = layers_colormap[0]
+        else:
+            triangles_colors = []
 
     ### GENERATE FIGURE ###
     # Initialize 3d axes
@@ -922,7 +952,7 @@ def plot_lifted_triangulation(
 
     # PLOT LIFTED TRIANGULATION
     # Plot each layer of the lifted triangulation
-    vert_3d_list: list[np.ndarray] = []  # list of triangle vertices in 3D
+    triangles_3d_list: list[np.ndarray] = []  # list of triangle vertices in 3D
     for layer_idx, sign in enumerate(unique_sign_list):
 
         # Select triangles with the same signature and plot them on the same level
@@ -930,7 +960,7 @@ def plot_lifted_triangulation(
             tri[0] for tri in triangulation.triangles_lift if tri[1] == sign
         ]
 
-        # Plot triangles in current layer
+        # Define triangle and add it to list
         for triangle_idx in triangle_idx_list:
 
             # get indexes to triangle vertices (coords are in triangulation.vertices)
@@ -979,7 +1009,7 @@ def plot_lifted_triangulation(
                 print([layer_idx_1, layer_idx_2, layer_idx_3])
 
                 # use signature index for z coordinate of each vertex
-                vert_3d_list.append(
+                triangles_3d_list.append(
                     np.array(
                         [
                             [v1[0], v1[1], layer_idx_1],
@@ -993,7 +1023,7 @@ def plot_lifted_triangulation(
             else:
 
                 # use layer index for z coordinate of all vertices
-                vert_3d_list.append(
+                triangles_3d_list.append(
                     np.array(
                         [
                             [v1[0], v1[1], layer_idx],
@@ -1004,12 +1034,16 @@ def plot_lifted_triangulation(
                     )
                 )
 
+            # Add color for the triangle to the color list
+            if layers_colormap is not None:
+                triangles_colors.append(layers_colormap[layer_idx])
+
     # Plot triangles
-    vert_3d_list = np.array(vert_3d_list)
+    triangles_3d_list = np.array(triangles_3d_list)
     ax.add_collection3d(
         Poly3DCollection(
-            vert_3d_list,
-            facecolors="cyan",
+            triangles_3d_list,
+            facecolors=triangles_colors,
             edgecolors="black",
             alpha=0.7,
         )
