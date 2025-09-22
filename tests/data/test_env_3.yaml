@@ -16,7 +16,7 @@ obstacles:
 # generators properties
 generators:
     vertices: [
-        [[6.0, 6.0], [6.0, 10.0]]
+        [[5.0, 6.0], [5.0, 10.0]]
     ]  
 
 goal:
