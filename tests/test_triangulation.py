@@ -5,7 +5,7 @@ import pytest
 
 from tethered_planning.env import env_2d
 from tethered_planning.env.triangulation import Triangulation
-from tethered_planning.utils import io, plot
+from tethered_planning.utils import plot
 from tethered_planning.utils.colors import CustomColors
 from tethered_planning.utils.settings import Settings
 
@@ -15,8 +15,7 @@ def fixture_plot_settings():
     SHOW_PLOT = True
     BLOCKING = True
     WAIT_TIME = 1
-    SAVE_PLOT = False
-    return SHOW_PLOT, BLOCKING, WAIT_TIME, SAVE_PLOT
+    return SHOW_PLOT, BLOCKING, WAIT_TIME
 
 
 @pytest.fixture(name="settings")
@@ -47,23 +46,28 @@ def show_plot(SHOW_PLOT, BLOCKING, WAIT_TIME):
     "env_name",
     [
         "test_env_1.yaml",
-        "test_env_2.yaml",
-        "test_env_3.yaml",
-        "test_env_4.yaml",
         "test_env_5.yaml",
     ],
 )
 def test_triangulation(settings, env, plot_settings):
 
     # Unpack fixtures
-    SHOW_PLOT, BLOCKING, WAIT_TIME, SAVE_PLOT = plot_settings
+    SHOW_PLOT, BLOCKING, WAIT_TIME = plot_settings
 
     # Create triangulation
     triang = Triangulation(env)
     triang.triangulate()
 
+    plot.plot_env(
+        env,
+        settings,
+        show_goal=False,
+        show_anchor=True,
+    )
+    show_plot(SHOW_PLOT, BLOCKING, WAIT_TIME)
+
     # Generate figure
-    fig, _ = plot.plot_graph(
+    plot.plot_graph(
         triang.vertices,
         triang.edges,
         env,
@@ -71,15 +75,13 @@ def test_triangulation(settings, env, plot_settings):
         nodes_dual=triang.vertices_dual,
         edges_dual=triang.edges_dual,
         show_dual_graph=True,
-        label_nodes=True,
-        label_triangles=True,
+        label_nodes=False,
+        label_triangles=False,
+        show_generators_labels=True,
     )
 
     # Show and/or save figure
     show_plot(SHOW_PLOT, BLOCKING, WAIT_TIME)
-    if SAVE_PLOT:
-        fig_name = "env"
-        io.save_figure(fig, settings, fig_name, "png")
 
 
 @pytest.mark.parametrize(
@@ -90,16 +92,17 @@ def test_triangulation(settings, env, plot_settings):
             [[1, 1, 1], [1, 1], [1], [], [-1], [-1, -1]],
             CustomColors.layers_cmap[0:6],
         ),
-        # ("test_env_2.yaml", None, None),
-        # ("test_env_3.yaml", None, None),
-        # ("test_env_4.yaml", None, None),
-        # ("test_env_5.yaml", None, None),
+        (
+            "test_env_5.yaml",
+            [[1, 2], [2], [1], [], [-1], [-2], [-2, -1]],
+            CustomColors.layers_cmap[0:7],
+        ),
     ],
 )
-def test_lift_triangulation(settings, env, order, cmap, plot_settings):
+def test_lift_triangulation(env, order, cmap, plot_settings):
 
     # Unpack fixtures
-    SHOW_PLOT, BLOCKING, WAIT_TIME, SAVE_PLOT = plot_settings
+    SHOW_PLOT, BLOCKING, WAIT_TIME = plot_settings
 
     # Create triangulation and lift it
     triang = Triangulation(env)
@@ -107,7 +110,7 @@ def test_lift_triangulation(settings, env, order, cmap, plot_settings):
     triang.lift_triangulation()
 
     # Generate plot of lifted triangulation
-    fig, _ = plot.plot_lifted_triangulation(
+    plot.plot_lifted_triangulation(
         triang,
         env,
         connect_layers=True,
@@ -118,6 +121,3 @@ def test_lift_triangulation(settings, env, order, cmap, plot_settings):
 
     # Show and/or save figure
     show_plot(SHOW_PLOT, BLOCKING, WAIT_TIME)
-    if SAVE_PLOT:
-        fig_name = "lifted_triangulation"
-        io.save_figure(fig, settings, fig_name, "png")
