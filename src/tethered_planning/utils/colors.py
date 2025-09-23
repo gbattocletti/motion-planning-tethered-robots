@@ -1,3 +1,51 @@
+def combine_colors(c1: str, c2: str, w1: float = 0.5, w2: float = 0.5) -> str:
+    """
+    Combine two hex RGB colors by averaging their RGB components.
+
+    Args:
+        c1 (str): First color as a hex RGB string
+        c2 (str): Second color as a hex RGB string
+
+        w1 (float, optional): Weight of the first color. Defaults to 0.5.
+        w2 (float, optional): Weight of the second color. Defaults to 0.5.
+
+    Returns:
+        str: Combined color as a hex RGB string
+
+    Raises:
+        TypeError: If the input colors are not strings
+        ValueError: If the input colors are not valid hex RGB strings
+        ValueError: If the weights are not between 0 and 1
+    """
+
+    # Helper function to zero-pad hex values
+    def zpad(x):
+        if len(x) == 2:
+            return x
+        else:
+            return "0" + x
+
+    # Validate inputs
+    if not (isinstance(c1, str) and isinstance(c2, str)):
+        raise TypeError("Colors must be hex RGB strings")
+    if not (c1.startswith("#") and c2.startswith("#")):
+        raise ValueError("Colors must start with '#'")
+    if not (len(c1) == 7 and len(c2) == 7):
+        raise ValueError("Colors must be 7 characters long (e.g. '#RRGGBB')")
+    if not (0 <= w1 <= 1 and 0 <= w2 <= 1):
+        raise ValueError("Weights must be between 0 and 1")
+
+    # Compute weighted average of RGB components
+    red = int(int(c1[1:3], 16) * w1 + int(c2[1:3], 16) * w2)
+    green = int(int(c1[3:5], 16) * w1 + int(c2[3:5], 16) * w2)
+    blue = int(int(c1[5:7], 16) * w1 + int(c2[5:7], 16) * w2)
+
+    # Convert back to hex RGB string
+    # [2:] to remove '0x' prefix from hex conversion, "#" to form hex color string
+    c_mix = "#" + zpad(hex(red)[2:]) + zpad(hex(green)[2:]) + zpad(hex(blue)[2:])
+    return c_mix
+
+
 class CmdColors:
     """
     Class of ANSI escape sequences to print colored output to the terminal.

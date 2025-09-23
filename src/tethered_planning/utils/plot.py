@@ -14,6 +14,7 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from shapely.geometry import LineString, MultiLineString, MultiPolygon, Point, Polygon
 from shapely.plotting import plot_line, plot_points, plot_polygon
 
+from ..utils import colors
 from ..utils import curves as curves_fcns
 from ..utils.colors import PlotColors
 
@@ -1020,6 +1021,18 @@ def plot_lifted_triangulation(
                     )
                 )
 
+                # Add color for the triangle to the color list. If multiple indexes are
+                # present (i.e., triangle spans multiple layers) the color of the
+                # triangle is obtained by mixing the colors corresponding to the layers
+                if layers_colormap is not None:
+                    layer_idx = np.unique(
+                        np.array([layer_idx_1, layer_idx_2, layer_idx_3])
+                    )
+                    c1 = layers_colormap[layer_idx[0]]
+                    c2 = layers_colormap[layer_idx[-1]]
+                    color = colors.combine_colors(c1, c2)
+                    triangles_colors.append(color)
+
             else:
 
                 # use layer index for z coordinate of all vertices
@@ -1034,9 +1047,9 @@ def plot_lifted_triangulation(
                     )
                 )
 
-            # Add color for the triangle to the color list
-            if layers_colormap is not None:
-                triangles_colors.append(layers_colormap[layer_idx])
+                # Add color for the triangle to the color list
+                if layers_colormap is not None:
+                    triangles_colors.append(layers_colormap[layer_idx])
 
     # Plot triangles
     triangles_3d_list = np.array(triangles_3d_list)
