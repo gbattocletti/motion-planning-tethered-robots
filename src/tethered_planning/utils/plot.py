@@ -847,16 +847,16 @@ def plot_lifted_triangulation(
                 )
             multi_layer_triangles = kwargs["multi_layer_triangles"]
         elif key == "custom_sign_order":
-            if not isinstance(kwargs["custom_sign_order"], list):
+            if not isinstance(kwargs["custom_sign_order"], (list, type(None))):
                 raise TypeError(
-                    "Expected list for custom_sign_order, "
+                    "Expected list or None for custom_sign_order, "
                     f"got {type(kwargs['custom_sign_order'])} instead."
                 )
             custom_sign_order = kwargs["custom_sign_order"]
         elif key == "layers_colormap":
             if not isinstance(kwargs["layers_colormap"], (list, type(None))):
                 raise TypeError(
-                    "Expected plt.Colormap, list or None for layers_colormap, "
+                    "Expected list or None for layers_colormap, "
                     f"got {type(kwargs['layers_colormap'])} instead."
                 )
             layers_colormap = kwargs["layers_colormap"]
@@ -947,7 +947,7 @@ def plot_lifted_triangulation(
             layer_list,
             facecolors="lightgrey",
             edgecolors="black",
-            alpha=0.2,
+            alpha=0.0,
         )
     )
 
@@ -1053,6 +1053,8 @@ def plot_lifted_triangulation(
 
     # Plot triangles
     triangles_3d_list = np.array(triangles_3d_list)
+    if layers_colormap is None:
+        triangles_colors = "cyan"
     ax.add_collection3d(
         Poly3DCollection(
             triangles_3d_list,
