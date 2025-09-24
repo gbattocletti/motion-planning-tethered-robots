@@ -5,7 +5,7 @@ import pytest
 
 from tethered_planning.env import env_2d
 from tethered_planning.env.triangulation import Triangulation
-from tethered_planning.utils import plot
+from tethered_planning.utils import plot, plot_triangulation
 from tethered_planning.utils.colors import CustomColors
 from tethered_planning.utils.settings import Settings
 
@@ -99,20 +99,32 @@ def test_triangulation(settings, env, plot_settings):
         ),
     ],
 )
-def test_lift_triangulation(env, order, cmap, plot_settings):
+def test_lift_triangulation(env, settings, order, cmap, plot_settings):
 
     # Unpack fixtures
     SHOW_PLOT, BLOCKING, WAIT_TIME = plot_settings
 
     # Create triangulation and lift it
     triang = Triangulation(env)
+    triang.set_max_dist(1000.0)  # large value to avoid max_dist stopping criterion
+    triang.set_max_triangles(40)  # tested value for custom signature order and cmap
     triang.triangulate()
     triang.lift_triangulation()
 
-    # Generate plot of lifted triangulation
-    plot.plot_lifted_triangulation(
+    # Generate 2D plot
+    plot_triangulation.plot_2d(
         triang,
         env,
+        settings,
+        custom_sign_order=order,
+        layers_colormap=cmap,
+    )
+
+    # Generate 3D plot
+    plot_triangulation.plot_3d(
+        triang,
+        env,
+        settings,
         connect_layers=True,
         multi_layer_triangles=True,
         custom_sign_order=order,

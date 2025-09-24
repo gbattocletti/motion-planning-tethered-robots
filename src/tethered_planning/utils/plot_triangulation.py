@@ -1,27 +1,293 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import matplotlib.pyplot as plt
 import numpy as np
-from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+from shapely.plotting import plot_polygon
 
-from tethered_planning.env.env_2d import Env2D
-from tethered_planning.env.triangulation import Triangulation
 from tethered_planning.utils import colors
 from tethered_planning.utils import curves as curves_fcns
+from tethered_planning.utils import plot
+from tethered_planning.utils.colors import PlotColors
+
+if TYPE_CHECKING:
+    from mpl_toolkits.mplot3d import Axes3D
+
+    from tethered_planning.env.env_2d import Env2D
+    from tethered_planning.env.triangulation import Triangulation
+    from tethered_planning.utils.settings import Settings
+
+
+def _get_unique_signatures(
+    triangulation: Triangulation,
+    order: list[list[int]] | None = None,
+) -> list[list[int]]:
+    """
+    Find all unique signatures in the triangulation and return them as a sorted list.
+    Optionally, a custom order for the signatures can be specified.
+
+    Args:
+        triangulation (Triangulation): Triangulation object to analyze
+        order (list[list[int]] | None, optional): custom order in which to
+            return the unique signatures. Its length must match the number of unique
+            signatures in the triangulation. Default is None.
+
+    Returns:
+        list[list[int]]: List of unique signatures, each represented as a list of ints
+
+    Raises:
+        ValueError: If custom_sign_order is provided and its length does not match the
+            number of unique signatures in the triangulation, or if it contains
+            signatures not present in the triangulation.
+    """
+    # TODO: move this to a method of curves (or a new signatures.py module?)
+
+    # Generate list of signatures
+    sign_list: list[tuple] = [tuple(tri[1]) for tri in triangulation.triangles_lift]
+
+    # Get unique signatures
+    sign_set: set[tuple] = {*sign_list}
+    unique_sign_list: list[list] = [
+        list(s) for s in sign_set
+    ]  # convert signatures back to lists
+    unique_sign_list.sort()  # sort the signatures
+    n_sign = len(unique_sign_list)  # number of unique signatures
+
+    # If a custom order is specified, check its validity and apply it
+    if order is not None:
+        if len(order) != n_sign:
+            raise ValueError(
+                f"The length of order {len(order)} does not "
+                f"match the number of unique signatures {n_sign} in the triangulation."
+            )
+        for sign in unique_sign_list:
+            if sign not in order:
+                raise ValueError(f"The signature {sign} is not present in order")
+        unique_sign_list = order  # override the signature order
+
+    # Return the list of unique signatures
+    return unique_sign_list
+
+
+def plot_2d(
+    triangulation: Triangulation,
+    env: Env2D,
+    settings: Settings,
+    **kwargs,
+) -> tuple[plt.Figure, plt.Axes]:
+    """
+    Plot the lifted triangulation in a layer-by-layer fashion, where each layer is
+    displayed as a 2D plot.
+
+    Args:
+        triangulation (Triangulation): Triangulation object to plot
+        env (Env2D): Env object to plot
+
+    Kwargs:
+        custom_sign_order (list[list[int]] | None, optional): custom order in which to
+            plot the layers corresponding to the different signatures. The order is
+            applied starting from the top-left corner of the figure, going row-wise.
+            This argument allows for custom tailoring of the signature order and is
+            intended to be used only for plotting specific examples with improved
+            visualization.
+        layers_cmap (list[str] | None, optional): colormap to use for the layers
+            corresponding to the different signatures. The length must match the number
+            of unique signatures in the triangulation, or be one single color to be
+            used for all layers. If None (default) a default colormap will be used.
+
+    Returns:
+        tuple[plt.Figure, plt.Axes]: Figure and Axes objects
+
+    Raises:
+        TypeError: If any of the kwargs are not of the expected type.
+        ValueError: If any of the kwargs are not recognized or not consistent.
+    """
+    # TODO: some of the kwargs are the same as in plot_3d, consider merging them
+    #       and having a common function to parse them
+
+    # Default kwarg values
+    custom_sign_order: list[list[int]] | None = None  # custom order for signatures
+    layers_cmap: list[str] | None = None  # colormap for the layers
+
+    # Parse kwargs
+    for key in kwargs:
+        if key == "custom_sign_order":
+            if not isinstance(kwargs["custom_sign_order"], (list, type(None))):
+                raise TypeError(
+                    "Expected list or None for custom_sign_order, "
+                    f"got {type(kwargs['custom_sign_order'])} instead."
+                )
+            custom_sign_order = kwargs["custom_sign_order"]
+        elif key == "layers_colormap":
+            if not isinstance(kwargs["layers_colormap"], (list, str, type(None))):
+                raise TypeError(
+                    "Expected list, str, or None for layers_colormap, "
+                    f"got {type(kwargs['layers_colormap'])} instead."
+                )
+            layers_cmap = kwargs["layers_colormap"]
+        else:
+            pass  # ignore other kwargs
+
+    # Function settings
+    max_cols: int = 4  # max number of columns in the figure
+    add_env_subplot: bool = True  # add subplot with the env at the beginning
+    show_obstacles: bool = False  # show obstacles in the env subplot
+
+    ### PREPROCESSING ###
+    # Find all unique signatures
+    unique_sign_list = _get_unique_signatures(triangulation, order=custom_sign_order)
+    n_sign = len(unique_sign_list)  # number of unique signatures
+
+    # Validate layers cmap
+    if layers_cmap is None:
+        layers_cmap = PlotColors.layers_cmap[0:n_sign]
+    elif len(layers_cmap) != 1 and len(layers_cmap) != n_sign:
+        raise ValueError(
+            "The length of layers_cmap must be either 1 (single color for all layers) "
+            f"or match the number of unique signatures {n_sign} in the triangulation."
+        )
+
+    # Define number of rows and columns in the figure
+    n_rows: int = int(np.ceil(n_sign / max_cols))  # number of rows in the figure
+    n_cols: int = min(n_sign, max_cols)  # number of columns in the figure
+
+    # Check if the env subplot can be added
+    add_env_subplot = bool(add_env_subplot is True and n_sign < n_cols * n_rows)
+
+    ### GENERATE FIGURE ###
+    # Initialize figure and axes
+    fig: plt.Figure
+    axs: np.ndarray[plt.Axes]
+    fig, axs = plt.subplots(n_rows, n_cols, figsize=(8, 8))
+
+    # Plot the environment in the first subplot
+    if add_env_subplot:
+        plot.plot_env(
+            env,
+            settings,
+            show_generators=True,
+            show_generators_labels=True,
+            show_anchor=True,
+            show_tether=True,
+            show_robot=False,
+            show_goal=False,
+            show_legend=False,
+            target_ax=axs[0, 0],
+        )
+        start_idx = 1  # start other plots from 1 (0 is used by env)
+    else:
+        start_idx = 0  # start other plots from 0 (no env plot)
+
+    # Plot each layer of the lifted triangulation
+    idx: int  # index of the subplot
+    ax: plt.Axes  # individual axis objects found by iterating over the axs array
+    for idx, ax in enumerate(axs.ravel()[start_idx:], start=0):
+
+        # Check if subplot is within range of signatures
+        if idx >= n_sign:
+            ax.axis("off")  # hide unused subplots
+            continue
+
+        # Get signature for this layer
+        sign = unique_sign_list[idx]
+
+        # Set plot limits, labels, title, ticks, and grid
+        ax.set_aspect("equal", "box")
+        ax.set_xlim([0, env.size[0]])
+        ax.set_ylim([0, env.size[1]])
+        ax.set_xlabel(settings.plot.x_label, rotation=0)
+        ax.set_ylabel(settings.plot.y_label, rotation=0)
+        ax.grid(
+            True,
+            which="major",
+            linestyle=":",
+            color="gray",
+            linewidth=0.5,
+            zorder=1,
+        )
+        ax.grid(
+            True,
+            which="minor",
+            linestyle=":",
+            color="gray",
+            linewidth=0.3,
+            zorder=1,
+        )
+        ax.minorticks_on()
+
+        # Add title
+        chars: list[str] = []  # list of characters
+        word: str
+        for i in sign:
+            char = f"\\sigma_{{{abs(i)}}}"
+            if i < 0:
+                char += "^{-1}"
+            chars.append(char)
+        if not chars:
+            word = "`` ''"  # empty signature
+        else:
+            word = "``$" + "".join(chars) + "$''"  # latex mathmode
+        ax.set_title(
+            word,
+            **{
+                "fontsize": 12,
+                "fontweight": "bold",
+            },
+        )
+
+        # Add obstacles (optional)
+        if show_obstacles and not env.obstacle_region.is_empty:
+            plot_polygon(
+                env.obstacle_region,
+                ax=ax,
+                color=PlotColors.obstacles_color,
+                alpha=1,
+                edgecolor=PlotColors.obstacles_edges_color,
+                linewidth=1,
+                add_points=False,
+                zorder=4,
+            )
+
+        # Collect triangles with the same signature and plot them on the same level
+        idx_list: list[int] = [i for i, s in triangulation.triangles_lift if s == sign]
+        for triangle_idx in idx_list:
+            plot_polygon(
+                triangulation.triang.geoms[triangle_idx],
+                ax=ax,
+                color=(
+                    layers_cmap[idx]
+                    if isinstance(layers_cmap, list)  # check if list of colors
+                    else layers_cmap
+                ),
+                alpha=0.7,
+                edgecolor="black",
+                linewidth=1,
+                add_points=False,
+                zorder=5,
+            )
+
+    # Return figure and axes objects
+    return fig, axs
 
 
 def plot_3d(
     triangulation: Triangulation,
     env: Env2D,
+    settings: Settings = None,  # pylint: disable=unused-argument
     **kwargs,
 ) -> tuple[plt.Figure, plt.Axes]:
     """
-    Plot the lifted triangulation.
+    Plot the lifted triangulation in 3D, where the different layers are organized along
+    the vertical axis according to their signature.
 
     Args:
         triangulation (Triangulation): Triangulation object to plot
         env (Env2D): Env object to plot
-        settings (Settings): Settings object with the plot settings. Note: the plot
-        colors depend on the PlotColors class and not on the Settings object.
+        settings (Settings, optional): Settings object (not used here, but included
+            for consistency with other plotting functions so that they share the same
+            function signature).
 
     Kwargs:
         connect_layers (bool): shared edges of triangles plotted on different layers
@@ -95,30 +361,11 @@ def plot_3d(
 
     ### PREPROCESSING ###
     # Find all unique signatures
-    sign_list: list[tuple] = [tuple(tri[1]) for tri in triangulation.triangles_lift]
-    sign_set: set[tuple] = {*sign_list}  # get unique signatures
-    unique_sign_list: list[list] = [
-        list(s) for s in sign_set
-    ]  # convert signatures back to lists
-    unique_sign_list.sort()  # sort the signatures
+    unique_sign_list = _get_unique_signatures(triangulation, order=custom_sign_order)
     n_sign = len(unique_sign_list)  # number of unique signatures
 
-    # Specify custom order for the signature layers
-    if custom_sign_order is not None:
-        if len(custom_sign_order) != n_sign:
-            raise ValueError(
-                f"The length of custom_sign_order {len(custom_sign_order)} does not "
-                f"match the number of unique signatures {n_sign} in the triangulation."
-            )
-        for sign in unique_sign_list:
-            if sign not in custom_sign_order:
-                raise ValueError(
-                    f"The signature {sign} is not present in custom_sign_order"
-                )
-        unique_sign_list = custom_sign_order  # override the signature order
-
     # Define colormap for the triangles (organized by layers)
-    triangles_colors: list[str] | str
+    triangles_cmap: list[str] | str
     if layers_colormap is not None:
         if len(layers_colormap) != n_sign and len(layers_colormap) != 1:
             raise ValueError(
@@ -127,9 +374,9 @@ def plot_3d(
                 "the triangulation."
             )
         if len(layers_colormap) == 1:
-            triangles_colors = layers_colormap[0]
+            triangles_cmap = layers_colormap[0]
         else:
-            triangles_colors = []
+            triangles_cmap = []
 
     ### GENERATE FIGURE ###
     # Initialize 3d axes
@@ -253,7 +500,7 @@ def plot_3d(
                     c1 = layers_colormap[layer_idx[0]]
                     c2 = layers_colormap[layer_idx[-1]]
                     color = colors.combine_colors(c1, c2)
-                    triangles_colors.append(color)
+                    triangles_cmap.append(color)
 
             else:
 
@@ -271,16 +518,16 @@ def plot_3d(
 
                 # Add color for the triangle to the color list
                 if layers_colormap is not None:
-                    triangles_colors.append(layers_colormap[layer_idx])
+                    triangles_cmap.append(layers_colormap[layer_idx])
 
     # Plot triangles
     triangles_3d_list = np.array(triangles_3d_list)
     if layers_colormap is None:
-        triangles_colors = "cyan"
+        triangles_cmap = "cyan"
     ax.add_collection3d(
         Poly3DCollection(
             triangles_3d_list,
-            facecolors=triangles_colors,
+            facecolors=triangles_cmap,
             edgecolors="black",
             alpha=0.7,
         )
