@@ -4,9 +4,9 @@ import numpy as np
 import shapely
 from shapely import LineString, Point, Polygon
 
-from ..utils import curves
-from ..utils.colors import CmdColors
-from .env_2d import Env2D
+from tethered_planning.env.env_2d import Env2D
+from tethered_planning.utils import curves
+from tethered_planning.utils.colors import CmdColors
 
 
 class Triangulation:
@@ -35,10 +35,8 @@ class Triangulation:
                 "point in Triangulation."
             )
 
-        # Max dist between anchor point and vertices (termination criterion for lifting)
-        self.max_dist: float  # Maximum distance between anchor point and vertices
-
         # Triangulation
+        self.triangulated: bool = False  # flag to indicate if triangulation is done
         self.triang: shapely.MultiPolygon  # triangulation
         self.triang_tree: shapely.STRtree  # tree from triangulation (fast operations)
         self.root_idx: int  # index of the root triangle in the triangulation
@@ -64,6 +62,10 @@ class Triangulation:
         self.triangles_lift: list[tuple[int, list[int]]] = []
         self.edges_lift: list[list[int]] = []
 
+        # Termination criteria for lifting (with large default values)
+        self.max_lifted_triangles: int = 500  # max number of triangles to expand
+        self.max_dist: float = 1e3  # Maximum distance between anchor point and vertices
+
         # Debugging
         self.DEBUG: bool = False
 
@@ -74,7 +76,24 @@ class Triangulation:
         Args:
             max_dist (float): maximum distance between anchor point and vertices
         """
+        if not isinstance(max_dist, (int, float)):
+            raise TypeError("max_dist must be a number.")
+        if max_dist <= 0:
+            raise ValueError("max_dist must be a positive number.")
         self.max_dist = max_dist
+
+    def set_max_triangles(self, max_triangles: int) -> None:
+        """
+        Setter for max number of lifted triangles
+
+        Args:
+            max_triangles (int): maximum number of lifted triangles
+        """
+        if not isinstance(max_triangles, int):
+            raise TypeError("max_triangles must be an integer.")
+        if max_triangles <= 0:
+            raise ValueError("max_triangles must be a positive integer.")
+        self.max_lifted_triangles = max_triangles
 
     def triangulate(self) -> None:
         """
@@ -150,7 +169,7 @@ class Triangulation:
                 idx1, idx2 = (idx1, idx2) if idx1 <= idx2 else (idx2, idx1)  # sort
 
                 # Append edge to list
-                if not ((self.edges == [idx1, idx2]).all(axis=1).any()):
+                if not (self.edges == [idx1, idx2]).all(axis=1).any():
                     self.edges = np.append(self.edges, [[idx1, idx2]], axis=0)
 
                 # Find index of the triangles sharing the edge
@@ -166,13 +185,16 @@ class Triangulation:
                     continue  # boundary edge
 
                 # Add edge to list
-                if not ((self.edges_dual == [idx1, idx2]).all(axis=1).any()):
+                if not (self.edges_dual == [idx1, idx2]).all(axis=1).any():
                     self.edges_dual = np.append(self.edges_dual, [[idx1, idx2]], axis=0)
 
         # Update counters
         self.n_vertices = self.vertices.shape[0]
         self.n_edges = self.edges.shape[0]
         self.n_edges_dual = self.edges_dual.shape[0]
+
+        # Set triangulated flag
+        self.triangulated = True
 
     def find_vertex_idx(self, p: np.ndarray) -> int | None:
         """
@@ -242,12 +264,15 @@ class Triangulation:
         Returns:
             None
         """
+        # Check if env was triangulated (if not, execute triangulation)
+        if not self.triangulated:
+            self.triangulate()
+
         # Initialize queues
         open_queue: list[int] = []  # list of triangles to lift
         closed_queue: list[int] = []  # list of triangles already visited
 
         # Initialize counter (termination condition)
-        n_max: int = 40  # max number of triangles
         n: int = 0
 
         # Initial conditions
@@ -262,7 +287,7 @@ class Triangulation:
         parent_idx: int  # index of the parent triangle
 
         # Main lifting loop
-        while open_queue and n < n_max:
+        while open_queue and n < self.max_lifted_triangles:
 
             # Pop the next triangle to lift and unpack it
             idx, sign, parent_idx = open_queue.pop(0)
@@ -290,10 +315,10 @@ class Triangulation:
 
         # Print debug info
         if self.DEBUG:
-            if n >= n_max:
+            if n >= self.max_lifted_triangles:
                 print(
                     f"{CmdColors.WARNING}[Triang]{CmdColors.WARNING} Reached max "
-                    f"number of triangles ({n_max}) during lifting."
+                    f"number of triangles ({self.max_lifted_triangles}) during lifting."
                 )
             elif not open_queue:
                 print(

@@ -13,14 +13,11 @@ from matplotlib.patches import Patch
 from shapely.geometry import LineString, MultiLineString, MultiPolygon, Point, Polygon
 from shapely.plotting import plot_line, plot_points, plot_polygon
 
-from ..utils.colors import PlotColors
+from tethered_planning.utils.colors import PlotColors
 
 if TYPE_CHECKING:
-    from mpl_toolkits.mplot3d import Axes3D
-
-    from ..env.env_2d import Env2D
-    from ..env.triangulation import Triangulation
-    from .settings import Settings
+    from tethered_planning.env.env_2d import Env2D
+    from tethered_planning.utils.settings import Settings
 
 # NOTE: Plots implementation details:
 # - To modify the colors of the plot, change the values in the PlotColors class
@@ -69,10 +66,26 @@ def plot_env(env: Env2D, settings: Settings, **kwargs) -> tuple[plt.Figure, plt.
 
     Kwargs:
         show_anchor (bool, **kwargs): flag to display the anchor point
+        show_robot (bool, **kwargs): flag to display the robot initial position
+        show_tether (bool, **kwargs): flag to display the tether
+        tether (LineString | np.ndarray, **kwargs): tether configuration to plot
         show_goal (bool, **kwargs): flag to display the goal region
         show_legend (bool, **kwargs): flag to display the legend
         show_generators (bool, **kwargs): flag to display the generators
         show_generators_labels (bool, **kwargs): add labels to the generators
+        points (list[Point | np.ndarray], **kwargs): list of points to plot
+        show_points_labels (bool, **kwargs): add labels to the points
+        curves (list[LineString | np.ndarray], **kwargs): list of curves to plot
+        show_curves_nodes (bool, **kwargs): flag to display the nodes of the curves
+        show_curves_labels (bool, **kwargs): add labels to the curves
+        polygons (list[Polygon | MultiPolygon | np.ndarray], **kwargs): list of polygons
+            to plot
+        show_polygons_nodes (bool, **kwargs): flag to display the nodes of the polygons
+        show_polygons_labels (bool, **kwargs): add labels to the polygons
+        title (str, **kwargs): plot title
+        target_ax (plt.Axes, **kwargs): Existing Axes object to draw the plot on. If
+            None (default), a new figure and axes are created. This kwarg is useful to
+            use this plot function as a subplot of a larger figure.
 
     Returns:
         tuple[plt.Figure, plt.Axes]: Figure and Axes objects
@@ -99,6 +112,7 @@ def plot_env(env: Env2D, settings: Settings, **kwargs) -> tuple[plt.Figure, plt.
     show_polygons_nodes: bool = False  # show the nodes (points) of the polygons
     show_polygons_labels: bool = False  # label the polygons
     title: str = ""  # plot title
+    target_ax: plt.Axes | None = None  # Axes object to plot on (if None, create new)
 
     # Parse kwargs
     for key, value in kwargs.items():
@@ -241,12 +255,26 @@ def plot_env(env: Env2D, settings: Settings, **kwargs) -> tuple[plt.Figure, plt.
             if not isinstance(value, str):
                 raise TypeError(f"Expected str for title, got {type(value)} instead.")
             title = value
+        elif key == "target_ax":
+            if not isinstance(value, mpl.axes.Axes):
+                raise TypeError(
+                    f"Expected plt.Axes for target_ax, got {type(value)} instead."
+                )
+            target_ax = value
         else:
             raise ValueError(f"Unknown kwarg: {key}")
 
-    # Create figure object
-    fig = plt.figure(figsize=settings.plot.figsize)
-    ax = plt.gca()
+    # Create figure and axes objects
+    fig: plt.Figure
+    ax: plt.Axes
+    if target_ax is None:
+        fig = plt.figure(figsize=settings.plot.figsize)  # create new figure
+        ax = plt.gca()
+    else:
+        fig = target_ax.figure
+        ax = target_ax
+
+    # Set plot limits, labels, title, ticks, and grid
     ax.set_aspect("equal", "box")
     ax.set_xlim([0, env.size[0]])
     ax.set_ylim([0, env.size[1]])
@@ -297,14 +325,14 @@ def plot_env(env: Env2D, settings: Settings, **kwargs) -> tuple[plt.Figure, plt.
                         ax.text(
                             generator.coords[0][0] + 0.2,
                             generator.coords[0][1] + 0.2,
-                            f"$g_{idx+1}$",  # latex mathmode
+                            f"$\\sigma_{idx+1}$",  # latex mathmode
                             fontsize=6,
                         )
                 elif isinstance(env.generators, LineString):
                     ax.text(
                         env.generators.coords[0][0] + 0.2,
                         env.generators.coords[0][1] + 0.2,
-                        f"$g_{1}$",  # latex mathmode
+                        f"$\\sigma_{1}$",  # latex mathmode
                         fontsize=6,
                     )
 
@@ -330,7 +358,7 @@ def plot_env(env: Env2D, settings: Settings, **kwargs) -> tuple[plt.Figure, plt.
 
     # Plot anchor point
     if show_anchor:
-        (anchor_handle,) = plt.plot(
+        (anchor_handle,) = ax.plot(
             env.anchor_point[0],
             env.anchor_point[1],
             marker="o",
@@ -352,7 +380,7 @@ def plot_env(env: Env2D, settings: Settings, **kwargs) -> tuple[plt.Figure, plt.
 
     # Plot robot
     if show_robot:
-        (robot_handle,) = plt.plot(
+        (robot_handle,) = ax.plot(
             env.robot_initial_pos[0],
             env.robot_initial_pos[1],
             marker="o",
