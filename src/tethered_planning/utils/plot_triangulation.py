@@ -170,7 +170,7 @@ def plot_2d(
             show_generators=True,
             show_generators_labels=True,
             show_anchor=True,
-            show_tether=True,
+            show_tether=False,
             show_robot=False,
             show_goal=False,
             show_legend=False,
