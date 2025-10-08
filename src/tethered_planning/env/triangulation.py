@@ -296,6 +296,11 @@ class Triangulation:
             # TODO: this section can be updated by only checking the vertices that are
             # not shared with the parent triangle, as those have already been checked
             # TODO: check distance of edges from anchor point
+            # Measure the distance from anchor point and check if it's within the limit
+            # p = vertex # TODO
+            # dist = self._lifted_distance(self.env.anchor_point, [], p, sign)
+            # if dist < self.max_dist:
+            #     continue  # discard triangle if too far
 
             # Add element to graph; append it to closed queue; increase counter
             n += 1  # Increase counter
@@ -326,16 +331,306 @@ class Triangulation:
                     "the open queue."
                 )
 
-    def check_length(self, p: np.ndarray) -> bool:
+    def _lifted_distance(
+        self,
+        p1: np.ndarray,
+        s1: list[int],
+        p2: np.ndarray,
+        s2: list[int],
+    ) -> float:
         """
-        Check if the length of the geodesic between one point and the anchor point over
-        the simplicial complex is within the length constraint.
+        Measure the length of the shortest path (geodesic) between two points in the
+        lifted triangulation.
 
         Args:
-            p: the point to check
+            p1: the first point to check
+            s1: the signature of the first point
+            p2: the second point to check
+            s2: the signature of the second point
 
         Returns:
-            bool: True if the length is less than self.max_dist, False otherwise.
+            float: The length of the shortest path (geodesic) between the two points.
         """
-        # See https://www.uni-trier.de/fileadmin/fb4/prof/INF/DEA/Seminar0708/Hershberger-Snoeyink3.pdf  # pylint: disable=line-too-long
-        # TODO: complete implementation
+        # TODO: implement this
+        # 1. Find triangles containing p1 and p2
+        # 2. Find representative path between the two triangles in the dual graph (by
+        #    A* or Dijkstra search on the dual graph)
+        # 3. Compute the shortest path homotopic to the representative path using the
+        #    funnel algorithm (_shortest_homotopic_path method)
+        # 4. Measure the length of the shortest path and return it
+
+        # CHECKME: is it better to use the triangles t1 and t2 instead of s1 and s2?
+        # I.e., indicate the triangles containing p1 and p2 instead of their signatures?
+
+        # Return distance
+        return 0.0
+
+    def _shortest_homotopic_path(
+        self,
+        alpha: list[int],
+        p_init: np.ndarray | None = None,
+        p_end: np.ndarray | None = None,
+    ) -> list[np.ndarray]:
+        """
+        Compute the shortest path between two points that is homotopic to a given path.
+
+        The algorithm is based on:
+            - J. Hershberger, J. Snoeyink, "Computing minimum length paths of a given
+              homotopy class" (1994).
+            - D. Lee, F. Preparata, "Euclidean Shortest Paths in the Presence of
+              Rectilinear Barriers" (1984).
+            - Reza Teshnizi, "The Funnel Algorithm Explained Visually" (2018)
+              https://medium.com/@reza.teshnizi/the-funnel-algorithm-explained-visually-41e374172d2d
+
+        Args:
+            alpha (list[int]): Representative path to shorten. It uniquely identifies
+                the homotopy class in which to find the shortest path. It is represented
+                as a list of indices of the dual lifted graph nodes (triangles in the
+                primal lifted graph).
+            p_init (np.ndarray, optional): The starting point of the path. It must lie
+                in the first triangle of alpha. Default is None, in which case the
+                centroid of the first triangle is used.
+            p_end (np.ndarray, optional): The ending point of the path. It must lie in
+                the last triangle of alpha. Default is None, in which case the centroid
+                of the last triangle is used.
+
+        Returns:
+            np.ndarray: The shortest path homotopic to alpha, represented as a list of
+                [x, y] coordinates. The coordinates correspond to obstacle vertices,
+                except for the first and last points, which coincide with p_init and
+                p_end respectively (or with the centroids of the first and last
+                triangles in alpha).
+        """
+        # Initialize data structures
+        tail: np.ndarray = np.array([])  # shortest path (sequence of points)
+        left: np.ndarray = np.array([])  # left side of the funnel (sequence of points)
+        right: np.ndarray = np.array([])  # right side of the funnel (same as above)
+        tri_idx: int  # current triangle index
+        tri_idx_prev: int  # previous triangle index
+        v_left: np.ndarray  # left vertex of the edge being crossed (between triangles)
+        v_right: np.ndarray  # right vertex of the edge being crossed
+
+        # Add initial point to the funnel
+        # NOTE: for convenience, the apex of the funnel is always part of both sides of
+        # the funnel and not part of the tail. At the end of the algorithm, the last
+        # apex (current apex point after tracing alpha) is added to the tail.
+        if p_init is not None:
+            tri_idx_prev = self.triang_tree.query(
+                Point(p_init),
+                predicate="intersects",
+            )[0]
+            if len(tri_idx_prev) != 1:
+                print(
+                    "Warning: p_init does not lie in a unique triangle. Assuming"
+                    "it lies in the first triangle of alpha."
+                )
+                tri_idx_prev = alpha[0]
+                alpha = alpha[1:]
+        else:
+            p_init = self.vertices_dual[alpha[0]]
+            tri_idx_prev = alpha[0]
+            alpha = alpha[1:]
+        left = p_init.reshape(1, 2)  # initialize left side of funnel
+        right = left.copy()  # initialize right side of funnel
+
+        # Trace alpha through the triangulation
+        for tri_idx in alpha:
+
+            # Skip if the same triangle (can happen if alpha is not simplified)
+            if tri_idx == tri_idx_prev:
+                continue
+
+            # Find vertices of the edge being crossed
+            shared_vertices = np.intersect1d(
+                self.triangles[tri_idx_prev],
+                self.triangles[tri_idx],
+            )
+            if len(shared_vertices) != 2:
+                raise ValueError("Triangles do not share an edge")
+            v_left, v_right = self.vertices[shared_vertices]  # NOTE: not sorted yet
+
+            # Determine which vertex is left and which is right
+            # NOTE: to do so, the angle between the previous triangle centroid and the
+            # edge endpoints is computed. The angles to the endpoints are then compared.
+            # After the sorting, v1 is the left vertex and v2 the right vertex. This
+            # method is enabled by the fact that the difference between the two angles
+            # is no greater than pi in absolute value.
+            alpha_1 = np.atan2(
+                v_left[1] - self.vertices_dual[tri_idx_prev, 1],
+                v_left[0] - self.vertices_dual[tri_idx_prev, 0],
+            )
+            alpha_2 = np.atan2(
+                v_right[1] - self.vertices_dual[tri_idx_prev, 1],
+                v_right[0] - self.vertices_dual[tri_idx_prev, 0],
+            )
+            delta = (alpha_2 - alpha_1 + np.pi) % (2 * np.pi) - np.pi
+            if delta > 0:
+                v_left, v_right = (
+                    v_right,
+                    v_left,
+                )  # swap to ensure v1 is left and v2 is right
+            else:
+                pass  # order is correct
+
+            # Update funnel sides
+            # NOTE: for each edge crossed except the first one, only one endpoint of the
+            # edge change with respect to the previous time step. The if statement is
+            # used to check this and avoid unnecessary computations.
+
+            # Left side
+            if not np.array_equal(v_left, left[-1]):
+
+                # Check left side
+                # During this check, the angle to the new point is compared to the
+                # angle of the existing side of the funnel to determine if the new
+                # point forms a supporting edge, i.e., if it makes the funnel narrower.
+                for i in range(len(left) - 1, 0, -1):
+                    angle_new = np.arctan2(
+                        v_left[1] - left[i, 1],
+                        v_left[0] - left[i, 0],
+                    )
+                    angle_old = np.arctan2(
+                        left[i, 1] - left[i - 1, 1],
+                        left[i, 0] - left[i - 1, 0],
+                    )
+                    delta = (angle_new - angle_old + np.pi) % (2 * np.pi) - np.pi
+                    if delta > 0:
+                        break  # angle formed by new point is larger than previous
+                    elif delta <= 0:
+                        left = left[:-1]  # remove last point from left
+
+                else:
+                    # This block is executed only if the for loop is not broken, i.e.,
+                    # if the left side of the funnel has been completely emptied. In
+                    # this case, points on the right side of the funnel must be checked
+                    # as well to determine if the funnel (or part of it) has closed.
+                    # NOTE: this block also contains the tail update.
+                    for i in range(len(right) - 1):
+                        angle_new = np.arctan2(
+                            v_left[1] - right[i, 1],
+                            v_left[0] - right[i, 0],
+                        )
+                        angle_old = np.arctan2(
+                            right[i + 1, 1] - right[i, 1],
+                            right[i + 1, 0] - right[i, 0],
+                        )
+                        delta = (angle_new - angle_old + np.pi) % (2 * np.pi) - np.pi
+                        if delta <= 0:
+                            # The funnel has closed up to this point. Therefore, this
+                            # point from the right side becomes the new apex of the
+                            # funnel. Therefore, it is replaced to the current only
+                            # remaining point in the left side, which in turn is added
+                            # to the tail
+                            tail = np.vstack((tail, left[0]))  # move old apex to tail
+                            left = right[i + 1].reshape(1, 2)  # new apex of funnel
+                            right = right[i + 1 :].copy()  # keep right side from i+1
+
+                        elif delta > 0:
+                            break
+
+                left = np.vstack((left, v_left))  # add new left point (always)
+
+            # Right side
+            if not np.array_equal(v_right, right[-1]):
+
+                # Check right side
+                # During this check, the angle to the new point is compared to the
+                # angle of the existing side of the funnel to determine if the new
+                # point forms a supporting edge, i.e., if it makes the funnel narrower.
+                for i in range(len(right) - 1, 0, -1):
+                    angle_new = np.arctan2(
+                        v_right[1] - right[i, 1],
+                        v_right[0] - right[i, 0],
+                    )
+                    angle_old = np.arctan2(
+                        right[i, 1] - right[i - 1, 1],
+                        right[i, 0] - right[i - 1, 0],
+                    )
+                    delta = (angle_new - angle_old + np.pi) % (2 * np.pi) - np.pi
+                    if delta < 0:  # NOTE: comparison is inverted w.r.t. left side
+                        break  # angle formed by new point is larger than previous
+                    elif delta >= 0:
+                        right = right[:-1]  # remove last point from right
+
+                else:
+                    # This block is executed only if the for loop is not broken, i.e.,
+                    # if the right side of the funnel has been emptied (except for the
+                    # apex). In this case, points on the left side of the funnel must be
+                    # checked as well to determine if the funnel (or part of it) has
+                    # closed.
+                    # NOTE: this block also contains the tail update.
+                    for i in range(len(left) - 1):
+                        angle_new = np.arctan2(
+                            v_left[1] - left[i, 1],
+                            v_left[0] - left[i, 0],
+                        )
+                        angle_old = np.arctan2(
+                            left[i + 1, 1] - left[i, 1],
+                            left[i + 1, 0] - left[i, 0],
+                        )
+                        delta = (angle_new - angle_old + np.pi) % (2 * np.pi) - np.pi
+                        if delta >= 0:
+                            # The funnel has closed up to this point. Therefore, this
+                            # point from the left side becomes the new apex of the
+                            # funnel. Therefore, it is replaced to the current only
+                            # remaining point in the right side, which in turn is added
+                            # to the tail
+                            tail = np.vstack((tail, right[0]))  # move old apex to tail
+                            right = left[i + 1].reshape(1, 2)  # new apex of funnel
+                            left = left[i + 1 :].copy()  # keep left side from i+1
+
+                        elif delta < 0:
+                            break
+
+                right = np.vstack((right, v_right))  # add new right point (always)
+
+            # Update previous triangle index
+            tri_idx_prev = tri_idx
+
+        # Final step
+        if p_end is None:
+            p_end = self.vertices_dual[tri_idx].reshape(1, 2)
+
+        # Check left side and add points to tail
+        if left.size > 0:
+            for i in range(len(left) - 1, 0, -1):
+                angle_new = np.arctan2(
+                    p_end[1] - left[i, 1],
+                    p_end[0] - left[i, 0],
+                )
+                angle_old = np.arctan2(
+                    left[i, 1] - left[i - 1, 1],
+                    left[i, 0] - left[i - 1, 0],
+                )
+                delta = (angle_new - angle_old + np.pi) % (2 * np.pi) - np.pi
+                if delta > 0:
+                    # Add all points from left side up to i (including i) to the tail
+                    tail = np.vstack((tail, left[: i + 1]))
+                    break
+                else:
+                    continue
+
+        # Check right side and add points to tail
+        if right.size > 0:
+            for i in range(len(right) - 1, 0, -1):
+                angle_new = np.arctan2(
+                    p_end[1] - right[i, 1],
+                    p_end[0] - right[i, 0],
+                )
+                angle_old = np.arctan2(
+                    right[i, 1] - right[i - 1, 1],
+                    right[i, 0] - right[i - 1, 0],
+                )
+                delta = (angle_new - angle_old + np.pi) % (2 * np.pi) - np.pi
+                if delta < 0:
+                    # Add all points from right side up to i (including i) to the tail
+                    tail = np.vstack((tail, right[: i + 1]))
+                    break
+                else:
+                    continue
+
+        # Add final point to tail
+        tail = np.vstack((tail, p_end))
+
+        # Return the shortest path
+        return tail
