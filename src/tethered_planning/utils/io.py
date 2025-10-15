@@ -6,18 +6,20 @@ from datetime import datetime
 from pickletools import optimize
 from typing import TYPE_CHECKING
 
+import matplotlib as mpl
 import openpyxl
 import yaml
 from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation, ImageMagickWriter
+from packaging import version
 
-from .colors import CmdColors
+from tethered_planning.utils.colors import CmdColors
 
 if TYPE_CHECKING:
     from networkx import Graph
 
-    from ..env.env_2d import Env2D
-    from .settings import Settings
+    from tethered_planning.env.env_2d import Env2D
+    from tethered_planning.utils.settings import Settings
 
 
 def create_io_folders() -> None:
@@ -44,7 +46,7 @@ def create_io_folders() -> None:
         )
 
 
-def create_sim_folder() -> tuple[str, str]:
+def create_sim_name() -> tuple[str, str]:
     """
     Generate a unique simulation identifier by combining the current date and a 4-digit
     number. This name is used for both the results folder and as root for the results
@@ -64,6 +66,22 @@ def create_sim_folder() -> tuple[str, str]:
         counter += 1
     sim_id = f"{counter:04}"
     sim_name = f"{date}-{sim_id}"
+
+    # Return the simulation id and name
+    return (sim_id, sim_name)
+
+
+def create_sim_folder() -> tuple[str, str]:
+    """
+    Create a new simulation folder based on the current date and a 4-digit counter.
+
+    Args:
+        None
+
+    Returns:
+        (sim_id, sim_name) (str, str): simulation id and name.
+    """
+    sim_id, sim_name = create_sim_name()
     os.makedirs(f"results/{sim_name}")  # create sim folder
 
     # Return the simulation id and name
@@ -267,13 +285,15 @@ def save_figure(
     """
 
     # Check extension
-    if not extension == settings.plot.format:
-        print(
-            f"{CmdColors.WARNING}[IO]{CmdColors.ENDC} The input extension "
-            f".{extension} does not match the one set in the settings "
-            f".{settings.plot.format}. The figure will be saved as a .{extension} "
-            "file."
-        )
+    if extension == "pgf":
+        if version.parse(mpl.__version__) <= version.parse("3.7"):
+            mpl.use("pgf")
+        else:
+            print(
+                f"{CmdColors.WARNING}[IO]{CmdColors.ENDC} PGF export is not supported "
+                "in this version of matplotlib. The figure will not be saved."
+            )
+            return
 
     # Generate filename avoiding duplicates
     counter = 0
@@ -288,11 +308,13 @@ def save_figure(
     )
 
     # Save figure
+    print(f"{CmdColors.OKBLUE}[IO]{CmdColors.ENDC} Saving {extension} figure...")
     fig.savefig(
         filename,
-        dpi=settings.plot.dpi,
+        dpi=300,
         format=extension,
         bbox_inches="tight",
+        pad_inches=0.01,
     )
 
     # Return the figure filename

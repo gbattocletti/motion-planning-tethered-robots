@@ -22,33 +22,3 @@ planner:
 
     # Triangulation settings
     search_algorithm: "a_star"
-
-## Plot and animation settings
-plot:
-    # general settings
-    show: false
-    save: false
-
-    # figure settings
-    figsize: [9, 6]  # [width, height] in inches
-    dpi: 300
-    format: "png"
-    title: ""
-    x_label: "x"
-    y_label: "y"
-    show_legend: false
-
-    node_size: 4
-    edge_alpha: 0.8
-
-# Animation settings
-anim:
-    # general settings
-    animate: false
-    show: false
-    save: false
-
-    # figure settings
-    anim_title: ""
-    time_step: 50
-    speed_up_factor: 10

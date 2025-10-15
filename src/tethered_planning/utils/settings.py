@@ -4,8 +4,8 @@ from pathlib import Path
 
 from typing_extensions import override
 
-from . import io
-from .colors import CmdColors
+from tethered_planning.utils import io
+from tethered_planning.utils.colors import CmdColors
 
 
 class SettingsBase:
@@ -86,8 +86,7 @@ class SettingsBase:
             except KeyError as e:
                 print(
                     f"{CmdColors.FAIL}[Settings]{CmdColors.ENDC} KeyError: "
-                    f"{key} not found in the default settings file (required by the "
-                    f"{type(SettingsPlot).__name__} class)."
+                    f"{key} not found in the default settings file."
                 )
                 raise KeyError from e
 
@@ -118,8 +117,7 @@ class SettingsBase:
             if key not in self.__available_settings__:
                 print(
                     f"{CmdColors.WARNING}[Settings]{CmdColors.ENDC} {key} is not an "
-                    "available setting. Please check the class "
-                    f"{type(SettingsPlot).__name__} for the list of available settings."
+                    "available setting."
                 )
             else:
                 setattr(self, key, value)
@@ -130,12 +128,21 @@ class Settings(SettingsBase):
     Settings class with the main settings for the simulation.
     """
 
-    def __init__(self, settings_filename: str = None) -> None:
+    def __init__(
+        self,
+        settings_filename: str = None,
+        create_sim_folder: bool = False,
+    ) -> None:
         """
         Initializes the Settings class.
 
         Args:
             settings_filename (str, optional): Custom settings filename.
+
+        Kwargs:
+            create_sim_folder (bool, optional): If True, creates a new folder to save
+                the simulation data. If false, only generates the simulation name and
+                stores the results directly in the results folder. Default is False.
 
         Returns:
             None
@@ -158,8 +165,6 @@ class Settings(SettingsBase):
         self.seed: int = None
         self.env_name: str = None
         self.planner: SettingsPlanner = SettingsPlanner()
-        self.plot: SettingsPlot = SettingsPlot()
-        self.anim: SettingsAnimations = SettingsAnimations()
 
         # Get list of available settings attributes
         self.__available_settings__ = self.get_available_settings()
@@ -179,9 +184,20 @@ class Settings(SettingsBase):
                 "provided. Using default settings."
             )
 
+        # Check kwargs
+        if not isinstance(create_sim_folder, bool):
+            print(
+                f"{CmdColors.FAIL}[Settings]{CmdColors.ENDC} The argument "
+                "create_sim_folder must be a boolean."
+            )
+            raise TypeError
+
         # Generate the sim name and create the results folder
         io.create_io_folders()
-        self.sim_id, self.sim_name = io.create_sim_folder()
+        if create_sim_folder is True:
+            self.sim_id, self.sim_name = io.create_sim_folder()
+        else:
+            self.sim_id, self.sim_name = io.create_sim_name()
         self.sim_folder = f"results/{self.sim_name}"
 
     @override
@@ -208,10 +224,6 @@ class Settings(SettingsBase):
         for key in self.__available_settings__:
             if key == "planner":
                 self.planner.load_settings_default(default_settings_dict["planner"])
-            elif key == "plot":
-                self.plot.load_settings_default(default_settings_dict["plot"])
-            elif key == "anim":
-                self.anim.load_settings_default(default_settings_dict["anim"])
             else:
                 try:
                     setattr(self, key, default_settings_dict[key])
@@ -254,10 +266,6 @@ class Settings(SettingsBase):
                 )
             elif key == "planner":
                 self.planner.load_settings_dict(value)
-            elif key == "plot":
-                self.plot.load_settings_dict(value)
-            elif key == "anim":
-                self.anim.load_settings_dict(value)
             else:
                 setattr(self, key, value)
 
@@ -312,85 +320,3 @@ class SettingsPlanner(SettingsBase):
         self.search_algorithm: str = None
 
         self.__available_settings__ = self.get_available_settings()
-
-
-class SettingsPlot(SettingsBase):
-    """
-    Settings class with the plot settings.
-    """
-
-    def __init__(self) -> None:
-        super().__init__()
-
-        # General settings
-        self.show: bool = None
-        self.save: bool = None
-
-        # Figure settings
-        self.figsize: tuple[float, float] = None
-        self.dpi: int = None
-        self.format: str = None
-        self.title: str = None
-        self.x_label: str = None
-        self.y_label: str = None
-        self.show_legend: bool = None
-
-        # Graph settings
-        self.node_size: int = None
-        self.edge_alpha: float = None
-
-        # Get available plot settings
-        self.__available_settings__ = self.get_available_settings()
-
-
-class SettingsAnimations(SettingsBase):
-
-    def __init__(self) -> None:
-        super().__init__()
-
-        # general settings
-        self.animate: bool = None
-        self.show: bool = None
-        self.save: bool = None
-
-        # figure settings
-        self.anim_title: str = None
-
-        # animation settings
-        self.time_step: int = None
-        self.speed_up_factor: int = None
-
-        # get list of available settings attributes
-        self.__available_settings__ = self.get_available_settings()
-
-    def copy_settings_plot(self, plot_settings: SettingsPlot) -> None:
-        """
-        Copy the plot settings to the animation settings. This is useful when the
-        animation settings are not provided, and the user wants to use the plot settings
-        for the animation settings as well.
-
-        Args:
-            plot_settings (SettingsPlot): an instance of the class SettingsPlot.
-
-        Returns:
-            None
-
-        Raises:
-            TypeError: If the argument is not an instance of the class SettingsPlot.
-        """
-        if not isinstance(plot_settings, SettingsPlot):
-            print(
-                f"{CmdColors.FAIL}[Settings]{CmdColors.ENDC} The argument must be "
-                "an instance of the class SettingsPlot."
-            )
-            raise TypeError
-
-        for key in self.__available_settings__:
-            if key in plot_settings.__available_settings__:
-                setattr(self, key, plot_settings[key])
-            else:
-                print(
-                    f"{CmdColors.WARNING}[Settings]{CmdColors.ENDC} animation "
-                    f"setting {key} was not found in the provided plot settings "
-                    "dictionary."
-                )
