@@ -78,6 +78,7 @@ class CustomColors:
     # Base colors
     white = "#FFFFFF"
     black = "#000000"
+    darkest_gray = "#3F3F3F"
     darker_gray = "#808080"
     dark_gray = "#A9A9A9"
     light_gray = "#D0D0D0"
@@ -137,7 +138,7 @@ class PlotColors(CustomColors):
     obstacles_edges_color = obstacles_color
 
     # generators
-    generators_color = CustomColors.dark_gray
+    generators_color = CustomColors.darkest_gray
 
     # goal
     goal_color = CustomColors.yellow
