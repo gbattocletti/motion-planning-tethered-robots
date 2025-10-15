@@ -7,8 +7,8 @@ The elements in the plot of the environment are arranged as follows in terms of 
  2. goal region
  3. generators
  4. obstacles
- 5. 
- 6. 
+ 5. graph dual
+ 6. graph 
  7. 
  8. tether configuration
  9. anchor point

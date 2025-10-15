@@ -17,7 +17,6 @@ from tethered_planning.utils.colors import PlotColors
 
 if TYPE_CHECKING:
     from tethered_planning.env.env_2d import Env2D
-    from tethered_planning.utils.settings import Settings
 
 # NOTE: Plots implementation details:
 # - To modify the colors of the plot, change the values in the PlotColors class
@@ -26,7 +25,7 @@ if TYPE_CHECKING:
 #   the compute_signature function in the curve_fcns.py file.
 
 # Matplotlib settings
-labels_font_size = 10
+labels_font_size = 8
 tick_labels_font_size = 8
 mpl.rcParams.update(
     {
@@ -55,14 +54,12 @@ legend_settings = {
 }
 
 
-def plot_env(env: Env2D, settings: Settings, **kwargs) -> tuple[plt.Figure, plt.Axes]:
+def plot_env(env: Env2D, **kwargs) -> tuple[plt.Figure, plt.Axes]:
     """
     Plot the environment.
 
     Args:
         env (Env2D): Env object to plot
-        settings (Settings): Settings object with the plot settings. Note: the plot
-        colors depend on the PlotColors class and not on the Settings object.
 
     Kwargs:
         show_anchor (bool, **kwargs): flag to display the anchor point
@@ -86,6 +83,7 @@ def plot_env(env: Env2D, settings: Settings, **kwargs) -> tuple[plt.Figure, plt.
         target_ax (plt.Axes, **kwargs): Existing Axes object to draw the plot on. If
             None (default), a new figure and axes are created. This kwarg is useful to
             use this plot function as a subplot of a larger figure.
+        figsize (np.ndarray | list[float], **kwargs): figure size in cm
 
     Returns:
         tuple[plt.Figure, plt.Axes]: Figure and Axes objects
@@ -100,7 +98,8 @@ def plot_env(env: Env2D, settings: Settings, **kwargs) -> tuple[plt.Figure, plt.
     show_tether: bool = False  # show the tether
     tether: LineString | np.ndarray | None = None  # tether configuration
     show_goal: bool = True  # show the goal region
-    show_legend: bool = settings.plot.show_legend  # display the legend
+    show_legend: bool = False  # display the legend
+    show_obstacles_labels: bool = True  # label the obstacles
     show_generators: bool = True  # display the generators
     show_generators_labels: bool = True  # label the generators
     points: list[Point | np.ndarray] = []  # list of points to plot
@@ -113,6 +112,7 @@ def plot_env(env: Env2D, settings: Settings, **kwargs) -> tuple[plt.Figure, plt.
     show_polygons_labels: bool = False  # label the polygons
     title: str = ""  # plot title
     target_ax: plt.Axes | None = None  # Axes object to plot on (if None, create new)
+    figsize: np.ndarray | list[float] = np.array([8, 8])  # figure size in cm
 
     # Parse kwargs
     for key, value in kwargs.items():
@@ -156,6 +156,13 @@ def plot_env(env: Env2D, settings: Settings, **kwargs) -> tuple[plt.Figure, plt.
                     f"Expected bool for show_legend, got {type(value)} instead."
                 )
             show_legend = value
+        elif key == "show_obstacles_labels":
+            if not isinstance(value, bool):
+                raise TypeError(
+                    f"Expected bool for show_obstacles_labels, "
+                    f"got {type(value)} instead."
+                )
+            show_obstacles_labels = value
         elif key == "show_generators":
             if not isinstance(value, bool):
                 raise TypeError(
@@ -261,6 +268,19 @@ def plot_env(env: Env2D, settings: Settings, **kwargs) -> tuple[plt.Figure, plt.
                     f"Expected plt.Axes for target_ax, got {type(value)} instead."
                 )
             target_ax = value
+        elif key == "figsize":
+            if not isinstance(value, (np.ndarray, list)):
+                raise TypeError(
+                    f"Expected np.ndarray or list for figsize, got {type(value)} "
+                    "instead."
+                )
+            if isinstance(value, list):
+                value = np.array(value)
+            if value.shape != (2,):
+                raise ValueError(
+                    f"Expected figsize to be of shape (2,), got {value.shape} instead."
+                )
+            figsize = value
         else:
             raise ValueError(f"Unknown kwarg: {key}")
 
@@ -268,8 +288,8 @@ def plot_env(env: Env2D, settings: Settings, **kwargs) -> tuple[plt.Figure, plt.
     fig: plt.Figure
     ax: plt.Axes
     if target_ax is None:
-        fig = plt.figure(figsize=settings.plot.figsize)  # create new figure
-        ax = plt.gca()
+        fig = plt.figure(figsize=figsize / 2.54)  # create new figure (convert cm to in)
+        ax = fig.add_axes([0.15, 0.15, 0.75, 0.75])
     else:
         fig = target_ax.figure
         ax = target_ax
@@ -288,8 +308,34 @@ def plot_env(env: Env2D, settings: Settings, **kwargs) -> tuple[plt.Figure, plt.
             "fontweight": "bold",
         },
     )
-    ax.set_xlabel(settings.plot.x_label, rotation=0)
-    ax.set_ylabel(settings.plot.y_label, rotation=0)
+    ax.set_xlabel("$x$", rotation=0)
+    ax.set_ylabel("$y$", rotation=0)
+    for tick in ax.xaxis.get_major_ticks():
+        tick.tick1line.set_visible(False)
+        tick.tick2line.set_visible(False)
+        tick.label1.set_visible(False)
+        tick.label2.set_visible(False)
+    for tick in ax.xaxis.get_minor_ticks():
+        tick.tick1line.set_visible(False)
+        tick.tick2line.set_visible(False)
+        tick.label1.set_visible(False)
+        tick.label2.set_visible(False)
+    for tick in ax.yaxis.get_major_ticks():
+        tick.tick1line.set_visible(False)
+        tick.tick2line.set_visible(False)
+        tick.label1.set_visible(False)
+        tick.label2.set_visible(False)
+    for tick in ax.yaxis.get_minor_ticks():
+        tick.tick1line.set_visible(False)
+        tick.tick2line.set_visible(False)
+        tick.label1.set_visible(False)
+        tick.label2.set_visible(False)
+    # ax.set_xticks([])
+    # ax.set_xticks([], minor=True)
+    # ax.set_yticks([])
+    # ax.set_yticks([], minor=True)
+    # ax.set_xticklabels([])
+    # ax.set_yticklabels([])
 
     # Plot the obstacle region
     if not env.obstacle_region.is_empty:
@@ -304,6 +350,20 @@ def plot_env(env: Env2D, settings: Settings, **kwargs) -> tuple[plt.Figure, plt.
             zorder=4,
         )
     obs_handle = Patch(color=PlotColors.obstacles_color, label="Obstacles")
+
+    # Label the obstacles
+    if show_obstacles_labels:
+        for idx, obs in enumerate(env.obstacle_polygons):
+            centroid = obs.representative_point()
+            ax.text(
+                centroid.x,
+                centroid.y,
+                f"$O_{idx+1}$",
+                fontsize=8,
+                ha="center",
+                va="center",
+                zorder=10,
+            )
 
     # Plot generators
     if show_generators:
@@ -320,20 +380,24 @@ def plot_env(env: Env2D, settings: Settings, **kwargs) -> tuple[plt.Figure, plt.
 
             # Label the generators
             if show_generators_labels:
+                offset_x = 0.2
+                offset_y = 3.0
                 if isinstance(env.generators, MultiLineString):
                     for idx, generator in enumerate(env.generators.geoms):
                         ax.text(
-                            generator.coords[0][0] + 0.2,
-                            generator.coords[0][1] + 0.2,
+                            generator.coords[0][0] + offset_x,
+                            generator.coords[0][1] + offset_y,
                             f"$\\sigma_{idx+1}$",  # latex mathmode
-                            fontsize=6,
+                            fontsize=8,
+                            zorder=10,
                         )
                 elif isinstance(env.generators, LineString):
                     ax.text(
-                        env.generators.coords[0][0] + 0.2,
-                        env.generators.coords[0][1] + 0.2,
+                        env.generators.coords[0][0] + offset_x,
+                        env.generators.coords[0][1] + offset_y,
                         f"$\\sigma_{1}$",  # latex mathmode
-                        fontsize=6,
+                        fontsize=8,
+                        zorder=10,
                     )
 
         # Create a handle for the legend
@@ -355,6 +419,13 @@ def plot_env(env: Env2D, settings: Settings, **kwargs) -> tuple[plt.Figure, plt.
                 zorder=2,
             )
         goal_handle = Patch(color=PlotColors.goal_color, label="Goal")
+        ax.text(
+            env.goal_region.centroid.x,
+            env.goal_region.centroid.y,
+            r"$\mathcal{X}_\mathrm{goal}$",  # latex mathmode
+            fontsize=8,
+            zorder=10,
+        )
 
     # Plot anchor point
     if show_anchor:
@@ -372,10 +443,11 @@ def plot_env(env: Env2D, settings: Settings, **kwargs) -> tuple[plt.Figure, plt.
             linestyle="None",
         )
         ax.text(
-            env.anchor_point[0] - 0.5,
+            env.anchor_point[0] + 0.5,
             env.anchor_point[1] - 0.5,
             r"$x_\mathrm{a}$",  # latex mathmode
-            fontsize=10,
+            fontsize=8,
+            zorder=10,
         )
 
     # Plot robot
@@ -442,6 +514,25 @@ def plot_env(env: Env2D, settings: Settings, **kwargs) -> tuple[plt.Figure, plt.
             markerfacecolor=PlotColors.points_color,
             label="Points",
             linestyle="None",
+        )
+
+    # Add dummy points for padding (to match case with graph)
+    dummy_nodes = [
+        [0, 0],
+        [0, env.size[1]],
+        [env.size[0], 0],
+        [env.size[0], env.size[1]],
+    ]
+    for n in dummy_nodes:
+        plot_points(
+            Point(n),
+            ax=ax,
+            color=[0, 0, 0, 0],
+            markeredgecolor=[0, 0, 0, 0],
+            markersize=4,
+            marker=".",
+            clip_on=False,  # allows overflowing the axes
+            zorder=0,
         )
 
     # Plot curves
@@ -532,7 +623,6 @@ def plot_graph(
     nodes: np.ndarray | list[list],
     edges: np.ndarray | list[list],
     env: Env2D,
-    settings: Settings,
     nodes_dual: np.ndarray | list[list] = None,
     edges_dual: np.ndarray | list[list] = None,
     **kwargs,
@@ -544,7 +634,6 @@ def plot_graph(
         nodes (np.ndarray | list[list]): List of nodes of the graph
         edges (np.ndarray | list[list]): List of edges of the graph
         env (Env2D): Env object to plot
-        settings (Settings): Settings object with the plot settings
 
     Kwargs:
         nodes_dual (np.ndarray | list[list], optional): List of nodes of the dual
@@ -647,7 +736,6 @@ def plot_graph(
     # Initialize figure object starting from the plot_tether function
     fig, ax = plot_env(
         env,
-        settings,
         **kwargs,
     )
 
@@ -658,8 +746,9 @@ def plot_graph(
             ax=ax,
             color=PlotColors.node_color,
             markeredgecolor=PlotColors.node_color,
-            markersize=6,
+            markersize=4,
             marker=".",
+            clip_on=False,  # allows overflowing the axes
             zorder=8,
         )
     for e in edges:
@@ -669,6 +758,7 @@ def plot_graph(
             color=PlotColors.edge_color,
             linewidth=1,
             add_points=False,
+            clip_on=False,
             zorder=7,
         )
 
@@ -680,9 +770,10 @@ def plot_graph(
                 ax=ax,
                 color=PlotColors.node_dual_color,
                 markeredgecolor=PlotColors.node_dual_color,
-                markersize=6,
+                markersize=4,
                 marker=".",
-                zorder=8,
+                clip_on=False,
+                zorder=7,
             )
         for e in edges_dual:
             plot_line(
@@ -691,7 +782,8 @@ def plot_graph(
                 color=PlotColors.edge_dual_color,
                 linewidth=1,
                 add_points=False,
-                zorder=7,
+                clip_on=False,
+                zorder=6,
             )
 
     # Label the nodes of the main graph

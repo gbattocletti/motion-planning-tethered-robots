@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
@@ -13,11 +14,29 @@ from tethered_planning.utils import plot
 from tethered_planning.utils.colors import PlotColors
 
 if TYPE_CHECKING:
-    from mpl_toolkits.mplot3d import Axes3D
+    from mpl_toolkits.mplot3d.axes3d import Axes3D
 
     from tethered_planning.env.env_2d import Env2D
     from tethered_planning.env.triangulation import Triangulation
-    from tethered_planning.utils.settings import Settings
+
+
+# Matplotlib settings
+labels_font_size = 10
+tick_labels_font_size = 8
+mpl.rcParams.update(
+    {
+        "pgf.texsystem": "xelatex",  # or any other engine you want to use
+        "text.usetex": True,  # use TeX for all texts
+        "font.family": "serif",
+        "font.size": labels_font_size,
+        "axes.labelsize": labels_font_size,
+        "legend.fontsize": labels_font_size,
+        "xtick.labelsize": tick_labels_font_size,
+        "ytick.labelsize": tick_labels_font_size,
+        "pgf.rcfonts": False,
+        "pgf.preamble": "\\usepackage[T1]{fontenc}",  # extra preamble for LaTeX
+    }
+)
 
 
 def _get_unique_signatures(
@@ -74,7 +93,6 @@ def _get_unique_signatures(
 def plot_2d(
     triangulation: Triangulation,
     env: Env2D,
-    settings: Settings,
     **kwargs,
 ) -> tuple[plt.Figure, plt.Axes]:
     """
@@ -166,7 +184,6 @@ def plot_2d(
     if add_env_subplot:
         plot.plot_env(
             env,
-            settings,
             show_generators=True,
             show_generators_labels=True,
             show_anchor=True,
@@ -197,8 +214,8 @@ def plot_2d(
         ax.set_aspect("equal", "box")
         ax.set_xlim([0, env.size[0]])
         ax.set_ylim([0, env.size[1]])
-        ax.set_xlabel(settings.plot.x_label, rotation=0)
-        ax.set_ylabel(settings.plot.y_label, rotation=0)
+        ax.set_xlabel("$x$", rotation=0)
+        ax.set_ylabel("$y$", rotation=0)
         ax.grid(
             True,
             which="major",
@@ -275,7 +292,6 @@ def plot_2d(
 def plot_3d(
     triangulation: Triangulation,
     env: Env2D,
-    settings: Settings = None,  # pylint: disable=unused-argument
     **kwargs,
 ) -> tuple[plt.Figure, plt.Axes]:
     """
@@ -285,9 +301,6 @@ def plot_3d(
     Args:
         triangulation (Triangulation): Triangulation object to plot
         env (Env2D): Env object to plot
-        settings (Settings, optional): Settings object (not used here, but included
-            for consistency with other plotting functions so that they share the same
-            function signature).
 
     Kwargs:
         connect_layers (bool): shared edges of triangles plotted on different layers
@@ -304,6 +317,11 @@ def plot_3d(
             corresponding to the different signatures. The length must match the number
             of unique signatures in the triangulation, or be one single color to be
             used for all layers. If None (default) a default colormap will be used.
+        pov (list[float] | None, optional): point of view for the 3D plot expressed as
+            a list of 3 angles [elevation, azimuth, roll]. Angles are expressed in deg.
+            If None (default) a default point of view will be used.
+        figsize (np.ndarray | list[float], **kwargs): figure size in cm
+
 
     Returns:
         tuple[plt.Figure, plt.Axes]: Figure and Axes objects
@@ -317,39 +335,58 @@ def plot_3d(
     multi_layer_triangles: bool = False  # triangles can span multiple layers
     custom_sign_order: list[list[int]] | None = None  # custom order for signatures
     layers_colormap: list[str] | None = None  # colormap for the layers
+    pov: list[float] | None = None  # point of view for the 3D plot
+    figsize: np.ndarray = np.array([8, 8])  # figure size in cm
 
     # Parse Kwargs
-    for key in kwargs:
+    for key, value in kwargs.items():
         if key == "connect_layers":
-            if not isinstance(kwargs["connect_layers"], bool):
+            if not isinstance(value, bool):
                 raise TypeError(
-                    "Expected bool for connect_layers, "
-                    f"got {type(kwargs['connect_layers'])} instead."
+                    "Expected bool for connect_layers, " f"got {type(value)} instead."
                 )
-            connect_layers = kwargs["connect_layers"]
+            connect_layers = value
         elif key == "multi_layer_triangles":
-            if not isinstance(kwargs["multi_layer_triangles"], bool):
+            if not isinstance(value, bool):
                 raise TypeError(
                     "Expected bool for multi_layer_triangles, "
-                    f"got {type(kwargs['multi_layer_triangles'])} instead."
+                    f"got {type(value)} instead."
                 )
-            multi_layer_triangles = kwargs["multi_layer_triangles"]
+            multi_layer_triangles = value
         elif key == "custom_sign_order":
-            if not isinstance(kwargs["custom_sign_order"], (list, type(None))):
+            if not isinstance(value, (list, type(None))):
                 raise TypeError(
                     "Expected list or None for custom_sign_order, "
-                    f"got {type(kwargs['custom_sign_order'])} instead."
+                    f"got {type(value)} instead."
                 )
-            custom_sign_order = kwargs["custom_sign_order"]
+            custom_sign_order = value
         elif key == "layers_colormap":
-            if not isinstance(kwargs["layers_colormap"], (list, type(None))):
+            if not isinstance(value, (list, type(None))):
                 raise TypeError(
                     "Expected list or None for layers_colormap, "
-                    f"got {type(kwargs['layers_colormap'])} instead."
+                    f"got {type(value)} instead."
                 )
-            layers_colormap = kwargs["layers_colormap"]
+            layers_colormap = value
+        elif key == "pov":
+            if not isinstance(value, (list, type(None))):
+                raise TypeError(
+                    f"Expected list or None for pov, got {type(value)} instead."
+                )
+        elif key == "figsize":
+            if not isinstance(value, (np.ndarray, list)):
+                raise TypeError(
+                    f"Expected np.ndarray or list for figsize, got {type(value)} "
+                    "instead."
+                )
+            if isinstance(value, list):
+                value = np.array(value)
+            if value.shape != (2,):
+                raise ValueError(
+                    f"Expected figsize to be of shape (2,), got {value.shape} instead."
+                )
+            figsize = value
         else:
-            pass  # ignore other kwargs
+            raise ValueError(f"Unknown kwarg: {key}")
     if multi_layer_triangles is True:
         if connect_layers is True:
             print(
@@ -358,6 +395,8 @@ def plot_3d(
                 "connect_layers will be set to False."
             )
         connect_layers = False  # override connect_layers (cannot be used toghether)
+    if pov is None:
+        pov = [15, 35, 0]  # default value
 
     ### PREPROCESSING ###
     # Find all unique signatures
@@ -380,17 +419,16 @@ def plot_3d(
 
     ### GENERATE FIGURE ###
     # Initialize 3d axes
-    fig: plt.Figure = plt.figure(figsize=(8, 8))
+    figsize = figsize / 2.54
+    fig: plt.Figure = plt.figure(figsize=figsize)  # convert cm to in
     ax: Axes3D = fig.add_subplot(projection="3d")
 
     # Set limits and aspect
     ax.set_xlim(0, env.size[0])
     ax.set_ylim(0, env.size[1])
     ax.set_zlim(0, n_sign)
-    ax.set_aspect("equalxy")
-
-    # Set view angle
-    ax.view_init(elev=30, azim=45, roll=15)
+    ax.set_box_aspect([1, 1, 1.7])  # ax.set_aspect("equalxy")
+    ax.view_init(elev=pov[0], azim=pov[1], roll=pov[2])
 
     # Plot layers and label them by h signature
     layer_list: list[np.ndarray] = []
@@ -476,7 +514,6 @@ def plot_3d(
                 layer_idx_1: int = unique_sign_list.index(list(sign_1))
                 layer_idx_2: int = unique_sign_list.index(list(sign_2))
                 layer_idx_3: int = unique_sign_list.index(list(sign_3))
-                print([layer_idx_1, layer_idx_2, layer_idx_3])
 
                 # use signature index for z coordinate of each vertex
                 triangles_3d_list.append(
@@ -589,10 +626,19 @@ def plot_3d(
         )
 
     # Add title and labels
-    ax.set_title("Lifted Triangulation")
-    ax.set_xlabel("X")
-    ax.set_ylabel("Y")
+    ax.set_title("")
+    ax.set_xlabel("$x$")
+    ax.set_ylabel("$y$")
     ax.set_zlabel("$h$")
+    ax.xaxis.labelpad = -17  # smaller = closer
+    ax.yaxis.labelpad = -17
+    ax.zaxis.labelpad = 5
+    ax.set_xticks([])
+    ax.set_xticks([], minor=True)
+    ax.set_yticks([])
+    ax.set_yticks([], minor=True)
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
 
     # Label z ticks with the signature
     zticks = np.arange(0, n_sign, 1)
@@ -607,9 +653,19 @@ def plot_3d(
         if not parts:
             word = "`` ''"  # empty signature
         else:
-            word = "``$" + "".join(parts) + "$''"  # latex mathmode
+            # word = "``$" + "".join(parts) + "$''"  # latex mathmode
+            word = "$" + "".join(parts) + "$"  # latex mathmode (no quotes on signature)
         zticklabels.append(word)
     ax.set_zticks(zticks)
     ax.set_zticklabels(zticklabels)
+
+    # Customize grid, panes, and axes
+    ax.xaxis.pane.fill = False
+    ax.yaxis.pane.fill = False
+    ax.zaxis.pane.fill = False
+    ax.xaxis.pane.set_alpha(0)
+    ax.yaxis.pane.set_alpha(0)
+    ax.zaxis.pane.set_alpha(0)
+    ax.set_position([0.08, 0.04, 1, 1])  # left, bottom, width, height
 
     return fig, ax
