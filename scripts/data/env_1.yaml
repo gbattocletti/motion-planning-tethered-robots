@@ -10,13 +10,13 @@ env:
 # obstacles properties
 obstacles: 
     vertices: [
-        [[5.0, 5.0], [5.0, 6.0], [6.0, 6.0], [6.0, 5.0]]
+        [[4.5, 4.5], [4.5, 6.5], [6.5, 6.5], [6.5, 4.5]]
     ]
 
 # generators properties
 generators:
     vertices: [
-        [[5.5, 6.0], [5.5, 10.0]]
+        [[5.5, 6.5], [5.5, 10.0]]
     ]
   
 # goal properties
@@ -25,7 +25,7 @@ goal:
 
 # robot properties
 robot:
-    anchor_point: [1.0, 1.0]
+    anchor_point: [4.0, 2.0]
     initial_state: [2.0, 2.0]
     radius: 0.0
 
@@ -33,5 +33,5 @@ robot:
 tether:
     max_length: 5.0
     initial_state: [
-        [1.0, 1.0], [2.0, 2.0]
+        [4.0, 2.0], [3.0, 3.0], [2.0, 2.0]
     ]

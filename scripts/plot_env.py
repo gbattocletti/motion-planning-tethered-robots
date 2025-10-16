@@ -60,15 +60,15 @@ env = env_2d.Env2D(settings)
 # Plot and save the environment
 fig, _ = plot.plot_env(
     env,
-    show_tether=False,
-    show_robot=False,
+    show_tether=True,
+    show_robot=True,
     show_anchor=True,
     show_goal=False,
     show_legend=False,
     show_generators=True,
     show_generators_labels=True,
     show_obstacles_labels=True,
-    figsize=[4, 4],
+    figsize=[5, 5],
 )
 if SAVE_PNG is True:
     fig.savefig(
@@ -81,7 +81,6 @@ if SAVE_PNG is True:
 if SAVE_PGF is True:
     fig.savefig(
         base_name + ".pgf",
-        dpi=300,
         format="pgf",
         bbox_inches="tight",
         pad_inches=0.01,
@@ -107,7 +106,10 @@ fig, _ = plot.plot_graph(
     show_generators_labels=True,
     show_legend=False,
     show_obstacles_labels=True,
-    figsize=[4, 4],
+    show_anchor=True,
+    show_robot=False,
+    show_tether=False,
+    figsize=[5, 5],
 )
 if SAVE_PNG is True:
     fig.savefig(
@@ -120,7 +122,6 @@ if SAVE_PNG is True:
 if SAVE_PGF is True:
     fig.savefig(
         base_name + "-triang.pgf",
-        dpi=300,
         format="pgf",
         bbox_inches="tight",
         pad_inches=0.01,
@@ -151,7 +152,7 @@ fig, _ = plot_triangulation.plot_3d(
     custom_sign_order=order,
     layers_colormap=cmap,
     pov=pov,
-    figsize=[6, 6],
+    figsize=[5, 5],
 )
 if SAVE_PNG is True:
     fig.savefig(
@@ -162,6 +163,5 @@ if SAVE_PNG is True:
 if SAVE_PGF is True:
     fig.savefig(
         base_name + "-lift.pgf",
-        dpi=300,
         format="pgf",
     )

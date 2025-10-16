@@ -433,17 +433,17 @@ def plot_env(env: Env2D, **kwargs) -> tuple[plt.Figure, plt.Axes]:
             env.anchor_point[0],
             env.anchor_point[1],
             marker="o",
-            markersize=6,
+            markersize=4,
             markerfacecolor=PlotColors.anchor_color,
             alpha=1,
             markeredgecolor=PlotColors.anchor_edge_color,
             markeredgewidth=1,
             zorder=9,
-            label="Anchor Point",
+            label="Anchor",
             linestyle="None",
         )
         ax.text(
-            env.anchor_point[0] + 0.5,
+            env.anchor_point[0] - 0.5,
             env.anchor_point[1] - 0.5,
             r"$x_\mathrm{a}$",  # latex mathmode
             fontsize=8,
@@ -456,7 +456,7 @@ def plot_env(env: Env2D, **kwargs) -> tuple[plt.Figure, plt.Axes]:
             env.robot_initial_pos[0],
             env.robot_initial_pos[1],
             marker="o",
-            markersize=6,
+            markersize=4,
             markerfacecolor=PlotColors.robot_color,
             alpha=1,
             markeredgecolor=PlotColors.robot_edge_color,
@@ -469,7 +469,8 @@ def plot_env(env: Env2D, **kwargs) -> tuple[plt.Figure, plt.Axes]:
             env.robot_initial_pos[0] - 0.5,
             env.robot_initial_pos[1] - 0.5,
             r"$x_\mathrm{r}$",  # latex mathmode
-            fontsize=10,
+            fontsize=8,
+            zorder=10,
         )
 
     # Plot tether configuration
@@ -478,12 +479,20 @@ def plot_env(env: Env2D, **kwargs) -> tuple[plt.Figure, plt.Axes]:
             tether,
             ax=ax,
             color=PlotColors.tether_color,
-            linewidth=1.5,
+            linewidth=1.2,
             add_points=False,
             zorder=8,
         )
         tether_handle = Line2D(
             [], [], color=PlotColors.tether_color, lw=1.5, label="Tether"
+        )
+
+        ax.text(
+            tether.coords[1][0] + 0.1,  # env-1: 0.1
+            tether.coords[1][1] + 0.1,  # env-1: 0.1
+            r"$\gamma$",
+            fontsize=8,
+            zorder=10,
         )
 
     # Plot points
@@ -504,7 +513,7 @@ def plot_env(env: Env2D, **kwargs) -> tuple[plt.Figure, plt.Axes]:
                     point.coords[0][0] - 0.5,
                     point.coords[0][1] - 0.5,
                     rf"$\gamma_\mathrm{idx}$",  # latex mathmode
-                    fontsize=10,
+                    fontsize=6,
                 )
         points_handle = Line2D(
             [],
