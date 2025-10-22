@@ -161,11 +161,7 @@ def plot_2d(
     # Validate layers cmap
     if layers_cmap is None:
         layers_cmap = PlotColors.layers_cmap[0:n_sign]
-    elif len(layers_cmap) != 1 and len(layers_cmap) != n_sign:
-        raise ValueError(
-            "The length of layers_cmap must be either 1 (single color for all layers) "
-            f"or match the number of unique signatures {n_sign} in the triangulation."
-        )
+    n_cmap: int = len(layers_cmap)
 
     # Define number of rows and columns in the figure
     n_rows: int = int(np.ceil(n_sign / max_cols))  # number of rows in the figure
@@ -274,7 +270,7 @@ def plot_2d(
                 triangulation.triang.geoms[triangle_idx],
                 ax=ax,
                 color=(
-                    layers_cmap[idx]
+                    layers_cmap[idx % n_cmap]
                     if isinstance(layers_cmap, list)  # check if list of colors
                     else layers_cmap
                 ),
@@ -511,9 +507,19 @@ def plot_3d(
                         simplify=False,
                     )
                 )
-                layer_idx_1: int = unique_sign_list.index(list(sign_1))
-                layer_idx_2: int = unique_sign_list.index(list(sign_2))
-                layer_idx_3: int = unique_sign_list.index(list(sign_3))
+                # Find layer index for each vertex (default to sign if not found)
+                try:
+                    layer_idx_1: int = unique_sign_list.index(list(sign_1))
+                except ValueError:
+                    layer_idx_1: int = unique_sign_list.index(list(sign))
+                try:
+                    layer_idx_2: int = unique_sign_list.index(list(sign_2))
+                except ValueError:
+                    layer_idx_2: int = unique_sign_list.index(list(sign))
+                try:
+                    layer_idx_3: int = unique_sign_list.index(list(sign_3))
+                except ValueError:
+                    layer_idx_3: int = unique_sign_list.index(list(sign))
 
                 # use signature index for z coordinate of each vertex
                 triangles_3d_list.append(
