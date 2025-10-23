@@ -330,7 +330,7 @@ def plot_3d(
     connect_layers: bool = False  # connect the layers with vertical lines
     multi_layer_triangles: bool = False  # triangles can span multiple layers
     custom_sign_order: list[list[int]] | None = None  # custom order for signatures
-    layers_colormap: list[str] | None = None  # colormap for the layers
+    layers_cmap: list[str] | None = None  # colormap for the layers
     pov: list[float] | None = None  # point of view for the 3D plot
     figsize: np.ndarray = np.array([8, 8])  # figure size in cm
 
@@ -362,7 +362,7 @@ def plot_3d(
                     "Expected list or None for layers_colormap, "
                     f"got {type(value)} instead."
                 )
-            layers_colormap = value
+            layers_cmap = value
         elif key == "pov":
             if not isinstance(value, (list, type(None))):
                 raise TypeError(
@@ -399,17 +399,22 @@ def plot_3d(
     unique_sign_list = _get_unique_signatures(triangulation, order=custom_sign_order)
     n_sign = len(unique_sign_list)  # number of unique signatures
 
+    # Validate layers cmap
+    if layers_cmap is None:
+        layers_cmap = PlotColors.layers_cmap[0:n_sign]
+    n_cmap: int = len(layers_cmap)
+
     # Define colormap for the triangles (organized by layers)
     triangles_cmap: list[str] | str
-    if layers_colormap is not None:
-        if len(layers_colormap) != n_sign and len(layers_colormap) != 1:
+    if layers_cmap is not None:
+        if len(layers_cmap) != n_sign and len(layers_cmap) != 1:
             raise ValueError(
                 "The length of layers_colormap must be either 1 (single color for "
                 f"all layers) or match the number of unique signatures {n_sign} in "
                 "the triangulation."
             )
-        if len(layers_colormap) == 1:
-            triangles_cmap = layers_colormap[0]
+        if len(layers_cmap) == 1:
+            triangles_cmap = layers_cmap[0]
         else:
             triangles_cmap = []
 
@@ -536,12 +541,12 @@ def plot_3d(
                 # Add color for the triangle to the color list. If multiple indexes are
                 # present (i.e., triangle spans multiple layers) the color of the
                 # triangle is obtained by mixing the colors corresponding to the layers
-                if layers_colormap is not None:
+                if layers_cmap is not None:
                     layer_idx = np.unique(
                         np.array([layer_idx_1, layer_idx_2, layer_idx_3])
                     )
-                    c1 = layers_colormap[layer_idx[0]]
-                    c2 = layers_colormap[layer_idx[-1]]
+                    c1 = layers_cmap[layer_idx[0] % n_cmap]
+                    c2 = layers_cmap[layer_idx[-1] % n_cmap]
                     color = colors.combine_colors(c1, c2)
                     triangles_cmap.append(color)
 
@@ -560,12 +565,12 @@ def plot_3d(
                 )
 
                 # Add color for the triangle to the color list
-                if layers_colormap is not None:
-                    triangles_cmap.append(layers_colormap[layer_idx])
+                if layers_cmap is not None:
+                    triangles_cmap.append(layers_cmap[layer_idx % n_cmap])
 
     # Plot triangles
     triangles_3d_list = np.array(triangles_3d_list)
-    if layers_colormap is None:
+    if layers_cmap is None:
         triangles_cmap = "cyan"
     ax.add_collection3d(
         Poly3DCollection(

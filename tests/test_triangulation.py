@@ -49,7 +49,7 @@ def show_plot(SHOW_PLOT, BLOCKING, WAIT_TIME):
         "test_env_5.yaml",
     ],
 )
-def test_triangulation(settings, env, plot_settings):
+def test_triangulation(env, plot_settings):
 
     # Unpack fixtures
     SHOW_PLOT, BLOCKING, WAIT_TIME = plot_settings
@@ -60,7 +60,6 @@ def test_triangulation(settings, env, plot_settings):
 
     plot.plot_env(
         env,
-        settings,
         show_goal=False,
         show_anchor=True,
     )
@@ -71,7 +70,6 @@ def test_triangulation(settings, env, plot_settings):
         triang.vertices,
         triang.edges,
         env,
-        settings,
         nodes_dual=triang.vertices_dual,
         edges_dual=triang.edges_dual,
         show_dual_graph=True,
@@ -85,37 +83,54 @@ def test_triangulation(settings, env, plot_settings):
 
 
 @pytest.mark.parametrize(
-    "env_name, order, cmap",
+    "env_name, length, n_triangs, order, cmap",
     [
         (
             "test_env_1.yaml",
+            1000.0,
+            40,
             [[1, 1, 1], [1, 1], [1], [], [-1], [-1, -1]],
             CustomColors.layers_cmap[0:6],
         ),
         (
             "test_env_5.yaml",
+            1000.0,
+            40,
             [[1, 2], [2], [1], [], [-1], [-2], [-2, -1]],
             CustomColors.layers_cmap[0:7],
         ),
+        (
+            "test_env_5.yaml",
+            50.0,
+            100,
+            None,
+            None,
+        ),
     ],
 )
-def test_lift_triangulation(env, settings, order, cmap, plot_settings):
+def test_lift_triangulation(env, length, n_triangs, order, cmap, plot_settings):
 
     # Unpack fixtures
     SHOW_PLOT, BLOCKING, WAIT_TIME = plot_settings
 
     # Create triangulation and lift it
     triang = Triangulation(env)
-    triang.set_max_dist(1000.0)  # large value to avoid max_dist stopping criterion
-    triang.set_max_triangles(40)  # tested value for custom signature order and cmap
+    triang.set_max_dist(length)  # large value to avoid max_dist stopping criterion
+    triang.set_max_triangles(n_triangs)  # secondary stopping criterion
     triang.triangulate()
     triang.lift_triangulation()
+
+    # Generate env plot
+    plot.plot_env(
+        env,
+        show_goal=False,
+        show_anchor=True,
+    )
 
     # Generate 2D plot
     plot_triangulation.plot_2d(
         triang,
         env,
-        settings,
         custom_sign_order=order,
         layers_colormap=cmap,
     )
@@ -124,7 +139,6 @@ def test_lift_triangulation(env, settings, order, cmap, plot_settings):
     plot_triangulation.plot_3d(
         triang,
         env,
-        settings,
         connect_layers=True,
         multi_layer_triangles=True,
         custom_sign_order=order,
