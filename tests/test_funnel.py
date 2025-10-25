@@ -41,40 +41,132 @@ def show_plot():
 
 
 @pytest.mark.parametrize(
-    "env_name",
+    "env_name, path, p_init, p_end",
     [
-        "test_env_1.yaml",
-        "test_env_5.yaml",
+        (
+            "test_env_1.yaml",
+            [1, 0, 2, 4, 6, 7],
+            None,
+            None,
+        ),
+        (
+            "test_env_1.yaml",
+            [1, 0, 2, 4, 6, 7, 5, 3, 1, 0, 2],  # test with loop
+            None,
+            None,
+        ),
+        (
+            "test_env_1.yaml",
+            [2, 0, 1, 3, 5, 7, 6, 4, 2, 0, 1],  # test with loop in reverse direction
+            None,
+            None,
+        ),
+        (
+            "test_env_1.yaml",
+            [0, 0],  # test with degenerate path
+            None,
+            None,
+        ),
+        (
+            "test_env_5.yaml",
+            [8, 10, 4, 0, 1, 5],
+            None,
+            None,
+        ),
+        (
+            "test_env_5.yaml",
+            [2, 3, 7, 9, 11, 13, 12],
+            None,
+            None,
+        ),
+        (
+            "test_env_5.yaml",
+            [2, 6, 8, 10, 4, 0, 1, 5, 7, 9, 11, 13],
+            None,
+            None,
+        ),
+        (
+            "test_env_5.yaml",
+            [2, 6, 8, 10, 4, 0, 1, 5, 7, 9, 11, 13, 12],
+            [1, 1.5],  # custom initial point
+            [8.5, 6],  # custom end point
+        ),
+        (
+            "test_env_5.yaml",
+            [7, 5, 1, 0, 4, 10, 12, 13, 11, 9, 7, 3, 2, 6],  # test with loop
+            None,
+            None,
+        ),
+        (
+            "test_env_5.yaml",
+            [7, 5, 1, 0, 4, 10, 12, 13, 11, 9, 7, 3, 2, 6],  # test with loop
+            None,
+            [2.8, 1.8],  # custom end point
+        ),
+        (
+            "test_env_5.yaml",
+            [7, 5, 1, 0, 4, 10, 12, 13, 11, 9, 7, 3, 2, 6],  # test with loop
+            None,
+            [1, 0.8],  # custom end point
+        ),
     ],
 )
-def test_funnel_shortest_path(settings, env):
+def test_homotopic_shortest_path(env, path, p_init, p_end):
+    """
+    Test the homotopic shortest path computation on a triangulated environment.
+
+    Args:
+        env: The 2D triangulated environment.
+        path: The path to shorten.
+        p_init: Initial point of the path. If none uses centroid of path[0].
+        p_end: End point of the path. If none uses centroid of path[-1].
+    """
 
     # Create triangulation
     triang = Triangulation(env)
     triang.triangulate()
 
-    # Generate figures
-    plot.plot_env(
-        env,
-        settings,
-        show_goal=False,
-        show_anchor=True,
-    )
-
-    # TODO: execute shortest path algorithm
-    # TODO: extract shortest path as graph to plot it
-
     plot.plot_graph(
         triang.vertices,
         triang.edges,
         env,
-        settings,
         nodes_dual=triang.vertices_dual,
         edges_dual=triang.edges_dual,
         show_dual_graph=True,
         label_nodes=False,
+        label_triangles=True,
+        show_generators_labels=True,
+        show_legend=False,
+    )
+
+    # Define nodes and edges of initial path
+    path_nodes = [triang.vertices_dual[tri_idx] for tri_idx in path]
+    path_nodes = [p_init] + path_nodes if p_init is not None else path_nodes
+    path_nodes += [p_end] if p_end is not None else []
+    path_len = len(path_nodes)
+    path_edges = [(i, i + 1) for i in range(path_len - 1)]
+
+    # Compute shortest homotopic path
+    shortest_path_nodes = triang.homotopic_shortest_path(
+        path,
+        p_init=p_init,
+        p_end=p_end,
+    )
+    shortest_path_len = len(shortest_path_nodes)
+    shortest_path_edges = [(i, i + 1) for i in range(shortest_path_len - 1)]
+
+    # Plot initial and shortened path (shortened is in red)
+    plot.plot_graph(
+        path_nodes,
+        path_edges,
+        env,
+        nodes_dual=shortest_path_nodes,
+        edges_dual=shortest_path_edges,
+        show_dual_graph=True,
+        label_nodes=False,
         label_triangles=False,
         show_generators_labels=True,
+        show_legend=False,
     )
 
     # Show and/or save figure
