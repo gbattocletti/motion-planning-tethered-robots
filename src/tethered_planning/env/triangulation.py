@@ -5,6 +5,7 @@ import shapely
 from shapely import LineString, Point, Polygon
 
 from tethered_planning.env.env_2d import Env2D
+from tethered_planning.plan import graph_search
 from tethered_planning.utils import curves
 from tethered_planning.utils.colors import CmdColors
 
@@ -351,19 +352,64 @@ class Triangulation:
         Returns:
             float: The length of the shortest path (geodesic) between the two points.
         """
-        # TODO: implement this
-        # 1. Find triangles containing p1 and p2
-        # 2. Find representative path between the two triangles in the dual graph (by
-        #    A* or Dijkstra search on the dual graph)
-        # 3. Compute the shortest path homotopic to the representative path using the
-        #    funnel algorithm (_shortest_homotopic_path method)
-        # 4. Measure the length of the shortest path and return it
+        # Parse inputs
+        if isinstance(p1, list):
+            p1 = np.array(p1)
+        if isinstance(p2, list):
+            p2 = np.array(p2)
 
-        # CHECKME: is it better to use the triangles t1 and t2 instead of s1 and s2?
-        # I.e., indicate the triangles containing p1 and p2 instead of their signatures?
+        # Find triangle containing (p1, s1)
+        tri_idx_1: int = self.triang_tree.query(Point(p1), predicate="intersects")[0]
+        lift_idx_1 = [
+            i
+            for i, (t_idx, t_sign) in enumerate(self.triangles_lift)
+            if t_idx == tri_idx_1 and t_sign == s1
+        ][0]
+        if not lift_idx_1:
+            raise ValueError(
+                f"The signature was not found in the lifted tree for point {p1}."
+            )
+
+        # Find triangle containing (p2, s2)
+        tri_idx_2: int = self.triang_tree.query(Point(p2), predicate="intersects")[0]
+        lift_idx_2 = [
+            i
+            for i, (t_idx, t_sign) in enumerate(self.triangles_lift)
+            if t_idx == tri_idx_2 and t_sign == s2
+        ][0]
+        if not lift_idx_2:
+            raise ValueError(
+                f"The signature was not found in the lifted tree for point {p2}."
+            )
+
+        # Compute path between (p1, s1) and (p2, s2)
+        alpha_lift: list[int] = graph_search.a_star_search(
+            self.triangles_lift,
+            self.edges_lift,
+            lift_idx_1,
+            lift_idx_2,
+            h_augmented=True,
+            nodes_2d=self.vertices_dual,
+            use_heuristic=False,
+        )
+
+        # Project the representative path onto the 2D triangulation
+        alpha: list[int] = [self.triangles_lift[idx][0] for idx in alpha_lift]
+
+        # Call shortest homotopic path (geodesic)
+        geodesic = self.homotopic_shortest_path(
+            alpha=alpha,
+            p_init=p1,
+            p_end=p2,
+        )
+
+        # Compute length of shortest path
+        diffs: np.ndarray = np.diff(geodesic, axis=0)  # consecutive segment
+        seg_lengths: np.ndarray = np.linalg.norm(diffs, axis=1)  # segment lengths
+        length: float = np.sum(seg_lengths)
 
         # Return distance
-        return 0.0
+        return length, geodesic
 
     def homotopic_shortest_path(
         self,
@@ -520,11 +566,11 @@ class Triangulation:
                                 2 * np.pi
                             ) - np.pi
                             if delta <= 0:
-                                # The funnel has closed up to this point. Therefore, this
-                                # point from the right side becomes the new apex of the
-                                # funnel. Therefore, it is replaced to the current only
-                                # remaining point in the left side, which in turn is added
-                                # to the tail
+                                # The funnel has closed up to this point. Therefore,
+                                # this point from the right side becomes the new apex of
+                                # the funnel. Therefore, it is replaced to the current
+                                # only remaining point in the left side, which in turn
+                                # is added to the tail
                                 tail = (
                                     np.vstack((tail, right[i]))
                                     if tail.size > 0
@@ -584,11 +630,11 @@ class Triangulation:
                                 2 * np.pi
                             ) - np.pi
                             if delta >= 0:
-                                # The funnel has closed up to this point. Therefore, this
-                                # point from the left side becomes the new apex of the
-                                # funnel. Therefore, it is replaced to the current only
-                                # remaining point in the right side, which in turn is added
-                                # to the tail
+                                # The funnel has closed up to this point. Therefore,
+                                # this point from the left side becomes the new apex of
+                                # the funnel. Therefore, it is replaced to the current
+                                # only remaining point in the right side, which in turn
+                                # is added to the tail
                                 tail = (
                                     np.vstack((tail, left[i]))
                                     if tail.size > 0

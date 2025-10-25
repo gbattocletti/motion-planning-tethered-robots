@@ -72,7 +72,7 @@ def a_star_search(
         if not isinstance(nodes_2d, np.ndarray):
             raise TypeError("vertices_2d must be a numpy array")
         h_augmented = True
-        n_nodes = nodes_2d.shape[0]
+        n_nodes = len(nodes)
     elif isinstance(nodes, np.ndarray):
         n_nodes = nodes.shape[0]
     else:
