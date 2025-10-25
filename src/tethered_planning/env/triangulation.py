@@ -331,7 +331,7 @@ class Triangulation:
                     "the open queue."
                 )
 
-    def _lifted_distance(
+    def geodesic_distance(
         self,
         p1: np.ndarray,
         s1: list[int],
@@ -365,7 +365,7 @@ class Triangulation:
         # Return distance
         return 0.0
 
-    def _shortest_homotopic_path(
+    def homotopic_shortest_path(
         self,
         alpha: list[int],
         p_init: np.ndarray | None = None,
@@ -419,7 +419,7 @@ class Triangulation:
                 Point(p_init),
                 predicate="intersects",
             )[0]
-            if len(tri_idx_prev) != 1:
+            if tri_idx_prev.size != 1:
                 print(
                     "Warning: p_init does not lie in a unique triangle. Assuming"
                     "it lies in the first triangle of alpha."
@@ -430,7 +430,7 @@ class Triangulation:
             p_init = self.vertices_dual[alpha[0]]
             tri_idx_prev = alpha[0]
             alpha = alpha[1:]
-        left = p_init.reshape(1, 2)  # initialize left side of funnel
+        left = np.array(p_init).reshape(1, 2)  # initialize left side of funnel
         right = left.copy()  # initialize right side of funnel
 
         # Trace alpha through the triangulation
@@ -505,28 +505,38 @@ class Triangulation:
                     # this case, points on the right side of the funnel must be checked
                     # as well to determine if the funnel (or part of it) has closed.
                     # NOTE: this block also contains the tail update.
-                    for i in range(len(right) - 1):
-                        angle_new = np.arctan2(
-                            v_left[1] - right[i, 1],
-                            v_left[0] - right[i, 0],
-                        )
-                        angle_old = np.arctan2(
-                            right[i + 1, 1] - right[i, 1],
-                            right[i + 1, 0] - right[i, 0],
-                        )
-                        delta = (angle_new - angle_old + np.pi) % (2 * np.pi) - np.pi
-                        if delta <= 0:
-                            # The funnel has closed up to this point. Therefore, this
-                            # point from the right side becomes the new apex of the
-                            # funnel. Therefore, it is replaced to the current only
-                            # remaining point in the left side, which in turn is added
-                            # to the tail
-                            tail = np.vstack((tail, left[0]))  # move old apex to tail
-                            left = right[i + 1].reshape(1, 2)  # new apex of funnel
-                            right = right[i + 1 :].copy()  # keep right side from i+1
+                    new_idx: int = 0
+                    if len(right) >= 2:
+                        for i in range(max(len(right) - 2, 1)):
+                            angle_new = np.arctan2(
+                                v_left[1] - right[i, 1],
+                                v_left[0] - right[i, 0],
+                            )
+                            angle_old = np.arctan2(
+                                right[i + 1, 1] - right[i, 1],
+                                right[i + 1, 0] - right[i, 0],
+                            )
+                            delta = (angle_new - angle_old + np.pi) % (
+                                2 * np.pi
+                            ) - np.pi
+                            if delta <= 0:
+                                # The funnel has closed up to this point. Therefore, this
+                                # point from the right side becomes the new apex of the
+                                # funnel. Therefore, it is replaced to the current only
+                                # remaining point in the left side, which in turn is added
+                                # to the tail
+                                tail = (
+                                    np.vstack((tail, right[i]))
+                                    if tail.size > 0
+                                    else right[i]
+                                )  # move old apex to tail
+                                left = right[i + 1].reshape(1, 2)  # new apex of funnel
+                                new_idx = i + 1
 
-                        elif delta > 0:
-                            break
+                            elif delta > 0:
+                                break
+
+                    right = right[new_idx:].copy()  # keep right side from new_idx
 
                 left = np.vstack((left, v_left))  # add new left point (always)
 
@@ -559,28 +569,38 @@ class Triangulation:
                     # checked as well to determine if the funnel (or part of it) has
                     # closed.
                     # NOTE: this block also contains the tail update.
-                    for i in range(len(left) - 1):
-                        angle_new = np.arctan2(
-                            v_left[1] - left[i, 1],
-                            v_left[0] - left[i, 0],
-                        )
-                        angle_old = np.arctan2(
-                            left[i + 1, 1] - left[i, 1],
-                            left[i + 1, 0] - left[i, 0],
-                        )
-                        delta = (angle_new - angle_old + np.pi) % (2 * np.pi) - np.pi
-                        if delta >= 0:
-                            # The funnel has closed up to this point. Therefore, this
-                            # point from the left side becomes the new apex of the
-                            # funnel. Therefore, it is replaced to the current only
-                            # remaining point in the right side, which in turn is added
-                            # to the tail
-                            tail = np.vstack((tail, right[0]))  # move old apex to tail
-                            right = left[i + 1].reshape(1, 2)  # new apex of funnel
-                            left = left[i + 1 :].copy()  # keep left side from i+1
+                    new_idx: int = 0
+                    if len(left) >= 2:
+                        for i in range(max(len(left) - 2, 1)):
+                            angle_new = np.arctan2(
+                                v_right[1] - left[i, 1],
+                                v_right[0] - left[i, 0],
+                            )
+                            angle_old = np.arctan2(
+                                left[i + 1, 1] - left[i, 1],
+                                left[i + 1, 0] - left[i, 0],
+                            )
+                            delta = (angle_new - angle_old + np.pi) % (
+                                2 * np.pi
+                            ) - np.pi
+                            if delta >= 0:
+                                # The funnel has closed up to this point. Therefore, this
+                                # point from the left side becomes the new apex of the
+                                # funnel. Therefore, it is replaced to the current only
+                                # remaining point in the right side, which in turn is added
+                                # to the tail
+                                tail = (
+                                    np.vstack((tail, left[i]))
+                                    if tail.size > 0
+                                    else left[i]
+                                )  # move old apex to tail
+                                right = left[i + 1].reshape(1, 2)  # new apex of funnel
+                                new_idx = i + 1
 
-                        elif delta < 0:
-                            break
+                            elif delta < 0:
+                                break
+
+                    left = left[new_idx:].copy()  # keep left side from new_idx
 
                 right = np.vstack((right, v_right))  # add new right point (always)
 
@@ -589,23 +609,27 @@ class Triangulation:
 
         # Final step
         if p_end is None:
-            p_end = self.vertices_dual[tri_idx].reshape(1, 2)
+            p_end = self.vertices_dual[tri_idx]
 
         # Check left side and add points to tail
         if left.size > 0:
             for i in range(len(left) - 1, 0, -1):
                 angle_new = np.arctan2(
-                    p_end[1] - left[i, 1],
-                    p_end[0] - left[i, 0],
+                    p_end[1] - left[i, 1],  # delta y
+                    p_end[0] - left[i, 0],  # delta x
                 )
                 angle_old = np.arctan2(
                     left[i, 1] - left[i - 1, 1],
                     left[i, 0] - left[i - 1, 0],
                 )
                 delta = (angle_new - angle_old + np.pi) % (2 * np.pi) - np.pi
-                if delta > 0:
+                if delta >= 0:
                     # Add all points from left side up to i (including i) to the tail
-                    tail = np.vstack((tail, left[: i + 1]))
+                    tail = (
+                        np.vstack((tail, left[: i + 1]))
+                        if tail.size > 0
+                        else left[: i + 1]
+                    )
                     break
                 else:
                     continue
@@ -614,22 +638,31 @@ class Triangulation:
         if right.size > 0:
             for i in range(len(right) - 1, 0, -1):
                 angle_new = np.arctan2(
-                    p_end[1] - right[i, 1],
-                    p_end[0] - right[i, 0],
+                    p_end[1] - right[i, 1],  # delta y
+                    p_end[0] - right[i, 0],  # delta x
                 )
                 angle_old = np.arctan2(
                     right[i, 1] - right[i - 1, 1],
                     right[i, 0] - right[i - 1, 0],
                 )
                 delta = (angle_new - angle_old + np.pi) % (2 * np.pi) - np.pi
-                if delta < 0:
+                if delta <= 0:
                     # Add all points from right side up to i (including i) to the tail
-                    tail = np.vstack((tail, right[: i + 1]))
+                    tail = (
+                        np.vstack((tail, right[: i + 1]))
+                        if tail.size > 0
+                        else right[: i + 1]
+                    )
                     break
                 else:
                     continue
 
-        # Add final point to tail
+        # If tail is still empty, it means that the funnel never narrowed, so we
+        # manually add the initial point to the tail
+        if tail.size == 0:
+            tail = p_init.reshape(1, 2)
+
+        # Add final point to tail (always)
         tail = np.vstack((tail, p_end))
 
         # Return the shortest path
