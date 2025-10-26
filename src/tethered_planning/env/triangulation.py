@@ -277,9 +277,17 @@ class Triangulation:
         n: int = 0
 
         # Initial conditions
-        # TODO: the distance between the anchor and the vertices should technically be
-        # checked before adding it, but for the time being we assume that they are valid
-        # as otherwise the triangle could not be added at all
+        # Check that all the vertices of the root triangle are within max_dist (this
+        # test should never fail as otherwise no triangle can be added in the lift.
+        # However, we keep it for safety)
+        for i in self.triangles[self.root_idx]:
+            dist = np.linalg.norm(self.env.anchor_point - self.vertices[i, :])
+            if dist > self.max_dist:
+                raise ValueError(
+                    "The root triangle is too small and its vertices cannot be reached "
+                    "from the anchor point. Consider increasing max_dist."
+                )
+        # If the test is passed, add root triangle to open queue
         open_queue.append((self.root_idx, [], 0))
 
         # Initialize temporary variables
@@ -294,14 +302,41 @@ class Triangulation:
             idx, sign, parent_idx = open_queue.pop(0)
 
             # Check if the triangle is valid
-            # TODO: this section can be updated by only checking the vertices that are
-            # not shared with the parent triangle, as those have already been checked
-            # TODO: check distance of edges from anchor point
-            # Measure the distance from anchor point and check if it's within the limit
-            # p = vertex # TODO
-            # dist = self._lifted_distance(self.env.anchor_point, [], p, sign)
-            # if dist < self.max_dist:
-            #     continue  # discard triangle if too far
+            # Check that the geodesic connecting each vertex to the anchor point is
+            # less than self.max_dist. In practice, only one vertex is checked, since
+            # the other two are shared with the parent triangle, which has already been
+            # checked in a previous iteration.
+            if parent_idx != 0:  # skip for root triangle
+                new_vertex_idx = np.setdiff1d(
+                    self.triangles[idx],
+                    self.triangles[self.triangles_lift[parent_idx][0]],
+                )
+                new_vertex = self.vertices[new_vertex_idx, :]
+
+                # Compute the signature of the new vertex (may be different from the one
+                # of the centroid, represented by sign, if a generator lies between the
+                # centroid and the vertex). The signature is required for the geodesic
+                # computation.
+                new_edge = np.array(
+                    [
+                        self.vertices_dual[[idx], :].squeeze(),
+                        new_vertex.squeeze(),
+                    ]
+                )
+                new_sign = sign + curves.compute_signature(new_edge, self.env)
+                new_sign = curves.simplify_signature(new_sign)
+
+                # Compute geodesic distance between anchor point and new vertex
+                dist, _ = self.geodesic_distance(
+                    self.env.anchor_point,
+                    [],
+                    new_vertex,
+                    new_sign,
+                    t1=self.root_idx,  # specify triangle since vertices lie on boundary
+                    t2=idx,
+                )
+                if dist > self.max_dist:
+                    continue  # vertex too far: discard triangle and move to next one
 
             # Add element to graph; append it to closed queue; increase counter
             n += 1  # Increase counter
@@ -338,19 +373,28 @@ class Triangulation:
         s1: list[int],
         p2: np.ndarray,
         s2: list[int],
-    ) -> float:
+        **kwargs,
+    ) -> tuple[float, np.ndarray]:
         """
         Measure the length of the shortest path (geodesic) between two points in the
         lifted triangulation.
 
         Args:
-            p1: the first point to check
-            s1: the signature of the first point
-            p2: the second point to check
-            s2: the signature of the second point
+            p1 (np.ndarray): the first point to check
+            s1 (list[int]): the signature of the first point
+            p2 (np.ndarray): the second point to check
+            s2 (list[int]): the signature of the second point
+            t1 (int, optional): index of the triangle containing p1 (in the base space).
+                If None, the triangle will be searched for. This option is useful when
+                dealing with points on the boundary of a triangle, where it can be
+                important to distinguish between different triangles. If t1 is None,
+                the selection of the triangle in case of multiple intersections is
+                arbitrary. Default is None.
+            t2 (int, optional): index of the triangle containing p2 (in the base space).
 
         Returns:
-            float: The length of the shortest path (geodesic) between the two points.
+            length (float): length of the shortest path (geodesic) between two points.
+            geodesic (np.ndarray): The geodesic path as a list of [x, y] coordinates.
         """
         # Parse inputs
         if isinstance(p1, list):
@@ -358,29 +402,67 @@ class Triangulation:
         if isinstance(p2, list):
             p2 = np.array(p2)
 
+        # Parse kwargs
+        t1: int | None = None  # default values
+        t2: int | None = None
+        for key, value in kwargs.items():
+            if key == "t1":
+                if not isinstance(value, (int, type(None))):
+                    raise TypeError("t1 must be an integer or None.")
+                t1 = value
+            elif key == "t2":
+                if not isinstance(value, (int, type(None))):
+                    raise TypeError("t2 must be an integer or None.")
+                t2 = value
+            else:
+                raise KeyError(f"Unknown keyword argument: {key}")
+
+        # Initialize variables for triangle search
+        intersections: list[int]
+        tri_idx_1: int
+        tri_idx_2: int
+
         # Find triangle containing (p1, s1)
-        tri_idx_1: int = self.triang_tree.query(Point(p1), predicate="intersects")[0]
+        intersections = self.triang_tree.query(Point(p1), predicate="intersects")
+        if t1 is None:
+            tri_idx_1 = intersections[0]
+        else:
+            if not t1 in intersections:
+                raise ValueError(
+                    f"The provided triangle index t1={t1} does not contain point {p1}."
+                )
+            tri_idx_1 = t1
         lift_idx_1 = [
             i
             for i, (t_idx, t_sign) in enumerate(self.triangles_lift)
             if t_idx == tri_idx_1 and t_sign == s1
-        ][0]
+        ]
         if not lift_idx_1:
             raise ValueError(
                 f"The signature was not found in the lifted tree for point {p1}."
             )
+        lift_idx_1 = lift_idx_1[0]
 
         # Find triangle containing (p2, s2)
-        tri_idx_2: int = self.triang_tree.query(Point(p2), predicate="intersects")[0]
+        intersections = self.triang_tree.query(Point(p2), predicate="intersects")
+        if t2 is None:
+            tri_idx_2 = intersections[0]
+        else:
+            if not t2 in intersections:
+                raise ValueError(
+                    f"The provided triangle index t2={t2} does not contain point {p2}."
+                )
+            tri_idx_2 = t2
         lift_idx_2 = [
             i
             for i, (t_idx, t_sign) in enumerate(self.triangles_lift)
             if t_idx == tri_idx_2 and t_sign == s2
-        ][0]
+        ]
         if not lift_idx_2:
             raise ValueError(
                 f"The signature was not found in the lifted tree for point {p2}."
             )
+        lift_idx_2 = lift_idx_2[0]
 
         # Compute path between (p1, s1) and (p2, s2)
         alpha_lift: list[int] = graph_search.a_star_search(
@@ -416,7 +498,7 @@ class Triangulation:
         alpha: list[int],
         p_init: np.ndarray | None = None,
         p_end: np.ndarray | None = None,
-    ) -> list[np.ndarray]:
+    ) -> np.ndarray:
         """
         Compute the shortest path between two points that is homotopic to a given path.
 
