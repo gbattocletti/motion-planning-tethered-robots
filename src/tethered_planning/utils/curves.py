@@ -12,7 +12,6 @@ from shapely.geometry import LineString, MultiLineString, Point
 from ..env.env_2d import Env2D
 from .colors import CmdColors, PlotColors
 from .plot import plot_env
-from .settings import Settings
 
 
 def unpack_curve(curve: LineString) -> np.ndarray:
@@ -379,7 +378,6 @@ def compare_signatures(sig1: list[int], sig2: list[int]) -> bool:
 
 def generate_curve(
     env: Env2D,
-    settings: Settings,
     **kwargs,
 ) -> LineString | np.ndarray:
     """
@@ -664,7 +662,6 @@ def generate_curve(
     # plot environment
     fig, ax = plot_env(
         env,
-        settings,
         **kwargs,
     )
 
