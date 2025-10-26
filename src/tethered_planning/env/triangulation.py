@@ -466,10 +466,8 @@ class Triangulation:
                 predicate="intersects",
             )[0]
             if tri_idx_prev.size != 1:
-                print(
-                    "Warning: p_init does not lie in a unique triangle. Assuming"
-                    "it lies in the first triangle of alpha."
-                )
+                # p_init does not lie in a unique triangle. We assumeit lies in the
+                # first triangle of alpha.
                 tri_idx_prev = alpha[0]
                 alpha = alpha[1:]
         else:
@@ -553,7 +551,7 @@ class Triangulation:
                     # NOTE: this block also contains the tail update.
                     new_idx: int = 0
                     if len(right) >= 2:
-                        for i in range(max(len(right) - 2, 1)):
+                        for i in range(len(right) - 1):
                             angle_new = np.arctan2(
                                 v_left[1] - right[i, 1],
                                 v_left[0] - right[i, 0],
@@ -617,7 +615,7 @@ class Triangulation:
                     # NOTE: this block also contains the tail update.
                     new_idx: int = 0
                     if len(left) >= 2:
-                        for i in range(max(len(left) - 2, 1)):
+                        for i in range(len(left) - 1):
                             angle_new = np.arctan2(
                                 v_right[1] - left[i, 1],
                                 v_right[0] - left[i, 0],
@@ -658,6 +656,7 @@ class Triangulation:
             p_end = self.vertices_dual[tri_idx]
 
         # Check left side and add points to tail
+        added_left: bool = False
         if left.size > 0:
             for i in range(len(left) - 1, 0, -1):
                 angle_new = np.arctan2(
@@ -676,11 +675,13 @@ class Triangulation:
                         if tail.size > 0
                         else left[: i + 1]
                     )
+                    added_left = True
                     break
                 else:
                     continue
 
         # Check right side and add points to tail
+        added_right: bool = False
         if right.size > 0:
             for i in range(len(right) - 1, 0, -1):
                 angle_new = np.arctan2(
@@ -699,9 +700,22 @@ class Triangulation:
                         if tail.size > 0
                         else right[: i + 1]
                     )
+                    added_right = True
                     break
                 else:
                     continue
+
+        # If no points were added left and right, add the first point of left (which
+        # coincides with the first point of right), since, being the same, these two
+        # points represents the last point of the tail. This step ensures that the whole
+        # tail has been considered in the solution.
+        if not added_left and not added_right:
+            if np.array_equal(left[0], right[0]):
+                tail = (
+                    np.vstack((tail, left[0]))
+                    if tail.size > 0
+                    else left[0].reshape(1, 2)
+                )
 
         # If tail is still empty, it means that the funnel never narrowed, so we
         # manually add the initial point to the tail

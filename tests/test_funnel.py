@@ -109,6 +109,18 @@ def show_plot():
             None,
             [1, 0.8],  # custom end point
         ),
+        (
+            "test_env_5.yaml",  # TODO: debug this test
+            [5, 7, 3, 2],
+            [3.5, 4.5],
+            [1.7, 3],
+        ),
+        (
+            "test_env_5.yaml",
+            [5, 7, 3, 2, 6],
+            [3.5, 4.5],
+            [2, 1.5],
+        ),
     ],
 )
 def test_homotopic_shortest_path(env, path, p_init, p_end):
@@ -191,7 +203,7 @@ def test_homotopic_shortest_path(env, path, p_init, p_end):
             [-1],
         ),
         (
-            "test_env_5.yaml",
+            "test_env_5.yaml",  # TODO: debug
             [6, 0.5],
             [],
             [1.5, 2.5],
@@ -215,16 +227,23 @@ def test_homotopic_shortest_path(env, path, p_init, p_end):
             "test_env_5.yaml",
             [3.5, 4.5],
             [-2],
+            [6, 0.5],
+            [],
+        ),
+        (
+            "test_env_5.yaml",
+            [3.5, 4.5],
+            [-2],
             [1.7, 3],
             [-2, -1],
         ),
-        # (
-        #     "test_env_4.yaml",
-        #     [0.5, 0.5],
-        #     [],
-        #     [0.5, 0.5],
-        #     [],
-        # ),
+        (
+            "test_env_5.yaml",
+            [3.5, 4.5],
+            [-2],
+            [2, 1.5],
+            [-2, -1],
+        ),
     ],
 )
 def test_geodesic_distance(env, p1, s1, p2, s2):
@@ -261,7 +280,7 @@ def test_geodesic_distance(env, p1, s1, p2, s2):
 
     # Compute geodesic distance
     distance, path = triang.geodesic_distance(p1, s1, p2, s2)
-    print(f"Geodesic distance between ({p1}, {s1}) and ({p2}, {s2}): {distance}")
+    print(f"Geodesic distance   between ({p1}, {s1}) and ({p2}, {s2}): {distance}")
 
     # Find nodes for plot
     path_len = len(path)
