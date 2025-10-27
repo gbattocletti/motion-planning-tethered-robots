@@ -5,16 +5,8 @@ import pytest
 
 from tethered_planning.env import env_2d
 from tethered_planning.env.grid_graph import GridGraph
+from tethered_planning.utils import plot, plot_graph
 from tethered_planning.utils.settings import Settings
-
-
-@pytest.fixture(scope="module", name="plot_settings")
-def fixture_plot_settings():
-    SHOW_PLOT = True
-    BLOCKING = True
-    WAIT_TIME = 1
-    SAVE_PLOT = False
-    return SHOW_PLOT, BLOCKING, WAIT_TIME, SAVE_PLOT
 
 
 @pytest.fixture(name="settings")
@@ -31,7 +23,14 @@ def fixture_env(settings):
     return env
 
 
-def show_plot(SHOW_PLOT, BLOCKING, WAIT_TIME):
+def show_plot():
+
+    # plot settings
+    SHOW_PLOT = True
+    BLOCKING = True
+    WAIT_TIME = 1
+
+    # function logic
     if SHOW_PLOT:
         if not BLOCKING:
             plt.show(block=BLOCKING)
@@ -42,12 +41,38 @@ def show_plot(SHOW_PLOT, BLOCKING, WAIT_TIME):
 
 
 @pytest.mark.parametrize(
-    "env_name",
+    "env_name, custom_sign_order",
     [
-        "test_env_5.yaml",
+        (
+            "test_env_1.yaml",
+            [[-1, -1], [-1], [], [1], [1, 1]],
+        ),
+        (
+            "test_env_5.yaml",
+            None,
+        ),
     ],
 )
-def test_grid_graph(env):
+def test_grid_graph(env, custom_sign_order):
+
+    # Create grid graph
     graph = GridGraph(env)
+    graph.DEBUG = True  # Enable debug info
+    graph.set_max_dist(20.0)
     graph.set_grid_resolution(0.5, 0.5)
     graph.build_homotopy_augmented_graph()
+
+    # Visualize base environment
+    plot.plot_env(
+        env,
+        show_goal=False,
+        show_anchor=True,
+    )
+
+    # Visualize grid graph
+    plot_graph.plot_3d(
+        graph,
+        env,
+        custom_sign_order=custom_sign_order,
+    )
+    show_plot()

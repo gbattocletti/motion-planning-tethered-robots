@@ -198,7 +198,8 @@ def plot_3d(
     # Plot nodes
     for node in graph.vertices_lift:
         # Extract node info
-        xy = node[0]
+        idx = node[0]
+        xy = graph.vertices[idx]
         sign = node[1]
 
         # Get z coordinate based on signature
@@ -223,6 +224,8 @@ def plot_3d(
         # Extract start and end node info
         node_1 = graph.vertices_lift[edge[0]]
         node_2 = graph.vertices_lift[edge[1]]
+        xy_1 = graph.vertices[node_1[0]]
+        xy_2 = graph.vertices[node_2[0]]
 
         # Get z coordinates based on signature
         sign_1 = node_1[1]
@@ -233,8 +236,8 @@ def plot_3d(
         # Define edge line in 3D
         line_3d = np.array(
             [
-                [node_1[0][0], node_1[0][1], z_1],
-                [node_2[0][0], node_2[0][1], z_2],
+                [xy_1[0], xy_1[1], z_1],
+                [xy_2[0], xy_2[1], z_2],
             ]
         )
 

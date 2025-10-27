@@ -53,12 +53,15 @@ class GridGraph:
         self.points_y: np.ndarray  # y coordinates of grid points
         self.vertices: np.ndarray  # (x, y) coordinates of vertices
         self.edges: list[tuple[int, int]]  # [[v_idx_1, v_idx_2], ...]
-        self.init_grid()
+        self.init_grid()  # initialize grid (repeated if res is changed)
 
         # Homotopy-augmented grid graph
         self.root_idx: int  # index of anchor point in self.vertices
         self.vertices_lift: list[tuple[int, list[int]]]  # lifted vertices [idx, sign]
         self.edges_lift: list[list[int]]  # [[v1_lifted_idx, v2_lifted_idx], ...]
+
+        # Debug info
+        self.DEBUG: bool = False
 
     def set_max_dist(self, max_dist: float) -> None:
         """
@@ -99,11 +102,11 @@ class GridGraph:
         # Initialize lattice of points
         # NOTE: The modulo term is added to ensure that the anchor point is a grid point
         self.points_x = (
-            np.arange(0, self.env.size[0], self.res_x)
+            np.arange(0, self.env.size[0] + self.res_x, self.res_x)
             + self.anchor_point[0] % self.res_x
         )
         self.points_y = (
-            np.arange(0, self.env.size[1], self.res_y)
+            np.arange(0, self.env.size[1] + self.res_y, self.res_y)
             + self.anchor_point[1] % self.res_y
         )
         self.vertices = np.meshgrid(self.points_x, self.points_y)
@@ -112,8 +115,10 @@ class GridGraph:
         ).T
 
         # Remove points inside obstacles
-        # CHECKME: are points outside of the env size removed correctly?
-        invalid_idx = [self.env.is_valid_point(*p) for p in self.vertices]
+        invalid_idx = [
+            not self.env.is_valid_point(*p, invalid_boundary=False)
+            for p in self.vertices
+        ]
         self.vertices = np.delete(self.vertices, invalid_idx, axis=0)
 
         # Find anchor point index
@@ -124,15 +129,21 @@ class GridGraph:
         # NOTE: edges are undirected, so (i,j) is the same as (j,i). For convenience,
         # they are stored as (min(i,j), max(i,j)).
         self.edges = []
+
+        # NOTE: during the edge creation, only neighbors in the +x and +y directions
+        # are checked. This is more efficient than checking all 4 neighbors, and
+        # checking -x and -y is redundant since the edge expansion starts from [0, 0]
+        # toward [max_x, max_y], and the edges are undirected.
         neighbors_to_check = [np.array([0, self.res_y]), np.array([self.res_x, 0])]
+
         for i, v1 in enumerate(self.vertices):
             for neighbor_offset in neighbors_to_check:
                 v2 = v1 + neighbor_offset
                 j = np.where((np.isclose(self.vertices, v2)).all(axis=1))[0]  # find idx
                 if j.size == 0:
-                    continue
+                    continue  # vertex does not exist (invalid point)
                 elif j.size == 1:
-                    i, j = sorted((i, j[0]))  # sort edge indices (smaller first)
+                    i, j = sorted((i, int(j[0])))  # sort edge indices (smaller first)
                     if (i, j) not in self.edges:
                         self.edges.append((i, j))
                     else:
@@ -151,16 +162,16 @@ class GridGraph:
         self.vertices_lift = []
         self.edges_lift = []
 
-        # Initialize counter (termination condition)
-        n_max: int = 200  # max number of nodes
+        # Initialize counter
         n: int = 0  # current number of nodes
+        n_max: int = 10_000  # max number of nodes (safety termination condition)
 
         # Initialize queues
         open_queue: list[tuple] = []  # list of points to visit
         closed_queue: list[tuple] = []  # list of points already visited
 
         # Initial condition
-        open_queue.append((self.root_idx, [], [-1], 0.0))
+        open_queue.append((self.root_idx, [], [], 0.0))
 
         # Specify neighbors (4-connectivity)
         # NOTE: due to the use of 4-connectivity, the length of the offsets can be
@@ -175,7 +186,7 @@ class GridGraph:
         # Temporary variables for main loop
         idx: int  # index of vertex in self.vertices
         sign: list[int]  # homotopy signature
-        parent_vec: int  # vector of parent index starting from anchor nodes
+        parent_vec: list[int]  # history vec of parent idx starting from anchor node
         a_len: float  # approximate length from anchor point to (x,y)
 
         # Main loop
@@ -186,10 +197,10 @@ class GridGraph:
         while len(open_queue) > 0 and n < n_max:
 
             idx, sign, parent_vec, a_len = open_queue.pop(0)
+            idx = int(idx)
 
             # Check if vertex has already been visited
             if (idx, sign) in closed_queue:
-                closed_queue.append((idx, sign))
                 continue
 
             # Check if vertex is within max distance from anchor point
@@ -211,11 +222,8 @@ class GridGraph:
                 a_len = curve_len
 
             # Add lifted vertex
-            n += 1
-            self.vertices_lift.append((idx, sign))
-            i, j = sorted((parent_vec[-1], n))  # sort edge indices (smaller first)
-            self.edges_lift.append((i, j))
-            closed_queue.append((idx, sign))
+            self.vertices_lift.append((idx, sign))  # add new lifted vertex
+            closed_queue.append((idx, sign))  # mark vertex as visited
 
             # Add neighbors to open queue
             for offset in offsets:
@@ -226,7 +234,7 @@ class GridGraph:
                 if neighbor_idx[0].size == 0:
                     continue  # neighbor is not in self.vertices (invalid point)
                 elif neighbor_idx[0].size == 1:
-                    neighbor_idx = neighbor_idx[0][0]
+                    neighbor_idx = int(neighbor_idx[0][0])
                     edge: np.ndarray = np.array(
                         [self.vertices[idx], self.vertices[neighbor_idx]]
                     )
@@ -244,13 +252,31 @@ class GridGraph:
                         i, j = sorted((n, neighbor_lifted_idx))  # sort edge indices
                         self.edges_lift.append((i, j))
                     else:
-                        open_queue.append(
-                            (
-                                neighbor_idx,
-                                neighbor_sign,
-                                parent_vec + [idx],
-                                a_len + np.linalg.norm(offset, ord=1),
+                        if (n, neighbor_idx, neighbor_sign) not in open_queue:
+                            open_queue.append(
+                                (
+                                    neighbor_idx,
+                                    neighbor_sign,
+                                    parent_vec + [idx],
+                                    a_len + np.linalg.norm(offset, ord=1),
+                                )
                             )
-                        )
                 else:
                     raise ValueError(f"Duplicate vertex detected for point {neighbor}")
+
+            # Increment counter
+            n += 1
+
+        if self.DEBUG:
+            if n >= n_max:
+                print(
+                    f"{CmdColors.WARNING}[GridGraph]{CmdColors.ENDC} Warning: "
+                    "maximum number of nodes reached before exploring all reachable "
+                    "vertices within max_dist. Consider increasing n_max or reducing "
+                    "max_dist."
+                )
+            print(
+                f"{CmdColors.OKBLUE}[GridGraph]{CmdColors.ENDC} Homotopy-augmented "
+                f"graph built with {len(self.vertices_lift)} vertices and "
+                f"{len(self.edges_lift)} edges."
+            )
