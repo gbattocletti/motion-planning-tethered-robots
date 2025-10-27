@@ -63,7 +63,6 @@ def test_triangulation(env, plot_settings):
         show_goal=False,
         show_anchor=True,
     )
-    show_plot(SHOW_PLOT, BLOCKING, WAIT_TIME)
 
     # Generate figure
     plot.plot_graph(
@@ -74,7 +73,7 @@ def test_triangulation(env, plot_settings):
         edges_dual=triang.edges_dual,
         show_dual_graph=True,
         label_nodes=False,
-        label_triangles=False,
+        label_triangles=True,
         show_generators_labels=True,
     )
 
@@ -83,12 +82,13 @@ def test_triangulation(env, plot_settings):
 
 
 @pytest.mark.parametrize(
-    "env_name, length, n_triangs, order, cmap",
+    "env_name, length, n_triangs, check_distance, order, cmap",
     [
         (
             "test_env_1.yaml",
             1000.0,
             40,
+            False,  # skip distance check
             [[1, 1, 1], [1, 1], [1], [], [-1], [-1, -1]],
             CustomColors.layers_cmap[0:6],
         ),
@@ -96,6 +96,7 @@ def test_triangulation(env, plot_settings):
             "test_env_5.yaml",
             1000.0,
             40,
+            False,  # skip distance check
             [[1, 2], [2], [1], [], [-1], [-2], [-2, -1]],
             CustomColors.layers_cmap[0:7],
         ),
@@ -103,12 +104,21 @@ def test_triangulation(env, plot_settings):
             "test_env_5.yaml",
             50.0,
             100,
+            True,
             None,
             None,
         ),
     ],
 )
-def test_lift_triangulation(env, length, n_triangs, order, cmap, plot_settings):
+def test_lift_triangulation(
+    env,
+    length,
+    n_triangs,
+    check_distance,
+    order,
+    cmap,
+    plot_settings,
+):
 
     # Unpack fixtures
     SHOW_PLOT, BLOCKING, WAIT_TIME = plot_settings
@@ -118,7 +128,7 @@ def test_lift_triangulation(env, length, n_triangs, order, cmap, plot_settings):
     triang.set_max_dist(length)  # large value to avoid max_dist stopping criterion
     triang.set_max_triangles(n_triangs)  # secondary stopping criterion
     triang.triangulate()
-    triang.lift_triangulation()
+    triang.lift_triangulation(check_distance=check_distance)
 
     # Generate env plot
     plot.plot_env(

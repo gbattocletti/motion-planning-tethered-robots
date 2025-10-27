@@ -407,12 +407,12 @@ def plot_3d(
     # Define colormap for the triangles (organized by layers)
     triangles_cmap: list[str] | str
     if layers_cmap is not None:
-        if len(layers_cmap) != n_sign and len(layers_cmap) != 1:
-            raise ValueError(
-                "The length of layers_colormap must be either 1 (single color for "
-                f"all layers) or match the number of unique signatures {n_sign} in "
-                "the triangulation."
-            )
+        # if len(layers_cmap) != n_sign and len(layers_cmap) != 1:
+        #     raise ValueError(
+        #         "The length of layers_colormap must be either 1 (single color for "
+        #         f"all layers) or match the number of unique signatures {n_sign} in "
+        #         "the triangulation."
+        #     )
         if len(layers_cmap) == 1:
             triangles_cmap = layers_cmap[0]
         else:

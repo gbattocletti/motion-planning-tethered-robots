@@ -256,15 +256,30 @@ class Triangulation:
                 neighbors.append(int(edge[0]) if edge[1] == idx else int(edge[1]))
         return neighbors
 
-    def lift_triangulation(self) -> None:
+    def lift_triangulation(self, **kwargs) -> None:
         """
         Turn the triangulated environment into a length-constrained simplicial complex,
         and lift it to obtain a manifold corresponding to a subset of the universal
         cover of the environment.
 
+        Args:
+            check_distance (bool, optional): whether to check the distance between the
+                anchor point and the vertices of each triangle before adding it to the
+                lifted triangulation. Default is True.
+
         Returns:
             None
         """
+        # Parse kwargs
+        check_distance: bool = True  # default value
+        for key, value in kwargs.items():
+            if key == "check_distance":
+                if not isinstance(value, bool):
+                    raise TypeError("check_distance must be a boolean.")
+                check_distance = value
+            else:
+                raise KeyError(f"Unknown keyword argument: {key}")
+
         # Check if env was triangulated (if not, execute triangulation)
         if not self.triangulated:
             self.triangulate()
@@ -288,7 +303,7 @@ class Triangulation:
                     "from the anchor point. Consider increasing max_dist."
                 )
         # If the test is passed, add root triangle to open queue
-        open_queue.append((self.root_idx, [], 0))
+        open_queue.append((self.root_idx, [], -1))
 
         # Initialize temporary variables
         idx: int  # index of the current triangle (dual node)
@@ -299,51 +314,54 @@ class Triangulation:
         while open_queue and n < self.max_lifted_triangles:
 
             # Pop the next triangle to lift and unpack it
+            # NOTE: idx is the index of a triangle in base triangulation (not lifted)
+            # NOTE: sign is the signature of the centroid identified by idx
+            # NOTE: parent_idx is the index of a triangle in the lifted triangulation
             idx, sign, parent_idx = open_queue.pop(0)
+
+            # Add element to graph; append it to closed queue; increase counter
+            n += 1  # Increase counter
+            self.triangles_lift.append((idx, sign))
+            i, j = sorted((n - 1, parent_idx))  # sort edge indices (smaller first)
+            if not (i == -1 or j == -1):  # no edge when adding root triangle
+                self.edges_lift.append((i, j))
+            closed_queue.append((idx, sign))  # to avoid checking again
 
             # Check if the triangle is valid
             # Check that the geodesic connecting each vertex to the anchor point is
             # less than self.max_dist. In practice, only one vertex is checked, since
             # the other two are shared with the parent triangle, which has already been
             # checked in a previous iteration.
-            if parent_idx != 0:  # skip for root triangle
+            if check_distance is True and parent_idx != -1:  # skip for root triangle
+
+                # Find the new vertex added with respect to the parent triangle
                 new_vertex_idx = np.setdiff1d(
                     self.triangles[idx],
                     self.triangles[self.triangles_lift[parent_idx][0]],
                 )
-                new_vertex = self.vertices[new_vertex_idx, :]
-
-                # Compute the signature of the new vertex (may be different from the one
-                # of the centroid, represented by sign, if a generator lies between the
-                # centroid and the vertex). The signature is required for the geodesic
-                # computation.
-                new_edge = np.array(
-                    [
-                        self.vertices_dual[[idx], :].squeeze(),
-                        new_vertex.squeeze(),
-                    ]
-                )
-                new_sign = sign + curves.compute_signature(new_edge, self.env)
-                new_sign = curves.simplify_signature(new_sign)
+                new_vertex = self.vertices[new_vertex_idx, :][0]
 
                 # Compute geodesic distance between anchor point and new vertex
                 dist, _ = self.geodesic_distance(
                     self.env.anchor_point,
                     [],
                     new_vertex,
-                    new_sign,
-                    t1=self.root_idx,  # specify triangle since vertices lie on boundary
-                    t2=idx,
+                    sign,
+                    t1=self.root_idx,  # specify t1 in case anchor lies on boundary
+                    t2=idx,  # specify t2 since new_vertex always lies on boundary
                 )
                 if dist > self.max_dist:
-                    continue  # vertex too far: discard triangle and move to next one
-
-            # Add element to graph; append it to closed queue; increase counter
-            n += 1  # Increase counter
-            self.triangles_lift.append((idx, sign))
-            i, j = sorted((n - 1, parent_idx))  # sort edge indices (smaller first)
-            self.edges_lift.append((i, j))
-            closed_queue.append((idx, sign))
+                    # Vertex too far: the triangle currently being checked is not valid
+                    # and must not be added to the lifted triangulation. Therefore, we
+                    # remove the last added triangle (which was added to enable the
+                    # computation of geodesic_distance) and edge from the lifted
+                    # triangulation, then move to the next triangle in the open queue.
+                    # This also skips the addition of the neighboring triangles to the
+                    # open queue.
+                    self.triangles_lift.pop()
+                    self.edges_lift.pop()
+                    n -= 1  # Bring counter back (triangle was removed)
+                    continue
 
             # Add new triangles to the open queue
             # NOTE: index of current triangle is added to keep track of the parent
@@ -354,18 +372,17 @@ class Triangulation:
                 if (neighbor_idx, neighbor_sign) not in closed_queue:
                     open_queue.append((neighbor_idx, neighbor_sign, n - 1))
 
-        # Print debug info
-        if self.DEBUG:
-            if n >= self.max_lifted_triangles:
-                print(
-                    f"{CmdColors.WARNING}[Triang]{CmdColors.WARNING} Reached max "
-                    f"number of triangles ({self.max_lifted_triangles}) during lifting."
-                )
-            elif not open_queue:
-                print(
-                    f"{CmdColors.INFO}[Triang]{CmdColors.INFO} No more triangles in "
-                    "the open queue."
-                )
+        # Termination conditions
+        if n >= self.max_lifted_triangles:
+            print(
+                f"{CmdColors.WARNING}[Triang]{CmdColors.WARNING} Reached max "
+                f"number of triangles ({self.max_lifted_triangles}) during lifting."
+            )
+        elif not open_queue:
+            print(
+                f"{CmdColors.WARNING}[Triang]{CmdColors.WARNING} No more triangles in "
+                "the open queue."
+            )
 
     def geodesic_distance(
         self,
