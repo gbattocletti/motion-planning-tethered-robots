@@ -512,7 +512,9 @@ def plot_3d(
                         simplify=False,
                     )
                 )
-                # Find layer index for each vertex (default to sign if not found)
+                # Find layer index for each vertex
+                # If sign_i is not found (i.e., layer with that signature does not
+                # exist), default to the layer where the triangle centroid lies
                 try:
                     layer_idx_1: int = unique_sign_list.index(list(sign_1))
                 except ValueError:

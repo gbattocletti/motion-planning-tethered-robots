@@ -110,7 +110,7 @@ def show_plot():
             [1, 0.8],  # custom end point
         ),
         (
-            "test_env_5.yaml",  # TODO: debug this test
+            "test_env_5.yaml",
             [5, 7, 3, 2],
             [3.5, 4.5],
             [1.7, 3],
@@ -203,7 +203,7 @@ def test_homotopic_shortest_path(env, path, p_init, p_end):
             [-1],
         ),
         (
-            "test_env_5.yaml",  # TODO: debug
+            "test_env_5.yaml",
             [6, 0.5],
             [],
             [1.5, 2.5],

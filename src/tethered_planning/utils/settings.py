@@ -180,7 +180,7 @@ class Settings(SettingsBase):
             self.load_settings_custom(settings_filename)
         else:
             print(
-                f"{CmdColors.WARNING}[Settings]{CmdColors.ENDC} No settings file "
+                f"\n{CmdColors.WARNING}[Settings]{CmdColors.ENDC} No settings file "
                 "provided. Using default settings."
             )
 
