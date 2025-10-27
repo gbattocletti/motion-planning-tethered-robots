@@ -26,7 +26,7 @@ goal:
     
 # robot properties
 robot:
-    anchor_point: [5.0, 5.0]
+    anchor_point: [5.0, 4.5]
     initial_state: [3.0, 7.0]
     radius: 0.0
 
@@ -34,5 +34,5 @@ robot:
 tether:
     max_length: 10.0
     initial_state: [
-        [5.0, 5.0], [3.0, 7.0]
+        [5.0, 4.5], [3.0, 7.0]
     ]
