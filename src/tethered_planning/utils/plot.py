@@ -475,6 +475,8 @@ def plot_env(env: Env2D, **kwargs) -> tuple[plt.Figure, plt.Axes]:
 
     # Plot tether configuration
     if show_tether:
+        if not isinstance(tether, LineString):
+            tether = LineString(tether)  # ensure LineString type
         plot_line(
             tether,
             ax=ax,
