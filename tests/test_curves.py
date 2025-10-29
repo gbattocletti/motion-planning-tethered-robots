@@ -5,6 +5,8 @@ import os
 import unittest
 
 import matplotlib.pyplot as plt
+import numpy as np
+from shapely.geometry import LineString
 
 from tethered_planning.env.env_2d import Env2D
 from tethered_planning.utils import curves, io, plot
@@ -37,7 +39,7 @@ class TestCurveFcns(unittest.TestCase):
             f"{CmdColors.OKBLUE}[TestCurveFcns]{CmdColors.ENDC} Running "
             "test_curve_generation."
         )
-        c = curves.generate_curve(self.env, self.settings)
+        c = curves.generate_curve(self.env)
         logging.info(type(c))
 
     def test_curve_generation_output(self):
@@ -46,7 +48,7 @@ class TestCurveFcns(unittest.TestCase):
             f"{CmdColors.OKBLUE}[TestCurveFcns]{CmdColors.ENDC} Running "
             "test_curve_generation_output."
         )
-        c = curves.generate_curve(self.env, self.settings, output_type="array")
+        c = curves.generate_curve(self.env, output_type="array")
         logging.info(type(c))
 
     def test_curve_generation_no_collision_check(self):
@@ -55,7 +57,7 @@ class TestCurveFcns(unittest.TestCase):
             f"{CmdColors.OKBLUE}[TestCurveFcns]{CmdColors.ENDC} Running "
             "test_curve_generation_no_collision_check."
         )
-        curves.generate_curve(self.env, self.settings, check_obs=False)
+        curves.generate_curve(self.env, check_obs=False)
 
     def test_curve_generation_with_self_intersection_check(self):
         # test curve generation with self-intersection check
@@ -63,7 +65,7 @@ class TestCurveFcns(unittest.TestCase):
             f"{CmdColors.OKBLUE}[TestCurveFcns]{CmdColors.ENDC} Running "
             "test_curve_generation_with_self_intersection_check."
         )
-        curves.generate_curve(self.env, self.settings, check_self_intersection=True)
+        curves.generate_curve(self.env, check_self_intersection=True)
 
     def test_curve_generation_from_robot(self):
         # test curve generation starting from robot position
@@ -73,7 +75,6 @@ class TestCurveFcns(unittest.TestCase):
         )
         curve = curves.generate_curve(
             self.env,
-            self.settings,
             init_curve=self.env.tether_configuration,
             check_self_intersection=True,
         )
@@ -85,11 +86,10 @@ class TestCurveFcns(unittest.TestCase):
             f"{CmdColors.OKBLUE}[TestCurveFcns]{CmdColors.ENDC} Running "
             "test_multiple_curve_generation."
         )
-        curve_1 = curves.generate_curve(self.env, self.settings)
-        curve_2 = curves.generate_curve(self.env, self.settings)
+        curve_1 = curves.generate_curve(self.env)
+        curve_2 = curves.generate_curve(self.env)
         plot.plot_env(
             self.env,
-            self.settings,
             curves=[curve_1, curve_2],
             show_anchor=False,
             show_generators_labels=False,
@@ -109,7 +109,6 @@ class TestCurveFcns(unittest.TestCase):
         for idx in range(n):
             curve = curves.generate_curve(
                 self.env,
-                self.settings,
                 other_curves=curves_list,
                 check_other_curves=True,
                 title=f"Generating curve ({idx+1}/{n}). ESC to terminate.",
@@ -117,7 +116,6 @@ class TestCurveFcns(unittest.TestCase):
             curves_list.append(curve)
         plot.plot_env(
             self.env,
-            self.settings,
             curves=curves_list,
             show_anchor=False,
             show_generators_labels=False,
@@ -130,7 +128,7 @@ class TestCurveFcns(unittest.TestCase):
             f"{CmdColors.OKBLUE}[TestCurveFcns]{CmdColors.ENDC} Running "
             "test_signature."
         )
-        curve = curves.generate_curve(self.env, self.settings)
+        curve = curves.generate_curve(self.env)
         # NOTE: the case in which a point lies on a generator cannot be tested via
         # manual generation of the curve and requires an ad-hoc definition of the curve.
         # curve = LineString([(10.0, 8.0), (3.20, 7.80), (5.00, 9.40)])
@@ -138,7 +136,6 @@ class TestCurveFcns(unittest.TestCase):
         logging.info(f"Signature: {signature}")
         plot.plot_env(
             self.env,
-            self.settings,
             tether=curve,
             show_tether=True,
             show_generators_labels=True,
@@ -151,13 +148,83 @@ class TestCurveFcns(unittest.TestCase):
             f"{CmdColors.OKBLUE}[TestCurveFcns]{CmdColors.ENDC} Running "
             "test_shorten_curve."
         )
-        curve = curves.generate_curve(self.env, self.settings)
+        curve = curves.generate_curve(self.env)
         # The curve can also be manually defined for testing purposes
         # from shapely.geometry import LineString
         # curve = LineString([(10.0, 8.0), (3.20, 7.80), (5.00, 9.40)])
         shortened_curve = curves.shorten_curve(curve, self.env)
-        plot.plot_env(self.env, self.settings, tether=curve)
-        plot.plot_env(self.env, self.settings, tether=shortened_curve)
+        plot.plot_env(self.env, tether=curve)
+        plot.plot_env(self.env, tether=shortened_curve)
+        plt.show()
+
+    def test_shorten_curve_2(self):
+        logging.info(
+            f"{CmdColors.OKBLUE}[TestCurveFcns]{CmdColors.ENDC} Running "
+            "test_shorten_curve."
+        )
+        self.settings.env_name = "test_env_1"  # Change env name from default case
+        self.env = Env2D(self.settings)
+        curve = np.array(
+            [
+                [1.0, 1.0],
+                [1.0, 1.5],
+                [1.0, 2.0],
+                [1.0, 2.5],
+                [1.0, 3.0],
+                [1.0, 3.5],
+                [1.0, 4.0],
+                [1.0, 4.5],
+                [1.0, 5.0],
+                [1.0, 5.5],
+                [1.0, 6.0],
+                [1.5, 6.0],
+                [2.0, 6.0],
+                [2.5, 6.0],
+                [3.0, 6.0],
+                [3.5, 6.0],
+                [4.0, 6.0],
+                [4.5, 6.0],
+                [5.0, 6.0],
+                [5.5, 6.0],
+                [6.0, 6.0],
+                [6.0, 5.5],
+                [6.0, 5.0],
+                [6.0, 4.5],
+                [6.0, 4.0],
+                [6.0, 3.5],
+                [6.0, 3.0],
+                [6.0, 2.5],
+                [6.0, 2.0],
+                [6.0, 1.5],
+                [6.0, 1.0],
+                [6.0, 0.5],
+                [6.0, 0.0],
+                [5.5, 0.0],
+                [5.0, 0.0],
+                [4.5, 0.0],
+                [4.0, 0.0],
+                [3.5, 0.0],
+                [3.0, 0.0],
+                [2.5, 0.0],
+                [2.0, 0.0],
+                [1.5, 0.0],
+            ]
+        )
+        plot.plot_env(self.env, tether=LineString(curve))
+        plt.show()
+
+        # test shortening when allowing boundary overlap in edge check
+        shortened_curve = curves.shorten_curve(
+            curve, self.env, allow_boundary_overlap=True
+        )
+        plot.plot_env(self.env, tether=LineString(shortened_curve))
+        plt.show()
+
+        # test shortening without allowing boundary overlap in edge check
+        shortened_curve = curves.shorten_curve(
+            curve, self.env, allow_boundary_overlap=False
+        )
+        plot.plot_env(self.env, tether=LineString(shortened_curve))
         plt.show()
 
     def test_shorten_curve_multi_iteration(self):
@@ -165,12 +232,12 @@ class TestCurveFcns(unittest.TestCase):
             f"{CmdColors.OKBLUE}[TestCurveFcns]{CmdColors.ENDC} Running "
             "test_shorten_curve."
         )
-        curve = curves.generate_curve(self.env, self.settings)
+        curve = curves.generate_curve(self.env)
         shortened_curve_1 = curves.shorten_curve(curve, self.env)
         shortened_curve_2 = curves.shorten_curve(curve, self.env, iterations=5)
-        plot.plot_env(self.env, self.settings, tether=curve)
-        plot.plot_env(self.env, self.settings, tether=shortened_curve_1)
-        plot.plot_env(self.env, self.settings, tether=shortened_curve_2)
+        plot.plot_env(self.env, tether=curve)
+        plot.plot_env(self.env, tether=shortened_curve_1)
+        plot.plot_env(self.env, tether=shortened_curve_2)
         plt.show()
 
     def test_resample_curve_linear(self):
@@ -178,12 +245,10 @@ class TestCurveFcns(unittest.TestCase):
             f"{CmdColors.OKBLUE}[TestCurveFcns]{CmdColors.ENDC} Running "
             "test_resample_curve_linear."
         )
-        curve = curves.generate_curve(self.env, self.settings)
+        curve = curves.generate_curve(self.env)
         resampled_curve = curves.resample_curve(curve, 10, "linear")
-        plot.plot_env(self.env, self.settings, curves=[curve], show_curves_nodes=True)
-        plot.plot_env(
-            self.env, self.settings, curves=[resampled_curve], show_curves_nodes=True
-        )
+        plot.plot_env(self.env, curves=[curve], show_curves_nodes=True)
+        plot.plot_env(self.env, curves=[resampled_curve], show_curves_nodes=True)
         plt.show()
 
     def test_resample_curve_global(self):
@@ -191,12 +256,10 @@ class TestCurveFcns(unittest.TestCase):
             f"{CmdColors.OKBLUE}[TestCurveFcns]{CmdColors.ENDC} Running "
             "test_resample_curve_global."
         )
-        curve = curves.generate_curve(self.env, self.settings)
+        curve = curves.generate_curve(self.env)
         resampled_curve = curves.resample_curve(curve, 10, "global")
-        plot.plot_env(self.env, self.settings, curves=[curve], show_curves_nodes=True)
-        plot.plot_env(
-            self.env, self.settings, curves=[resampled_curve], show_curves_nodes=True
-        )
+        plot.plot_env(self.env, curves=[curve], show_curves_nodes=True)
+        plot.plot_env(self.env, curves=[resampled_curve], show_curves_nodes=True)
         plt.show()
 
 

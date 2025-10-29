@@ -186,7 +186,9 @@ def straight_segment(
 
 
 def shorten_curve(
-    curve: LineString | np.ndarray, env: Env2D, iterations: int = 1
+    curve: LineString | np.ndarray,
+    env: Env2D,
+    iterations: int = 1,
 ) -> LineString | np.ndarray:
     """
     Approximate shortening of a piecewise linear curve.
@@ -225,17 +227,38 @@ def shorten_curve(
         i = 0
         j = 0
         while j <= n:
-            if j < n and env.is_valid_edge(points[i], points[j + 1]):
+            # TODO: it would be nice to distinguish the case of one endpoint lying on
+            # the boundary of an obstacle vs the whole edge being on the boundary of an
+            # obstacle. The former case would improve the quality of the solution, even
+            # if not by much.
+            if j < n and env.is_valid_edge(
+                points[i], points[j + 1], allow_boundary_overlap=False
+            ):
                 j += 1
-            else:
+            elif i != j:
                 shortened_curve = np.append(
                     shortened_curve,
                     np.array([points[j]]),
                     axis=0,
                 )
                 i = j
-                if j == n:  # termination condition
+
+                # termination condition
+                if j == n:
                     break
+
+            else:
+                # This case prevents the shortening algorithm to get stuck in an
+                # infinite loop in case part of the curve lies on the boundary of an
+                # obstacle when allow_boundary_overlap is set to False. In this case,
+                # the point is added and the shortening process moves to the next one.
+                shortened_curve = np.append(
+                    shortened_curve,
+                    np.array([points[j]]),
+                    axis=0,
+                )
+                i += 1  # force advance of both points
+                j += 1
 
         # update points with the shortened curve before the next iteration
         points = shortened_curve
