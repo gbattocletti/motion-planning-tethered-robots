@@ -151,9 +151,17 @@ class GridGraph:
                 else:
                     raise ValueError("Duplicate vertex detected")
 
-    def build_homotopy_augmented_graph(self) -> None:
+    def build_homotopy_augmented_graph(
+        self,
+        allow_boundary_overlap: bool = True,
+    ) -> None:
         """
         Build the length-constrained homotopy-augmented grid graph.
+
+        Args:
+            allow_boundary_overlap (bool, optional): if True, allows points of the graph
+                to lie on the boundary of obstacles. If False, points on the boundary
+                are considered invalid. (Default: True)
 
         Returns:
             None
@@ -238,7 +246,9 @@ class GridGraph:
                     edge: np.ndarray = np.array(
                         [self.vertices[idx], self.vertices[neighbor_idx]]
                     )
-                    if not self.env.is_valid_edge(*edge):
+                    if not self.env.is_valid_edge(
+                        *edge, allow_boundary_overlap=allow_boundary_overlap
+                    ):
                         continue  # skip invalid edges (obstacle collision)
                     neighbor_sign = sign + curves.compute_signature(edge, self.env)
                     neighbor_sign = curves.simplify_signature(neighbor_sign)
