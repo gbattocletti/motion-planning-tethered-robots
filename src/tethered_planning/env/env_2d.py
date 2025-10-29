@@ -369,24 +369,35 @@ class Env2D:
             )
             raise ValueError
 
-    def is_valid_point(self, x: float, y: float) -> bool:
+    def is_valid_point(self, x: float, y: float, invalid_boundary: bool = True) -> bool:
         """
         Check if a point is inside or on the boundary of the obstacle region.
 
         Args:
             x (float): x-coordinate of the point to check
             y (float): y-coordinate of the point to check
+            invalid_boundary (bool, optional): if True, points on the boundary of the
+                obstacle are considered invalid. If False, points on the boundary are
+                considered valid instead. (Default: True)
 
         Returns:
             bool: True if the point is outside of the obstacle region, False otherwise
         """
         # Perform check and return result
-        return not (
-            shapely.contains_xy(self.obstacle_region, x, y)
-            or shapely.contains_xy(self.obstacle_region.boundary, x, y)
-        )
+        if invalid_boundary is True:
+            return not (
+                shapely.contains_xy(self.obstacle_region, x, y)
+                or shapely.contains_xy(self.obstacle_region.boundary, x, y)
+            )
+        else:
+            return not shapely.contains_xy(self.obstacle_region, x, y)
 
-    def is_valid_edge(self, point1: np.ndarray, point2: np.ndarray) -> bool:
+    def is_valid_edge(
+        self,
+        point1: np.ndarray,
+        point2: np.ndarray,
+        allow_boundary_overlap: bool = False,
+    ) -> bool:
         """
         Check if an edge intersects with the obstacle region.
 
@@ -395,11 +406,37 @@ class Env2D:
             endpoint of the edge to check
             point2 (np.ndarray): (2, ) ndarray with the coordinates of the second
             endpoint of the edge to check
+            allow_boundary_overlap (bool, optional): if True, intersections at
+                the endpoints of the edge are ignored. If False, any intersection is
+                considered invalid. (Default: False)
 
         Returns:
             bool: True if edge does not intersect with obstacle region, False otherwise
         """
-        return not self.obstacle_region.intersects(LineString([point1, point2]))
+        intersection: bool = self.obstacle_region.intersects(
+            LineString([point1, point2])
+        )  # True if edge intersects with obstacle region
+
+        # Handle intersection with boundary of obstacle region
+        if allow_boundary_overlap and intersection:
+            edge = LineString([point1, point2])
+            intersection_geom = self.obstacle_region.intersection(edge)
+
+            # Case 1: edge lies on obstacle boundary
+            for poly in self.obstacle_polygons:
+                if poly.boundary.contains(intersection_geom):
+                    return True
+
+            # Case 2: edge intersects obstacle region only at endpoints
+            if edge.boundary.contains(intersection_geom):
+                return True
+
+            # Else: edge is not valid
+            return False
+
+        # Reject all intersections with obstacle region
+        else:
+            return not intersection  # True if no intersection (i.e., edge is valid)
 
     def is_goal_reached(self, point: np.ndarray) -> bool:
         """
