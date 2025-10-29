@@ -47,6 +47,8 @@ def show_plot(SHOW_PLOT, BLOCKING, WAIT_TIME):
     [
         "test_env_1.yaml",
         "test_env_5.yaml",
+        "test_env_6.yaml",
+        "test_env_7.yaml",
     ],
 )
 def test_triangulation(env, plot_settings):

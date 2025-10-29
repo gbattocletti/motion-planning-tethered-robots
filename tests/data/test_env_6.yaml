@@ -1,8 +1,8 @@
-# Environment 3
+# Test Env 6
 
 # environment properties
 env:
-    name: "Env 3"
+    name: "Test Env 6"
     dimension: 2
     origin: [0.0, 0.0]
     size: [10.0, 10.0]
