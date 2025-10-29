@@ -55,12 +55,14 @@ def measureStatsBase(f: callable) -> callable:
     return wrapper
 
 
-def measureStats(f: callable) -> callable:
+def measureStats(f: callable, n_rows: int = 10, save_stats: bool = False) -> callable:
     """
     Custom decorator to measure time and memory usage of a function.
 
     Args:
         f (callable): The function to measure.
+        n_rows (int, optional): Number of rows to display in the stats output.
+        save_stats (bool, optional): Whether to save the profiling stats to a file.
 
     Returns:
         callable: A wrapper function that returns the original function's result, and
@@ -71,10 +73,8 @@ def measureStats(f: callable) -> callable:
         def my_function():
             ...
     """
-    # Configuration settings
-    n_rows = 30
-    save_stats = True
 
+    # Define wrapper function
     @functools.wraps(f)
     def wrapper(*params) -> tuple:
 
