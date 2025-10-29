@@ -358,7 +358,7 @@ def plot_env(env: Env2D, **kwargs) -> tuple[plt.Figure, plt.Axes]:
             ax.text(
                 centroid.x,
                 centroid.y,
-                f"$O_{idx+1}$",
+                f"$O_{{{idx+1}}}$",
                 fontsize=8,
                 ha="center",
                 va="center",
@@ -381,13 +381,13 @@ def plot_env(env: Env2D, **kwargs) -> tuple[plt.Figure, plt.Axes]:
             # Label the generators
             if show_generators_labels:
                 offset_x = 0.2
-                offset_y = 3.0
+                offset_y = 0.2
                 if isinstance(env.generators, MultiLineString):
                     for idx, generator in enumerate(env.generators.geoms):
                         ax.text(
                             generator.coords[0][0] + offset_x,
                             generator.coords[0][1] + offset_y,
-                            f"$\\sigma_{idx+1}$",  # latex mathmode
+                            f"$\\sigma_{{{idx+1}}}$",  # latex mathmode
                             fontsize=8,
                             zorder=10,
                         )
