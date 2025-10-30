@@ -43,6 +43,19 @@ class Triangulation:
         self.root_idx: int  # index of the root triangle in the triangulation
 
         # Triangulation components
+        #     - vertices is a list of [x, y] coordinates
+        #     - edges is a list of [idx_1, idx_2] pairs with idx_1 < idx_2, where idx_i
+        #       is the index of a vertex in self.vertices
+        #     - vertices_dual is a list of [x, y] coordinates of the centroids of the
+        #       triangles
+        #     - edges_dual is a list of [idx_1, idx_2] pairs with idx_1 < idx_2, where
+        #       idx_i is the index of a vertex in self.vertices_dual
+        #     - triangles are defined as a [idx_1, idx_2, idx_3] list, where the indexes
+        #       are sorted in increasing order and refer to elements of self.vertices
+        # NOTE: for simplicity, the triangles indexes are the same as the
+        # Shapely-generated Delaunay triangulation. More importantly, the nodes of the
+        # dual graph (i.e., the triangles centroids) are indexed the same way, which
+        # means the centroids and triangles share the same indices.
         self.vertices: np.ndarray  # vertices of the triangulation
         self.edges: np.ndarray  # edges of the triangulation
         self.triangles: np.ndarray  # faces of the triangulation
@@ -56,18 +69,30 @@ class Triangulation:
         self.n_edges_dual: int
 
         # Simplicial complex
-        # NOTE: the triangles are expressed as a tuple (idx, signature) where the index
-        # corresponds to a triangle (or dual graph node), and signature is a list[int]
-        # NOTE: the edges of the simplicial complex are pairs of integers pointing to
-        # the lifted triangles in self.triangles_lift
-        self.triangles_lift: list[tuple[int, list[int]]] = []
-        self.edges_lift: list[list[int]] = []
+        #     - vertices_dual_lift: a tuple (idx, signature) representing a triangle in
+        #       the simplicial complex, where the index corresponds to a triangle in the
+        #       base triangulation (identified as a dual graph node, i.e., the centroid
+        #       of such triangle), and signature is a list[int] identifying the homotopy
+        #       class of the path to the triangle;
+        #     - edges_dual_lift: a list [idx1, idx2] where the indexes point to the
+        #       lifted vertices (self.vertices_dual_lift). A tuple indicates adjacency
+        #       between the two triangles in the simplicial complex, i.e.,
+        #       dges_dual_lift correspond to the edges of the dual lifted graph;
+        #     - vertices_lift: lifted primal graph vertices (vertices of triangles along
+        #       with their signature)
+        #     - edges_lift: lifted primal graph edges represented as [int, int] tuples
+        #       of indexes pointing to the elements of vertices_lift
+        self.vertices_lift: list[tuple[int, list[int]]]
+        self.edges_lift: list[list[int, int]]
+        self.triangles_lift: list[list[int, int, int]]
+        self.vertices_dual_lift: list[tuple[int, list[int]]]
+        self.edges_dual_lift: list[tuple[int, int]]
 
-        # Termination criteria for lifting (with large default values)
-        self.max_lifted_triangles: int = 500  # max number of triangles to expand
-        self.max_dist: float = 1e3  # Maximum distance between anchor point and vertices
+        # Termination criteria for lifting (large default values)
+        self.max_lifted_triangles: int = 1000  # max number of triangles to expand
+        self.max_dist: float = 100  # Maximum distance between anchor point and vertices
 
-        # Debugging
+        # Debug info
         self.DEBUG: bool = False
 
     def set_max_dist(self, max_dist: float) -> None:
@@ -118,19 +143,6 @@ class Triangulation:
         )
 
         # Fill triangulation components
-        #     - vertices is a list of [x, y] coordinates
-        #     - edges is a list of [idx_1, idx_2] pairs with idx_1 < idx_2, where idx_i
-        #       is the index of a vertex in self.vertices
-        #     - vertices_dual is a list of [x, y] coordinates of the centroids of the
-        #       triangles
-        #     - edges_dual is a list of [idx_1, idx_2] pairs with idx_1 < idx_2, where
-        #       idx_i is the index of a vertex in self.vertices_dual
-        #     - triangles are defined as a [idx_1, idx_2, idx_3] list, where the indexes
-        #       are sorted in increasing order and refer to elements of self.vertices
-        #     - for simplicity, the triangles indexes are the same as the
-        #       Shapely-generated Delaunay triangulation. More importantly, the nodes
-        #       of the dual graph (i.e., the triangles centroids) are indexed the same
-        #       way, which means the centroids and triangles share the same indices.
         self.vertices = np.unique(
             np.array(
                 [
@@ -284,6 +296,13 @@ class Triangulation:
         if not self.triangulated:
             self.triangulate()
 
+        # Initialize lifted triangulation
+        self.vertices_lift = []  # lifted primal graph vertices
+        self.edges_lift = []  # lifted primal graph edges
+        self.triangles_lift = []  # lifted triangles
+        self.vertices_dual_lift = []  # lifted dual graph vertices
+        self.edges_dual_lift = []  # lifted dual graph edges
+
         # Initialize queues
         open_queue: list[int] = []  # list of triangles to lift
         closed_queue: list[int] = []  # list of triangles already visited
@@ -296,12 +315,23 @@ class Triangulation:
         # test should never fail as otherwise no triangle can be added in the lift.
         # However, we keep it for safety)
         for i in self.triangles[self.root_idx]:
-            dist = np.linalg.norm(self.env.anchor_point - self.vertices[i, :])
+            v = self.vertices[i, :]
+            dist = np.linalg.norm(self.env.anchor_point - v)
             if dist > self.max_dist:
                 raise ValueError(
                     "The root triangle is too small and its vertices cannot be reached "
                     "from the anchor point. Consider increasing max_dist."
                 )
+            else:
+                s = curves.compute_signature(
+                    np.array([self.env.anchor_point, v]), self.env, simplify=False
+                )
+                self.vertices_lift.append((int(i), s))
+        self.edges_lift.append([0, 1])  # manually append first three edges
+        self.edges_lift.append([1, 2])
+        self.edges_lift.append([0, 2])
+        self.triangles_lift.append([0, 1, 2])
+
         # If the test is passed, add root triangle to open queue
         open_queue.append((self.root_idx, [], -1))
 
@@ -309,6 +339,10 @@ class Triangulation:
         idx: int  # index of the current triangle (dual node)
         sign: list[int]  # signature of path from anchor to dual node along dual graph
         parent_idx: int  # index of the parent triangle
+
+        # Initialize counter for new lifted vertex. Start from 2 as three vertices are
+        # already added from the root triangle (last occupied index is 2)
+        vert_lift_n: int = 2
 
         # Main lifting loop
         while open_queue and n < self.max_lifted_triangles:
@@ -318,14 +352,15 @@ class Triangulation:
             # NOTE: sign is the signature of the centroid identified by idx
             # NOTE: parent_idx is the index of a triangle in the lifted triangulation
             idx, sign, parent_idx = open_queue.pop(0)
-
-            # Add element to graph; append it to closed queue; increase counter
             n += 1  # Increase counter
-            self.triangles_lift.append((idx, sign))
+
+            # Add new dual vertex and dual edge to lifted graph
+            # NOTE: these two elements are required for geodesic_distance to be computed
+            # in the 'if' check below. The other lifted graph components are added later
+            self.vertices_dual_lift.append((idx, sign))
             i, j = sorted((n - 1, parent_idx))  # sort edge indices (smaller first)
             if not (i == -1 or j == -1):  # no edge when adding root triangle
-                self.edges_lift.append((i, j))
-            closed_queue.append((idx, sign))  # to avoid checking again
+                self.edges_dual_lift.append((i, j))
 
             # Check if the triangle is valid
             # Check that the geodesic connecting each vertex to the anchor point is
@@ -334,10 +369,11 @@ class Triangulation:
             # checked in a previous iteration.
             if check_distance is True and parent_idx != -1:  # skip for root triangle
 
-                # Find the new vertex added with respect to the parent triangle
+                # Find the new vertex added with respect to the parent triangle (in the
+                # base triangulation)
                 new_vertex_idx = np.setdiff1d(
                     self.triangles[idx],
-                    self.triangles[self.triangles_lift[parent_idx][0]],
+                    self.triangles[self.vertices_dual_lift[parent_idx][0]],
                 )
                 new_vertex = self.vertices[new_vertex_idx, :][0]
 
@@ -358,12 +394,54 @@ class Triangulation:
                     # triangulation, then move to the next triangle in the open queue.
                     # This also skips the addition of the neighboring triangles to the
                     # open queue.
-                    self.triangles_lift.pop()
-                    self.edges_lift.pop()
+                    self.vertices_dual_lift.pop()
+                    self.edges_dual_lift.pop()
                     n -= 1  # Bring counter back (triangle was removed)
                     continue
+                else:
+                    # Add vertex and edges to lifted primal graph, store vertices
+                    # indexes in lifted triangles
 
-            # Add new triangles to the open queue
+                    # Find signature of the new vertex
+                    sign_new_vertex = curves.simplify_signature(
+                        sign
+                        + curves.compute_signature(
+                            np.array([self.vertices_dual[idx], new_vertex]),
+                            self.env,
+                            simplify=False,
+                        )
+                    )
+
+                    # Add new vertex to lifted primal graph
+                    vert_lift_n += 1
+                    new_vertex_lift = (int(new_vertex_idx), sign_new_vertex)
+                    if new_vertex_lift not in self.vertices_lift:
+                        self.vertices_lift.append(new_vertex_lift)
+                    else:
+                        raise ValueError(
+                            f"Vertex ({new_vertex_idx}, {sign_new_vertex} already "
+                            "present in lifted primal graph"
+                        )  # sanity check (should never happen)
+
+                    # Add new edges to primal graph
+                    indexes: list = [vert_lift_n]
+                    shared_vertices_idx = np.intersect1d(
+                        self.triangles[idx],
+                        self.triangles[self.vertices_dual_lift[parent_idx][0]],
+                    )
+                    parent_lifted_vertices_idx = self.triangles_lift[parent_idx]
+                    for p_idx in parent_lifted_vertices_idx:
+                        if self.vertices_lift[p_idx][0] in shared_vertices_idx:
+                            self.edges_lift.append(sorted((p_idx, vert_lift_n)))
+                            indexes.append(p_idx)
+
+                    # Add vertices to lifted triangles
+                    self.triangles_lift.append(sorted(indexes))
+
+            # Add current triangle to closed queue to avoid checking it again
+            closed_queue.append((idx, sign))
+
+            # Add adjacent triangles to the open queue
             # NOTE: index of current triangle is added to keep track of the parent
             for neighbor_idx in self.get_neighbors(idx):
                 edge = self.vertices_dual[[idx, neighbor_idx], :]
@@ -373,16 +451,36 @@ class Triangulation:
                     open_queue.append((neighbor_idx, neighbor_sign, n - 1))
 
         # Termination conditions
-        if n >= self.max_lifted_triangles:
-            print(
-                f"{CmdColors.WARNING}[Triang]{CmdColors.WARNING} Reached max "
-                f"number of triangles ({self.max_lifted_triangles}) during lifting."
-            )
-        elif not open_queue:
-            print(
-                f"{CmdColors.WARNING}[Triang]{CmdColors.WARNING} No more triangles in "
-                "the open queue."
-            )
+        if self.DEBUG:
+            # Sanity check on lifted simplicial complex dimensions
+            if not (
+                len(self.vertices_lift)
+                == len(self.vertices_dual_lift) * 3 - len(self.edges_dual_lift) * 2
+            ):
+                raise ValueError(
+                    f"{CmdColors.FAIL}[Triang]{CmdColors.ENDC} The dimension of the "
+                    "lifted primal graph vertices does not match the number of lifted "
+                    "triangles."
+                )
+            if not (len(self.vertices_dual_lift) == len(self.triangles_lift)):
+                raise ValueError(
+                    f"{CmdColors.FAIL}[Triang]{CmdColors.ENDC} The dimension of the "
+                    "lifted dual graph vertices does not match the number of lifted "
+                    "triangles."
+                )
+
+            # Print output status
+            if n >= self.max_lifted_triangles:
+                print(
+                    f"{CmdColors.WARNING}[Triang]{CmdColors.ENDC} Warning: maximum "
+                    f"number of triangles ({self.max_lifted_triangles}) reached "
+                    "during lifting. Consider increasing n_max or reducing max_dist."
+                )
+            elif not open_queue:
+                print(
+                    f"{CmdColors.OKBLUE}[Triang]{CmdColors.ENDC} Simplicial complex "
+                    f"built with {len(self.vertices_dual_lift)} triangles."
+                )
 
     def geodesic_distance(
         self,
@@ -451,7 +549,7 @@ class Triangulation:
             tri_idx_1 = t1
         lift_idx_1 = [
             i
-            for i, (t_idx, t_sign) in enumerate(self.triangles_lift)
+            for i, (t_idx, t_sign) in enumerate(self.vertices_dual_lift)
             if t_idx == tri_idx_1 and t_sign == s1
         ]
         if not lift_idx_1:
@@ -472,7 +570,7 @@ class Triangulation:
             tri_idx_2 = t2
         lift_idx_2 = [
             i
-            for i, (t_idx, t_sign) in enumerate(self.triangles_lift)
+            for i, (t_idx, t_sign) in enumerate(self.vertices_dual_lift)
             if t_idx == tri_idx_2 and t_sign == s2
         ]
         if not lift_idx_2:
@@ -483,8 +581,8 @@ class Triangulation:
 
         # Compute path between (p1, s1) and (p2, s2)
         alpha_lift: list[int] = graph_search.a_star_search(
-            self.triangles_lift,
-            self.edges_lift,
+            self.vertices_dual_lift,
+            self.edges_dual_lift,
             lift_idx_1,
             lift_idx_2,
             h_augmented=True,
@@ -493,7 +591,7 @@ class Triangulation:
         )
 
         # Project the representative path onto the 2D triangulation
-        alpha: list[int] = [self.triangles_lift[idx][0] for idx in alpha_lift]
+        alpha: list[int] = [self.vertices_dual_lift[idx][0] for idx in alpha_lift]
 
         # Call shortest homotopic path (geodesic)
         geodesic = self.homotopic_shortest_path(

@@ -61,8 +61,8 @@ def test_dijkstra(env, idx_1, idx_2):
 
     # Compute path between (p1, s1) and (p2, s2)
     alpha_lift: list[int] = graph_search.a_star_search(
-        triang.triangles_lift,
-        triang.edges_lift,
+        triang.vertices_dual_lift,
+        triang.edges_dual_lift,
         idx_1,  # triangle index in the lifted triangulation
         idx_2,
         h_augmented=True,
@@ -71,7 +71,7 @@ def test_dijkstra(env, idx_1, idx_2):
     )
 
     # Project the representative path onto the 2D triangulation
-    alpha: list[int] = [triang.triangles_lift[idx][0] for idx in alpha_lift]
+    alpha: list[int] = [triang.vertices_dual_lift[idx][0] for idx in alpha_lift]
 
     path = [triang.vertices_dual[idx] for idx in alpha]
     path_len = len(path)

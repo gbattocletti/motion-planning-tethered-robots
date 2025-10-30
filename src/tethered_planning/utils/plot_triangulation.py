@@ -64,7 +64,7 @@ def _get_unique_signatures(
     # TODO: move this to a method of curves (or a new signatures.py module?)
 
     # Generate list of signatures
-    sign_list: list[tuple] = [tuple(tri[1]) for tri in triangulation.triangles_lift]
+    sign_list: list[tuple] = [tuple(tri[1]) for tri in triangulation.vertices_dual_lift]
 
     # Get unique signatures
     sign_set: set[tuple] = {*sign_list}
@@ -264,7 +264,9 @@ def plot_2d(
             )
 
         # Collect triangles with the same signature and plot them on the same level
-        idx_list: list[int] = [i for i, s in triangulation.triangles_lift if s == sign]
+        idx_list: list[int] = [
+            i for i, s in triangulation.vertices_dual_lift if s == sign
+        ]
         for triangle_idx in idx_list:
             plot_polygon(
                 triangulation.triang.geoms[triangle_idx],
@@ -466,7 +468,7 @@ def plot_3d(
 
         # Select triangles with the same signature and plot them on the same level
         triangle_idx_list: list[int] = [
-            tri[0] for tri in triangulation.triangles_lift if tri[1] == sign
+            tri[0] for tri in triangulation.vertices_dual_lift if tri[1] == sign
         ]
 
         # Define triangle and add it to list
@@ -588,16 +590,18 @@ def plot_3d(
 
         # Collect all the rectangles
         rect_list: list[np.ndarray] = []  # list of vertical connecting rectangles
-        for edge in triangulation.edges_lift:
+        for edge in triangulation.edges_dual_lift:
 
             # check if signatures of centroids are different
             if (
-                triangulation.triangles_lift[edge[0]][1]
-                != triangulation.triangles_lift[edge[1]][1]
+                triangulation.vertices_dual_lift[edge[0]][1]
+                != triangulation.vertices_dual_lift[edge[1]][1]
             ):
                 # get edge vertices (common vertices between the two triangles)
-                triang_1 = triangulation.triangles_lift[int(edge[0])]  # 2d triangle idx
-                triang_2 = triangulation.triangles_lift[int(edge[1])]
+                triang_1 = triangulation.vertices_dual_lift[
+                    int(edge[0])
+                ]  # 2d triangle idx
+                triang_2 = triangulation.vertices_dual_lift[int(edge[1])]
                 vert_idx_1 = triangulation.triangles[triang_1[0]]  # vertices indexes
                 vert_idx_2 = triangulation.triangles[triang_2[0]]
                 edge_idx = np.intersect1d(vert_idx_1, vert_idx_2)  # common indexes
@@ -608,10 +612,10 @@ def plot_3d(
 
                 # Find the layer indexes of the two triangles sharing the edge
                 layer_idx_1 = unique_sign_list.index(
-                    list(triangulation.triangles_lift[edge[0]][1])
+                    list(triangulation.vertices_dual_lift[edge[0]][1])
                 )
                 layer_idx_2 = unique_sign_list.index(
-                    list(triangulation.triangles_lift[edge[1]][1])
+                    list(triangulation.vertices_dual_lift[edge[1]][1])
                 )
 
                 # Build connecting rectangle between layers
