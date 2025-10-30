@@ -95,6 +95,14 @@ def test_triangulation(env, plot_settings):
             CustomColors.layers_cmap[0:6],
         ),
         (
+            "test_env_1.yaml",
+            20.0,
+            100,
+            True,
+            None,
+            None,
+        ),
+        (
             "test_env_5.yaml",
             1000.0,
             40,
