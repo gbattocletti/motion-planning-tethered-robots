@@ -42,6 +42,9 @@ class GridGraph:
         # Max dist between anchor point and vertices (termination criterion)
         self.max_dist: float = 10.0
 
+        # Max number of nodes (safety termination condition)
+        self.n_max: int = 10_000
+
         # Grid resolution in x and y directions
         self.res_x: float = 1.0
         self.res_y: float = 1.0
@@ -172,7 +175,6 @@ class GridGraph:
 
         # Initialize counter
         n: int = 0  # current number of nodes
-        n_max: int = 10_000  # max number of nodes (safety termination condition)
 
         # Initialize queues
         open_queue: list[tuple] = []  # list of points to visit
@@ -202,7 +204,7 @@ class GridGraph:
         # all the nodes within the max_dist have been explored. However, for safety an
         # upper limit on the number of nodes is set to avoid infinite loops. This value
         # should be sufficiently high to avoid premature termination.
-        while len(open_queue) > 0 and n < n_max:
+        while len(open_queue) > 0 and n < self.n_max:
 
             idx, sign, parent_vec, a_len = open_queue.pop(0)
             idx = int(idx)
@@ -256,11 +258,22 @@ class GridGraph:
                     # Check if neighbor has already been visited. If not, add it to the
                     # open queue. If yes, add an edge connecting to it.
                     if (neighbor_idx, neighbor_sign) in closed_queue:
-                        neighbor_lifted_idx = self.vertices_lift.index(
-                            (neighbor_idx, neighbor_sign)
-                        )  # Find the index of the neighbor in the lifted vertices list
-                        i, j = sorted((n, neighbor_lifted_idx))  # sort edge indices
-                        self.edges_lift.append((i, j))
+                        try:
+                            neighbor_lifted_idx = self.vertices_lift.index(
+                                (neighbor_idx, neighbor_sign)
+                            )  # Find the index of the neighbor in lifted vertices list
+                            i, j = sorted((n, neighbor_lifted_idx))  # sort edge indices
+                            self.edges_lift.append((i, j))
+                        except ValueError:
+                            # CHECKME: temporary solution
+                            # if self.DEBUG:
+                            #     print(
+                            #         f"{CmdColors.WARNING}[GridGraph]{CmdColors.ENDC} "
+                            #         "Warning: could not find lifted neighbor vertex "
+                            #         f"({neighbor_idx}, {neighbor_sign}) in vertices "
+                            #         "list when adding edge."
+                            #     )
+                            pass
                     else:
                         if (n, neighbor_idx, neighbor_sign) not in open_queue:
                             open_queue.append(
@@ -278,7 +291,7 @@ class GridGraph:
             n += 1
 
         if self.DEBUG:
-            if n >= n_max:
+            if n >= self.n_max:
                 print(
                     f"{CmdColors.WARNING}[GridGraph]{CmdColors.ENDC} Warning: "
                     "maximum number of nodes reached before exploring all reachable "
