@@ -407,7 +407,7 @@ def plot_3d(
     n_cmap: int = len(layers_cmap)
 
     # Define colormap for the triangles (organized by layers)
-    triangles_cmap: list[str] | str
+    triangles_cmap: list[str]
     if layers_cmap is not None:
         # if len(layers_cmap) != n_sign and len(layers_cmap) != 1:
         #     raise ValueError(
@@ -416,7 +416,7 @@ def plot_3d(
         #         "the triangulation."
         #     )
         if len(layers_cmap) == 1:
-            triangles_cmap = layers_cmap[0]
+            triangles_cmap = [layers_cmap[0]]
         else:
             triangles_cmap = []
 
