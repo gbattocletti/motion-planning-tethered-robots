@@ -1,4 +1,9 @@
+import cProfile
+import io
+import logging
 import os
+import pstats
+from collections import Counter
 
 import matplotlib.pyplot as plt
 import pytest
@@ -8,6 +13,8 @@ from tethered_planning.env.triangulation import Triangulation
 from tethered_planning.utils import plot, plot_triangulation
 from tethered_planning.utils.colors import CustomColors
 from tethered_planning.utils.settings import Settings
+
+logger = logging.getLogger(__name__)
 
 
 @pytest.fixture(scope="module", name="plot_settings")
@@ -140,6 +147,17 @@ def test_lift_triangulation(
     triang.triangulate()
     triang.lift_triangulation(check_distance=check_distance)
 
+    # Check number of dual edges per triangle
+    triangles = Counter(node for edge in triang.edges_dual_lift for node in edge)
+    triangles = sorted(triangles.items(), key=lambda x: x[1], reverse=True)  # sort
+
+    # Print first n triangles with most dual edges
+    for i in range(min(5, len(triangles))):
+        assert (
+            triangles[i][1] <= 3
+        ), f"Triangle {triangles[i][0]} has more than 3 dual edges."
+        logger.info(f"Triangle {triangles[i][0]} has {triangles[i][1]} dual edges.")
+
     # Generate env plot
     plot.plot_env(
         env,
@@ -167,3 +185,77 @@ def test_lift_triangulation(
 
     # Show and/or save figure
     show_plot(SHOW_PLOT, BLOCKING, WAIT_TIME)
+
+
+@pytest.mark.parametrize(
+    "env_name, length",
+    [
+        ("test_env_1.yaml", 10.0),
+        ("test_env_1.yaml", 15.0),
+        ("test_env_5.yaml", 10.0),
+        ("test_env_5.yaml", 15.0),
+        ("test_env_6.yaml", 10.0),
+        ("test_env_6.yaml", 15.0),
+        ("test_env_7.yaml", 10.0),
+        ("test_env_7.yaml", 15.0),
+    ],
+)
+def test_triangulation_with_profiling(
+    env,
+    length,
+):
+
+    N_ROWS = 20
+    SAVE_STATS = True
+
+    # Create triangulation
+    triang = Triangulation(env)
+    triang.triangulate()
+
+    # Lift triangulation
+    triang.set_max_dist(length)
+    triang.set_max_triangles(100_000)
+
+    # Start memory and time measurement
+    pr = cProfile.Profile()
+    pr.enable()
+
+    # Call function
+    triang.lift_triangulation(check_distance=True)
+
+    # Evaluate stats
+    pr.disable()
+    s = io.StringIO()
+    ps = pstats.Stats(pr, stream=s).strip_dirs().sort_stats("cumulative")
+
+    if SAVE_STATS:
+        logger.info(f"Current folder: {os.getcwd()}")
+        logger.info("Saving to: results/stats.prof")
+        pr.dump_stats("results/stats.prof")  # to visualize with snakeviz
+
+    # Print stats
+    logger.info(
+        f"Stats for test {os.environ.get('PYTEST_CURRENT_TEST').split(':')[-1].split(' ')[0]}"
+    )
+    ps.print_stats(N_ROWS)  # top n lines
+    logger.info(s.getvalue())
+    logger.info("\n")
+
+    # Generate env plot
+    plot.plot_graph(
+        triang.vertices,
+        triang.edges,
+        env,
+        nodes_dual=triang.vertices_dual,
+        edges_dual=triang.edges_dual,
+        show_dual_graph=True,
+        label_nodes=False,
+        label_triangles=True,
+        show_generators_labels=True,
+        show_anchor=True,
+        show_robot=False,
+        show_tether=False,
+    )
+
+    # Show and/or save figure
+    plt.show(block=False)
