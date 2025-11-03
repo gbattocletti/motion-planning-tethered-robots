@@ -4,7 +4,10 @@ time and graph statistics. Returns a table with the measured statistics.
 """
 
 import os
+import pickle
 import timeit
+from datetime import datetime
+from pickletools import optimize
 
 import numpy as np
 
@@ -20,16 +23,18 @@ from tethered_planning.utils.settings import Settings
 #      classes (manually inserted from visual inspection)
 # - l: float, tether length
 eval_cases = [
+    ("env_1.yaml", 1, 10.0),
+    ("env_1.yaml", 1, 15.0),
     ("env_1.yaml", 1, 20.0),
-    ("env_1.yaml", 1, 30.0),
+    ("env_2.yaml", 2, 10.0),
+    ("env_2.yaml", 2, 15.0),
     ("env_2.yaml", 2, 20.0),
-    ("env_2.yaml", 2, 30.0),
     ("env_3.yaml", 6, 10.0),
-    ("env_3.yaml", 6, 20.0),cc
-    ("env_3.yaml", 6, 30.0),
-    ("env_3.yaml", 6, 50.0),
+    ("env_3.yaml", 6, 15.0),
+    ("env_3.yaml", 6, 20.0),
+    ("env_4.yaml", 8, 10.0),
+    ("env_4.yaml", 8, 15.0),
     ("env_4.yaml", 8, 20.0),
-    ("env_4.yaml", 8, 30.0),
 ]
 
 # Move to script directory
@@ -39,7 +44,7 @@ os.chdir(dir_name)
 
 # Initialize settings
 settings = Settings(create_sim_folder=False)
-n_runs = 5  # number of runs for time averaging
+n_runs = 1  # number of runs for time averaging
 
 # Initialize results table
 # Results table columns:
@@ -56,7 +61,9 @@ results_table = np.zeros((len(eval_cases), 8), dtype=float)
 
 # Loop over evaluation cases
 for idx, case in enumerate(eval_cases):
-    print(f"Running evaluation {idx+1}...")
+    print(
+        f"Running evaluation {idx+1} [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]"
+    )
 
     # Unpack case
     env_name, m, l = case
@@ -105,38 +112,57 @@ for idx, case in enumerate(eval_cases):
     results_table[idx, 6] = len(graph.vertices_lift)  # nodes homotopy augmented graph
     results_table[idx, 7] = t  # time homotopy augmented graph
 
+    # Print intermediate results
+    print(
+        f"Completed evaluation {idx+1} [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]"
+    )
 
-# Print results table and save to CSV file
-with open("results/comparison_results.csv", "w", encoding="utf-8") as f:
-    for i, row in enumerate(results_table):
-        # index
-        print(f"#{int(row[0])}: ")
-        f.write(f"{int(row[0])},")
+    # Save pickle files of the generated data structures for later analysis
+    filename = f"results/comparison-{idx+1}.pkl"
+    data = {
+        "settings": settings,
+        "runs": n_runs,
+        "env": env,
+        "triangulation": triang,
+        "graph": graph,
+        "results": results_table,
+    }
+    pickled = pickle.dumps(data)  # dump data dictionary in pickle file
+    optimized = optimize(pickled)  # optimize the pickle file
+    with open(filename, "wb") as f:
+        f.write(optimized)
 
-        # num obstacles (m)
-        print(f"\t{int(row[1])}")
-        f.write(f"{int(row[1])},")
+    # Print results table and save to CSV file (updated after each eval case)
+    with open("results/comparison_results.csv", "w", encoding="utf-8") as f:
+        for i, row in enumerate(results_table):
+            # index
+            print(f"#{int(row[0])}: ", end="")
+            f.write(f"{int(row[0])},")
 
-        # tether length (l)
-        print(f"\t{row[2]:.1f}")
-        f.write(f"{row[2]:.1f},")
+            # num obstacles (m)
+            print(f"\t{int(row[1])}", end="")
+            f.write(f"{int(row[1])},")
 
-        # num triangles simplicial complex
-        print(f"\t{int(row[3])}")
-        f.write(f"{int(row[3])},")
+            # tether length (l)
+            print(f"\t{row[2]:.1f}", end="")
+            f.write(f"{row[2]:.1f},")
 
-        # num nodes simplicial complex
-        print(f"\t{int(row[4])}")
-        f.write(f"{int(row[4])},")
+            # num triangles simplicial complex
+            print(f"\t{int(row[3])}", end="")
+            f.write(f"{int(row[3])},")
 
-        # time simplicial complex
-        print(f"\t{row[5]:.2f} s")
-        f.write(f"{row[5]:.2f},")
+            # num nodes simplicial complex
+            print(f"\t{int(row[4])}", end="")
+            f.write(f"{int(row[4])},")
 
-        # num nodes homotopy augmented graph
-        print(f"\t{int(row[6])}")
-        f.write(f"{int(row[6])},")
+            # time simplicial complex
+            print(f"\t{row[5]:.2f} s", end="")
+            f.write(f"{row[5]:.2f},")
 
-        # time homotopy augmented graph
-        print(f"\t{row[7]:.2f} s\n")
-        f.write(f"{row[7]:.2f}\n")
+            # num nodes homotopy augmented graph
+            print(f"\t{int(row[6])}", end="")
+            f.write(f"{int(row[6])},")
+
+            # time homotopy augmented graph
+            print(f"\t{row[7]:.2f} s")
+            f.write(f"{row[7]:.2f}\n")
