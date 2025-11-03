@@ -274,21 +274,31 @@ class Triangulation:
         and lift it to obtain a manifold corresponding to a subset of the universal
         cover of the environment.
 
-        Args:
+        Kwargs:
             check_distance (bool, optional): whether to check the distance between the
                 anchor point and the vertices of each triangle before adding it to the
                 lifted triangulation. Default is True.
+            search_algorithm (str, optional): The search algorithm to use for finding
+                the candidate path. The argument is passed directly to the method
+                Triangulation.geodesic_distance.
 
         Returns:
             None
         """
         # Parse kwargs
         check_distance: bool = True  # default value
+        search_algorithm: str = "dfs"  # default value
         for key, value in kwargs.items():
             if key == "check_distance":
                 if not isinstance(value, bool):
                     raise TypeError("check_distance must be a boolean.")
                 check_distance = value
+            elif key == "search_algorithm":
+                # NOTE: the availability of the specified method is specified in
+                # geodesic_distance.
+                if not isinstance(value, str):
+                    raise TypeError("search_algorithm must be a string.")
+                search_algorithm = value
             else:
                 raise KeyError(f"Unknown keyword argument: {key}")
 
@@ -400,6 +410,7 @@ class Triangulation:
                         sign,
                         t1=self.root_idx,  # specify t1 in case anchor lies on boundary
                         t2=idx,  # specify t2 since new_vertex always lies on boundary
+                        search_algorithm=search_algorithm,
                     )
                 else:
                     dist = d_approx_new_vertex  # skip computation when close enough
@@ -531,6 +542,8 @@ class Triangulation:
             s1 (list[int]): the signature of the first point
             p2 (np.ndarray): the second point to check
             s2 (list[int]): the signature of the second point
+
+        Kwargs:
             t1 (int, optional): index of the triangle containing p1 (in the base space).
                 If None, the triangle will be searched for. This option is useful when
                 dealing with points on the boundary of a triangle, where it can be
@@ -538,31 +551,47 @@ class Triangulation:
                 the selection of the triangle in case of multiple intersections is
                 arbitrary. Default is None.
             t2 (int, optional): index of the triangle containing p2 (in the base space).
+            search_algorithm (str, optional): The search algorithm to use for finding
+                the candidate path. Options are: {'astar', 'dijkstra', 'bfs', 'dfs'}.
+                Default is 'dfs'.
 
         Returns:
             length (float): length of the shortest path (geodesic) between two points.
             geodesic (np.ndarray): The geodesic path as a list of [x, y] coordinates.
+
+        Raises:
+            KeyError: If an unknown keyword argument is provided.
         """
+        # Parse kwargs
+        search_algorithm: str = "dfs"  # default value
+        t1: int | None = None
+        t2: int | None = None
+        for key, value in kwargs.items():
+            if key == "search_algorithm":
+                if not isinstance(value, str):
+                    raise TypeError("search_algorithm must be a string.")
+                if search_algorithm not in ["astar", "dijkstra", "bfs", "dfs"]:
+                    raise ValueError(
+                        "search_algorithm must be one of the following: "
+                        "{'astar', 'dijkstra', 'bfs', 'dfs'}."
+                    )
+                search_algorithm = value
+            elif key == "t1":
+                if not isinstance(value, int):
+                    raise TypeError("t1 must be an integer or None.")
+                t1 = value
+            elif key == "t2":
+                if not isinstance(value, int):
+                    raise TypeError("t2 must be an integer or None.")
+                t2 = value
+            else:
+                raise KeyError(f"Unknown keyword argument: {key}")
+
         # Parse inputs
         if isinstance(p1, list):
             p1 = np.array(p1)
         if isinstance(p2, list):
             p2 = np.array(p2)
-
-        # Parse kwargs
-        t1: int | None = None  # default values
-        t2: int | None = None
-        for key, value in kwargs.items():
-            if key == "t1":
-                if not isinstance(value, (int, type(None))):
-                    raise TypeError("t1 must be an integer or None.")
-                t1 = value
-            elif key == "t2":
-                if not isinstance(value, (int, type(None))):
-                    raise TypeError("t2 must be an integer or None.")
-                t2 = value
-            else:
-                raise KeyError(f"Unknown keyword argument: {key}")
 
         # Initialize variables for triangle search
         intersections: list[int]
@@ -612,15 +641,32 @@ class Triangulation:
         lift_idx_2 = lift_idx_2[0]
 
         # Compute path between (p1, s1) and (p2, s2)
-        alpha_lift: list[int] = graph_search.a_star_search(
-            self.vertices_dual_lift,
-            self.edges_dual_lift,
-            lift_idx_1,
-            lift_idx_2,
-            h_augmented=True,
-            nodes_2d=self.vertices_dual,
-            use_heuristic=False,
-        )
+        alpha_lift: list[int] = []
+        match search_algorithm:
+            case ["astar", "dijkstra"]:
+                alpha_lift = graph_search.a_star_search(
+                    self.vertices_dual_lift,
+                    self.edges_dual_lift,
+                    lift_idx_1,
+                    lift_idx_2,
+                    h_augmented=True,
+                    nodes_2d=self.vertices_dual,
+                    use_heuristic=False,
+                )
+            case "dfs":
+                alpha_lift = graph_search.dfs(
+                    self.vertices_dual_lift,
+                    self.edges_dual_lift,
+                    lift_idx_1,
+                    lift_idx_2,
+                )
+            case "bfs":
+                alpha_lift = graph_search.bfs(
+                    self.vertices_dual_lift,
+                    self.edges_dual_lift,
+                    lift_idx_1,
+                    lift_idx_2,
+                )
 
         # Project the representative path onto the 2D triangulation
         alpha: list[int] = [self.vertices_dual_lift[idx][0] for idx in alpha_lift]
