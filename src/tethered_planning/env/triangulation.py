@@ -388,15 +388,22 @@ class Triangulation:
                 )
                 if dist > self.max_dist:
                     # Vertex too far: the triangle currently being checked is not valid
-                    # and must not be added to the lifted triangulation. Therefore, we
-                    # remove the last added triangle (which was added to enable the
-                    # computation of geodesic_distance) and edge from the lifted
-                    # triangulation, then move to the next triangle in the open queue.
-                    # This also skips the addition of the neighboring triangles to the
-                    # open queue.
+                    # and must not be added to the lifted triangulation.
+
+                    # Therefore, first we remove the last added triangle (which was
+                    # added to enable the computation of geodesic_distance) and edge
+                    # from the lifted triangulation.
                     self.vertices_dual_lift.pop()
                     self.edges_dual_lift.pop()
                     n -= 1  # Bring counter back (triangle was removed)
+
+                    # Second, we add the triangle to the closed queue to avoid checking
+                    # it again in the future.
+                    closed_queue.append((idx, sign))
+
+                    # Finally, we stop this iteration and move to the next triangle in
+                    # the open queue. This also skips the addition of the neighboring
+                    # triangles to the open queue, since they would be unreachable too.
                     continue
                 else:
                     # Add vertex and edges to lifted primal graph, store vertices
@@ -438,8 +445,8 @@ class Triangulation:
                     # Add vertices to lifted triangles
                     self.triangles_lift.append(sorted(indexes))
 
-            # Add current triangle to closed queue to avoid checking it again
-            closed_queue.append((idx, sign))
+                    # Add current triangle to closed queue to avoid checking it again
+                    closed_queue.append((idx, sign))
 
             # Add adjacent triangles to the open queue
             # NOTE: index of current triangle is added to keep track of the parent
@@ -462,7 +469,7 @@ class Triangulation:
                     "lifted primal graph vertices does not match the number of lifted "
                     "triangles."
                 )
-            if not (len(self.vertices_dual_lift) == len(self.triangles_lift)):
+            if not len(self.vertices_dual_lift) == len(self.triangles_lift):
                 raise ValueError(
                     f"{CmdColors.FAIL}[Triang]{CmdColors.ENDC} The dimension of the "
                     "lifted dual graph vertices does not match the number of lifted "
