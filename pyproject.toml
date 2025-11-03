@@ -21,6 +21,7 @@ dependencies = [
     "shapely",
     "openpyxl",
     "PyYAML",
+    "typing-extensions",
 ]
 
 [project.optional-dependencies]
