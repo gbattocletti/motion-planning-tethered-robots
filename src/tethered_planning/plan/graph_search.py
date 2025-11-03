@@ -2,7 +2,14 @@
 Graph search algorithms for path planning.
 """
 
+from collections import defaultdict, deque
+
 import numpy as np
+
+from tethered_planning.utils.colors import CmdColors
+
+# TODO: since both A* and BFS share a lot of code, refactor to have a common base
+# function that implements the shared parts, and have A* and BFS specific functions
 
 
 def a_star_search(
@@ -41,6 +48,7 @@ def a_star_search(
             graph, goal_idx points to nodes_2d instead of nodes. This means that all
             nodes in nodes that project to nodes_2d[goal_idx] are considered goal nodes.
             Default is False.
+
     Returns:
         list[int]: Optimal path as a list of indexes referring to the input vertices.
 
@@ -56,6 +64,13 @@ def a_star_search(
     # Moreover, the use of an heuristic should be supported in both cases. A good
     # starting point for this could be to compute the cost-to-goal from each node to
     # each goal node, and take the minimum. This ensures the heuristic is admissible.
+
+    # TODO: add preprocessing step to compute adjacency dictionary and limit the number
+    # of neighbors search done through list comprehension. This should speed up the
+    # algorithm.
+
+    # TODO: look for better way to manage the cost dict (min computation is currently
+    # quite expensive). A numpy array may be faster?
 
     # parse args
     n_nodes: int
@@ -85,7 +100,6 @@ def a_star_search(
     ignore_goal_homotopy: bool = kwargs.get("ignore_goal_homotopy", False)
 
     # validate start and goal indexes
-
     if not 0 <= start_idx < n_nodes:
         raise ValueError("start_idx is out of bounds for nodes")
 
@@ -180,4 +194,186 @@ def a_star_search(
                 parent[neighbor_idx] = current_idx
 
     # if this point is reached, no path was found
+    raise ValueError("No path found from start to goal")
+
+
+def dfs(
+    nodes: np.ndarray | list[int, list[int]],
+    edges: list[list[int]],
+    start_idx: int,
+    goal_idx: int,
+    **kwargs,
+) -> list[int]:
+    """
+    Compute path from start to goal using Depth-First Search (DFS).
+
+    Args:
+        nodes (np.ndarray | list[int, list[int]]): List of graph nodes. If np.ndarray,
+            should be of shape (N, d) where N is the number of nodes and d is the
+            dimension. In case of homotopy-augmented graphs, nodes can be represented
+            as a list of [node_index, homotopy_signature], where node_index points to
+            an element in nodes_2d. The homotopy signature is a list of signed integers.
+        edges (list[list[int]]): Adjacency list representing graph edges.
+        start_idx (int | list[int, list[int]]): Index of the start node (from nodes).
+        goal_idx (int | list[int, list[int]]): Index of the goal node (from nodes).
+
+    Kwargs:
+
+    Returns:
+        list[int]: Optimal path as a list of indexes referring to the input vertices.
+
+    Raises:
+        ValueError: If nodes array is empty.
+        ValueError: If no path is found from start to goal.
+        TypeError: If input arguments are not of the expected type.
+    """
+    # parse kwargs
+    if kwargs:
+        raise NotImplementedError("DFS does not accept any kwargs yet")
+
+    # parse args
+    n_nodes: int
+    if isinstance(nodes, list):
+        if not isinstance(nodes[0][0], int) or not isinstance(nodes[0][1], list):
+            raise TypeError(
+                "nodes does not match the expected type for homotopy-augmented graphs"
+            )
+        n_nodes = len(nodes)
+    elif isinstance(nodes, np.ndarray):
+        n_nodes = nodes.shape[0]
+    else:
+        raise TypeError("nodes must be either a list or a numpy array")
+    if n_nodes == 0:
+        raise ValueError("nodes array is empty")
+
+    # validate start and goal indexes
+    if not 0 <= start_idx < n_nodes:
+        raise ValueError("start_idx is out of bounds for nodes")
+    if not 0 <= goal_idx < n_nodes:
+        raise ValueError("goal_idx is out of bounds for nodes")
+
+    # Preprocessing: find adjacency dictionary
+    adj: dict[int, list[int]] = defaultdict(list)
+    for a, b in edges:
+        adj[a].append(b)
+        adj[b].append(a)
+    # adj = {k: list(set(v)) for k, v in adj.items()}  # remove duplicates (not needed)
+
+    # Check if graph is a tree (intended use case for DFS)
+    if any(len(e) > 2 for e in adj.values()):
+        print(f"{CmdColors.WARNING}[DFS]{CmdColors.WARNING} Graph is not a tree.")
+
+    # Check if start and goal are the same
+    if start_idx == goal_idx:
+        return [start_idx]
+
+    # Perform search
+    stack = [
+        (start_idx, [start_idx])
+    ]  # each stack element: (current_node, path_to_node)
+    visited = set()
+
+    while stack:
+        node, path = stack.pop()
+        if node == goal_idx:
+            return path
+        if node in visited:
+            continue
+        visited.add(node)
+        for neighbor in adj[node]:
+            if neighbor not in visited:
+                stack.append((neighbor, path + [neighbor]))
+
+    # If this point is reached, no path was found
+    raise ValueError("No path found from start to goal")
+
+
+def bfs(
+    nodes: np.ndarray | list[int, list[int]],
+    edges: list[list[int]],
+    start_idx: int,
+    goal_idx: int,
+    **kwargs,
+) -> list[int]:
+    """
+    Compute path from start to goal using Breadth-First Search (BFS).
+
+    Args:
+        nodes (np.ndarray | list[int, list[int]]): List of graph nodes. If np.ndarray,
+            should be of shape (N, d) where N is the number of nodes and d is the
+            dimension. In case of homotopy-augmented graphs, nodes can be represented
+            as a list of [node_index, homotopy_signature], where node_index points to
+            an element in nodes_2d. The homotopy signature is a list of signed integers.
+        edges (list[list[int]]): Adjacency list representing graph edges.
+        start_idx (int | list[int, list[int]]): Index of the start node (from nodes).
+        goal_idx (int | list[int, list[int]]): Index of the goal node (from nodes).
+
+    Kwargs:
+
+    Returns:
+        list[int]: Optimal path as a list of indexes referring to the input vertices.
+
+    Raises:
+        ValueError: If nodes array is empty.
+        ValueError: If no path is found from start to goal.
+        TypeError: If input arguments are not of the expected type.
+    """
+    # parse kwargs
+    if kwargs:
+        raise NotImplementedError("DFS does not accept any kwargs yet")
+
+    # parse args
+    n_nodes: int
+    if isinstance(nodes, list):
+        if not isinstance(nodes[0][0], int) or not isinstance(nodes[0][1], list):
+            raise TypeError(
+                "nodes does not match the expected type for homotopy-augmented graphs"
+            )
+        n_nodes = len(nodes)
+    elif isinstance(nodes, np.ndarray):
+        n_nodes = nodes.shape[0]
+    else:
+        raise TypeError("nodes must be either a list or a numpy array")
+    if n_nodes == 0:
+        raise ValueError("nodes array is empty")
+
+    # validate start and goal indexes
+    if not 0 <= start_idx < n_nodes:
+        raise ValueError("start_idx is out of bounds for nodes")
+    if not 0 <= goal_idx < n_nodes:
+        raise ValueError("goal_idx is out of bounds for nodes")
+
+    # Preprocessing: find adjacency dictionary
+    adj: dict[int, list[int]] = defaultdict(list)
+    for a, b in edges:
+        adj[a].append(b)
+        adj[b].append(a)
+    # adj = {k: list(set(v)) for k, v in adj.items()}  # remove duplicates (not needed)
+
+    # Check if graph is a tree (intended use case for DFS)
+    if any(len(e) > 2 for e in adj.values()):
+        print(f"{CmdColors.WARNING}[DFS]{CmdColors.WARNING} Graph is not a tree.")
+
+    # Check if start and goal are the same
+    if start_idx == goal_idx:
+        return [start_idx]
+
+    # Perform search
+    queue = deque(
+        [(start_idx, [start_idx])]
+    )  # each element: (current_node, path_to_node)
+    visited = set([start_idx])
+
+    while queue:
+        node, path = queue.popleft()
+
+        if node == goal_idx:
+            return path  # found the goal, shortest path guaranteed
+
+        for neighbor in adj[node]:
+            if neighbor not in visited:
+                visited.add(neighbor)
+                queue.append((neighbor, path + [neighbor]))
+
+    # If this point is reached, no path was found
     raise ValueError("No path found from start to goal")
