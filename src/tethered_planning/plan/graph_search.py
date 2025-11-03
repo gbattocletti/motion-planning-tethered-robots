@@ -257,11 +257,6 @@ def dfs(
     for a, b in edges:
         adj[a].append(b)
         adj[b].append(a)
-    # adj = {k: list(set(v)) for k, v in adj.items()}  # remove duplicates (not needed)
-
-    # Check if graph is a tree (intended use case for DFS)
-    if any(len(e) > 2 for e in adj.values()):
-        print(f"{CmdColors.WARNING}[DFS]{CmdColors.WARNING} Graph is not a tree.")
 
     # Check if start and goal are the same
     if start_idx == goal_idx:
