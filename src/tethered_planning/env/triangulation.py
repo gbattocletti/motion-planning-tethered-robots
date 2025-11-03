@@ -333,12 +333,21 @@ class Triangulation:
         self.triangles_lift.append([0, 1, 2])
 
         # If the test is passed, add root triangle to open queue
-        open_queue.append((self.root_idx, [], -1))
+        # Elements in the open queue have the following elements:
+        # - idx: index of the triangle in the base triangulation
+        # - sign: signature of the path from anchor to triangle along dual graph
+        # - parent_idx: index of the parent triangle in the lifted triangulation
+        # - d: approximate distance from anchor point to triangle centroid. The
+        #      approximation is always an upper bound on the actual distance, and can be
+        #      used to skip expensive geodesic distance computations when the triangle
+        #      is close enough to the anchor point.
+        open_queue.append((self.root_idx, [], -1, 0))
 
         # Initialize temporary variables
         idx: int  # index of the current triangle (dual node)
         sign: list[int]  # signature of path from anchor to dual node along dual graph
         parent_idx: int  # index of the parent triangle
+        d_approx: float  # approximate distance from anchor to triangle centroid
 
         # Initialize counter for new lifted vertex. Start from 2 as three vertices are
         # already added from the root triangle (last occupied index is 2)
@@ -351,7 +360,7 @@ class Triangulation:
             # NOTE: idx is the index of a triangle in base triangulation (not lifted)
             # NOTE: sign is the signature of the centroid identified by idx
             # NOTE: parent_idx is the index of a triangle in the lifted triangulation
-            idx, sign, parent_idx = open_queue.pop(0)
+            idx, sign, parent_idx, d_approx = open_queue.pop(0)
             n += 1  # Increase counter
 
             # Add new dual vertex and dual edge to lifted graph
@@ -377,22 +386,30 @@ class Triangulation:
                 )
                 new_vertex = self.vertices[new_vertex_idx, :][0]
 
-                # Compute geodesic distance between anchor point and new vertex
-                dist, _ = self.geodesic_distance(
-                    self.env.anchor_point,
-                    [],
-                    new_vertex,
-                    sign,
-                    t1=self.root_idx,  # specify t1 in case anchor lies on boundary
-                    t2=idx,  # specify t2 since new_vertex always lies on boundary
+                # Compute distance between anchor point and new vertex. If the approx
+                # distance is small enough, skip expensive exact geodesic computation
+                d_approx_new_vertex = d_approx + np.linalg.norm(
+                    new_vertex
+                    - self.vertices_dual[self.vertices_dual_lift[parent_idx][0]]
                 )
+                if d_approx_new_vertex > self.max_dist:
+                    dist, _ = self.geodesic_distance(
+                        self.env.anchor_point,
+                        [],
+                        new_vertex,
+                        sign,
+                        t1=self.root_idx,  # specify t1 in case anchor lies on boundary
+                        t2=idx,  # specify t2 since new_vertex always lies on boundary
+                    )
+                else:
+                    dist = d_approx_new_vertex  # skip computation when close enough
+
+                # Determine if triangle is valid
                 if dist > self.max_dist:
                     # Vertex too far: the triangle currently being checked is not valid
-                    # and must not be added to the lifted triangulation.
-
-                    # Therefore, first we remove the last added triangle (which was
-                    # added to enable the computation of geodesic_distance) and edge
-                    # from the lifted triangulation.
+                    # and must not be added to the lifted triangulation. First we remove
+                    # the last added triangle (which was added to enable the computation
+                    # of geodesic_distance) and edge from the lifted triangulation.
                     self.vertices_dual_lift.pop()
                     self.edges_dual_lift.pop()
                     n -= 1  # Bring counter back (triangle was removed)
@@ -421,7 +438,7 @@ class Triangulation:
 
                     # Add new vertex to lifted primal graph
                     vert_lift_n += 1
-                    new_vertex_lift = (int(new_vertex_idx), sign_new_vertex)
+                    new_vertex_lift = (int(new_vertex_idx[0]), sign_new_vertex)
                     if new_vertex_lift not in self.vertices_lift:
                         self.vertices_lift.append(new_vertex_lift)
                     else:
@@ -452,10 +469,16 @@ class Triangulation:
             # NOTE: index of current triangle is added to keep track of the parent
             for neighbor_idx in self.get_neighbors(idx):
                 edge = self.vertices_dual[[idx, neighbor_idx], :]
-                neighbor_sign = sign + curves.compute_signature(edge, self.env)
-                neighbor_sign = curves.simplify_signature(neighbor_sign)
+                neighbor_sign = curves.simplify_signature(
+                    sign + curves.compute_signature(edge, self.env)
+                )
                 if (neighbor_idx, neighbor_sign) not in closed_queue:
-                    open_queue.append((neighbor_idx, neighbor_sign, n - 1))
+                    d_approx_neighbor = d_approx + np.linalg.norm(
+                        self.vertices_dual[neighbor_idx] - self.vertices_dual[idx]
+                    )  # distance between current centroid and neighbor centroid
+                    open_queue.append(
+                        (neighbor_idx, neighbor_sign, n - 1, d_approx_neighbor)
+                    )  # append tuple with all info about neighbor
 
         # Termination conditions
         if self.DEBUG:

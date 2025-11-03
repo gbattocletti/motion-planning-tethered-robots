@@ -19,7 +19,7 @@ from tethered_planning.utils import plot, plot_graph, plot_triangulation
 from tethered_planning.utils.settings import Settings
 
 # Script settings
-SHOW_PLOTS = True
+SHOW_PLOTS = False
 
 # Evaluation cases
 # Each case is defined as a tuple (env_filename, obstacles m, tether length l), where:
@@ -28,27 +28,18 @@ SHOW_PLOTS = True
 #      classes (manually inserted from visual inspection)
 # - l: float, tether length
 eval_cases = [
-    # ("env_1.yaml", 1, 10.0),
-    # ("env_1.yaml", 1, 15.0),
-    # ("env_1.yaml", 1, 20.0),
-    # ("env_2.yaml", 2, 10.0),
-    # ("env_2.yaml", 2, 15.0),
-    # ("env_2.yaml", 2, 20.0),
-    ("env_3.yaml", 6, 5.0),
-    ("env_3.yaml", 6, 6.0),
-    ("env_3.yaml", 6, 7.0),
-    ("env_3.yaml", 6, 8.0),
-    ("env_3.yaml", 6, 9.0),
+    ("env_1.yaml", 1, 10.0),
+    ("env_1.yaml", 1, 15.0),
+    ("env_1.yaml", 1, 20.0),
+    ("env_2.yaml", 2, 10.0),
+    ("env_2.yaml", 2, 15.0),
+    ("env_2.yaml", 2, 20.0),
     ("env_3.yaml", 6, 10.0),
-    ("env_3.yaml", 6, 11.0),
-    ("env_3.yaml", 6, 12.0),
-    ("env_3.yaml", 6, 13.0),
-    ("env_3.yaml", 6, 14.0),
     ("env_3.yaml", 6, 15.0),
-    # ("env_3.yaml", 6, 20.0),
-    # ("env_4.yaml", 8, 10.0),
-    # ("env_4.yaml", 8, 15.0),
-    # ("env_4.yaml", 8, 20.0),
+    ("env_3.yaml", 6, 20.0),
+    ("env_4.yaml", 8, 10.0),
+    ("env_4.yaml", 8, 15.0),
+    ("env_4.yaml", 8, 20.0),
 ]
 
 # Move to script directory
