@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING
 import matplotlib as mpl
 import openpyxl
 import yaml
-from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation, ImageMagickWriter
 from packaging import version
 
@@ -17,6 +16,7 @@ from tethered_planning.utils.colors import CmdColors
 
 if TYPE_CHECKING:
     from networkx import Graph
+    from matplotlib.figure import Figure
 
     from tethered_planning.env.env_2d import Env2D
     from tethered_planning.utils.settings import Settings
@@ -266,16 +266,16 @@ def write_readme(settings: Settings, env: Env2D) -> None:
 
 
 def save_figure(
-    fig: plt.Figure,
+    fig: Figure,
     settings: Settings,
     fig_name: str = "fig",
     extension: str = "png",
-) -> str:
+) -> str | None:
     """
     Save a figure to the results directory.
 
     Args:
-        fig (plt.Figure): Matplotlib figure object to save.
+        fig (Figure): Matplotlib figure object to save.
         settings (Settings): Settings object with simulation parameters and filename.
         fig_name (str): Custom name to the default figure filename (default: 'fig').
         extension (str): Figure extension (default: .png).
@@ -293,7 +293,7 @@ def save_figure(
                 f"{CmdColors.WARNING}[IO]{CmdColors.ENDC} PGF export is not supported "
                 "in this version of matplotlib. The figure will not be saved."
             )
-            return
+            return None
 
     # Generate filename avoiding duplicates
     counter = 0
