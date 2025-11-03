@@ -25,5 +25,8 @@ disable=
     
     fixme, # W0511
 
+    logging-fstring-interpolation,  # W1203
+    logging-format-interpolation,  # W1204
+    
 [FORMAT]
 max-line-length=88

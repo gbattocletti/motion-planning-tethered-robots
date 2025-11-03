@@ -1,3 +1,4 @@
+import logging
 import os
 
 import matplotlib.pyplot as plt
@@ -7,6 +8,8 @@ from tethered_planning.env import env_2d
 from tethered_planning.env.triangulation import Triangulation
 from tethered_planning.utils import plot
 from tethered_planning.utils.settings import Settings
+
+logger = logging.getLogger(__name__)
 
 
 @pytest.fixture(name="settings")
@@ -280,7 +283,9 @@ def test_geodesic_distance(env, p1, s1, p2, s2):
 
     # Compute geodesic distance
     distance, path = triang.geodesic_distance(p1, s1, p2, s2)
-    print(f"Geodesic distance   between ({p1}, {s1}) and ({p2}, {s2}): {distance}")
+    logger.info(
+        f"Geodesic distance between ({p1}, {s1}) and ({p2}, {s2}): {distance:.2f}"
+    )
 
     # Find nodes for plot
     path_len = len(path)
@@ -300,3 +305,5 @@ def test_geodesic_distance(env, p1, s1, p2, s2):
 
     # Show and/or save figure
     show_plot()
+
+    pass
