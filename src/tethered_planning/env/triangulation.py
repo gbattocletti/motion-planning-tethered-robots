@@ -445,8 +445,8 @@ class Triangulation:
                     # Add vertices to lifted triangles
                     self.triangles_lift.append(sorted(indexes))
 
-                    # Add current triangle to closed queue to avoid checking it again
-                    closed_queue.append((idx, sign))
+            # Add current triangle to closed queue to avoid checking it again
+            closed_queue.append((idx, sign))
 
             # Add adjacent triangles to the open queue
             # NOTE: index of current triangle is added to keep track of the parent
@@ -464,6 +464,8 @@ class Triangulation:
                 len(self.vertices_lift)
                 == len(self.vertices_dual_lift) * 3 - len(self.edges_dual_lift) * 2
             ):
+                # NOTE: this check holds only because all the vertices of the triangles
+                # coincide with obstacle vertices.
                 raise ValueError(
                     f"{CmdColors.FAIL}[Triang]{CmdColors.ENDC} The dimension of the "
                     "lifted primal graph vertices does not match the number of lifted "
