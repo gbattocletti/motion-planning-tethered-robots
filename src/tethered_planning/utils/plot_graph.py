@@ -35,7 +35,7 @@ mpl.rcParams.update(
 )
 
 
-def _get_unique_signatures(
+def get_unique_signatures(
     graph: GridGraph,
     order: list[list[int]] | None = None,
 ) -> list[list[int]]:
@@ -174,7 +174,7 @@ def plot_3d(
 
     ### PREPROCESSING ###
     # Find all unique signatures
-    unique_sign_list = _get_unique_signatures(graph, order=custom_sign_order)
+    unique_sign_list = get_unique_signatures(graph, order=custom_sign_order)
     n_sign = len(unique_sign_list)  # number of unique signatures
 
     # Validate layers cmap
