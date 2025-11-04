@@ -69,6 +69,10 @@ class Triangulation:
         self.n_edges_dual: int
 
         # Simplicial complex
+        #     - vertices_lift: lifted primal graph vertices (vertices of triangles along
+        #       with their signature)
+        #     - edges_lift: lifted primal graph edges represented as [int, int] tuples
+        #       of indexes pointing to the elements of vertices_lift
         #     - vertices_dual_lift: a tuple (idx, signature) representing a triangle in
         #       the simplicial complex, where the index corresponds to a triangle in the
         #       base triangulation (identified as a dual graph node, i.e., the centroid
@@ -78,21 +82,22 @@ class Triangulation:
         #       lifted vertices (self.vertices_dual_lift). A tuple indicates adjacency
         #       between the two triangles in the simplicial complex, i.e.,
         #       dges_dual_lift correspond to the edges of the dual lifted graph;
-        #     - vertices_lift: lifted primal graph vertices (vertices of triangles along
-        #       with their signature)
-        #     - edges_lift: lifted primal graph edges represented as [int, int] tuples
-        #       of indexes pointing to the elements of vertices_lift
+        #     - parent_dual_lift: a dictionary mapping each lifted dual vertex index
+        #       to the index of its parent lifted dual vertex (which is unique). This
+        #       structure can be useful to reconstruct paths in the simplicial complex.
         self.vertices_lift: list[tuple[int, list[int]]]
         self.edges_lift: list[list[int, int]]
         self.triangles_lift: list[list[int, int, int]]
         self.vertices_dual_lift: list[tuple[int, list[int]]]
         self.edges_dual_lift: list[tuple[int, int]]
+        self.parent_dual_lift: dict[int, int]
 
         # Termination criteria for lifting (large default values)
         self.max_lifted_triangles: int = 1000  # max number of triangles to expand
-        self.max_dist: float = 100  # Maximum distance between anchor point and vertices
+        self.max_dist: float = 10.0  # max distance between anchor point and vertices
 
         # Debug info
+        self.INFO: bool = False
         self.DEBUG: bool = False
 
     def set_max_dist(self, max_dist: float) -> None:
@@ -287,7 +292,7 @@ class Triangulation:
         """
         # Parse kwargs
         check_distance: bool = True  # default value
-        search_algorithm: str = "dfs"  # default value
+        search_algorithm: str = "parent"  # default value
         for key, value in kwargs.items():
             if key == "check_distance":
                 if not isinstance(value, bool):
@@ -312,6 +317,7 @@ class Triangulation:
         self.triangles_lift = []  # lifted triangles
         self.vertices_dual_lift = []  # lifted dual graph vertices
         self.edges_dual_lift = []  # lifted dual graph edges
+        self.parent_dual_lift = {}  # parent mapping
 
         # Initialize queues
         open_queue: list[int] = []  # list of triangles to lift
@@ -341,6 +347,7 @@ class Triangulation:
         self.edges_lift.append([1, 2])
         self.edges_lift.append([0, 2])
         self.triangles_lift.append([0, 1, 2])
+        self.parent_dual_lift[0] = -1  # root triangle has no parent
 
         # If the test is passed, add root triangle to open queue
         # Elements in the open queue have the following elements:
@@ -380,6 +387,7 @@ class Triangulation:
             i, j = sorted((n - 1, parent_idx))  # sort edge indices (smaller first)
             if not (i == -1 or j == -1):  # no edge when adding root triangle
                 self.edges_dual_lift.append((i, j))
+            self.parent_dual_lift[n - 1] = parent_idx  # add parent mapping to dict
 
             # Check if the triangle is valid
             # Check that the geodesic connecting each vertex to the anchor point is
@@ -404,12 +412,12 @@ class Triangulation:
                 )
                 if d_approx_new_vertex > self.max_dist:
                     dist, _ = self.geodesic_distance(
-                        self.env.anchor_point,
-                        [],
                         new_vertex,
                         sign,
-                        t1=self.root_idx,  # specify t1 in case anchor lies on boundary
-                        t2=idx,  # specify t2 since new_vertex always lies on boundary
+                        self.env.anchor_point,
+                        [],
+                        t1=idx,  # specify t2 since new_vertex always lies on boundary
+                        t2=self.root_idx,  # specify t1 in case anchor lies on boundary
                         search_algorithm=search_algorithm,
                     )
                 else:
@@ -419,10 +427,11 @@ class Triangulation:
                 if dist > self.max_dist:
                     # Vertex too far: the triangle currently being checked is not valid
                     # and must not be added to the lifted triangulation. First we remove
-                    # the last added triangle (which was added to enable the computation
-                    # of geodesic_distance) and edge from the lifted triangulation.
+                    # the last added info (which was added to enable the computation
+                    # of geodesic_distance) from the lifted triangulation.
                     self.vertices_dual_lift.pop()
                     self.edges_dual_lift.pop()
+                    self.parent_dual_lift.pop(n - 1)
                     n -= 1  # Bring counter back (triangle was removed)
 
                     # Second, we add the triangle to the closed queue to avoid checking
@@ -492,7 +501,7 @@ class Triangulation:
                     )  # append tuple with all info about neighbor
 
         # Termination conditions
-        if self.DEBUG:
+        if self.INFO or self.DEBUG:
             # Sanity check on lifted simplicial complex dimensions
             if not (
                 len(self.vertices_lift)
@@ -552,8 +561,9 @@ class Triangulation:
                 arbitrary. Default is None.
             t2 (int, optional): index of the triangle containing p2 (in the base space).
             search_algorithm (str, optional): The search algorithm to use for finding
-                the candidate path. Options are: {'astar', 'dijkstra', 'bfs', 'dfs'}.
-                Default is 'dfs'.
+                the candidate path. Options are: {'astar', 'dijkstra', 'bfs', 'dfs',
+                'parent'}. The method 'parent' can only be used to find paths to the
+                triangle where the anchor point lies. Default is 'dfs'.
 
         Returns:
             length (float): length of the shortest path (geodesic) between two points.
@@ -570,10 +580,23 @@ class Triangulation:
             if key == "search_algorithm":
                 if not isinstance(value, str):
                     raise TypeError("search_algorithm must be a string.")
-                if search_algorithm not in ["astar", "dijkstra", "bfs", "dfs"]:
+                if search_algorithm not in [
+                    "astar",
+                    "dijkstra",
+                    "bfs",
+                    "dfs",
+                    "parent",
+                ]:
                     raise ValueError(
                         "search_algorithm must be one of the following: "
-                        "{'astar', 'dijkstra', 'bfs', 'dfs'}."
+                        "{'astar', 'dijkstra', 'bfs', 'dfs', 'parent'}."
+                    )
+                if search_algorithm == "parent" and self.DEBUG:
+                    print(
+                        f"{CmdColors.WARNING}[Triang]{CmdColors.ENDC} Warning: the "
+                        "'parent' search algorithm can only be used to find paths to "
+                        "the triangle where the anchor point lies. The point (p2, s2) "
+                        "will be ignored."
                     )
                 search_algorithm = value
             elif key == "t1":
@@ -620,39 +643,40 @@ class Triangulation:
         lift_idx_1 = lift_idx_1[0]
 
         # Find triangle containing (p2, s2)
-        intersections = self.triang_tree.query(Point(p2), predicate="intersects")
-        if t2 is None:
-            tri_idx_2 = intersections[0]
-        else:
-            if not t2 in intersections:
+        # NOTE: when using 'parent' this step is skipped as p2 is automatically assigned
+        # to the anchor point.
+        if search_algorithm != "parent":
+            intersections = self.triang_tree.query(Point(p2), predicate="intersects")
+            if t2 is None:
+                tri_idx_2 = intersections[0]
+            else:
+                if not t2 in intersections:
+                    raise ValueError(
+                        f"The provided triangle index t2={t2} does not contain "
+                        f"point {p2}."
+                    )
+                tri_idx_2 = t2
+            lift_idx_2 = [
+                i
+                for i, (t_idx, t_sign) in enumerate(self.vertices_dual_lift)
+                if t_idx == tri_idx_2 and t_sign == s2
+            ]
+            if not lift_idx_2:
                 raise ValueError(
-                    f"The provided triangle index t2={t2} does not contain point {p2}."
+                    f"The signature was not found in the lifted tree for point {p2}."
                 )
-            tri_idx_2 = t2
-        lift_idx_2 = [
-            i
-            for i, (t_idx, t_sign) in enumerate(self.vertices_dual_lift)
-            if t_idx == tri_idx_2 and t_sign == s2
-        ]
-        if not lift_idx_2:
-            raise ValueError(
-                f"The signature was not found in the lifted tree for point {p2}."
-            )
-        lift_idx_2 = lift_idx_2[0]
+            lift_idx_2 = lift_idx_2[0]
 
         # Compute path between (p1, s1) and (p2, s2)
         alpha_lift: list[int] = []
         match search_algorithm:
-            case ["astar", "dijkstra"]:
-                alpha_lift = graph_search.a_star_search(
-                    self.vertices_dual_lift,
-                    self.edges_dual_lift,
-                    lift_idx_1,
-                    lift_idx_2,
-                    h_augmented=True,
-                    nodes_2d=self.vertices_dual,
-                    use_heuristic=False,
-                )
+            case "parent":
+                alpha_lift = []
+                current_idx = lift_idx_1
+                while current_idx >= 0:  # root is -1
+                    alpha_lift.append(current_idx)
+                    current_idx = self.parent_dual_lift[current_idx]  # move to parent
+                p2 = self.anchor_point  # set p2 to anchor point when using this method
             case "dfs":
                 alpha_lift = graph_search.dfs(
                     self.vertices_dual_lift,
@@ -666,6 +690,16 @@ class Triangulation:
                     self.edges_dual_lift,
                     lift_idx_1,
                     lift_idx_2,
+                )
+            case ["astar", "dijkstra"]:
+                alpha_lift = graph_search.a_star_search(
+                    self.vertices_dual_lift,
+                    self.edges_dual_lift,
+                    lift_idx_1,
+                    lift_idx_2,
+                    h_augmented=True,
+                    nodes_2d=self.vertices_dual,
+                    use_heuristic=False,
                 )
 
         # Project the representative path onto the 2D triangulation
@@ -739,12 +773,14 @@ class Triangulation:
             tri_idx_prev = self.triang_tree.query(
                 Point(p_init),
                 predicate="intersects",
-            )[0]
+            )
             if tri_idx_prev.size != 1:
                 # p_init does not lie in a unique triangle. We assumeit lies in the
                 # first triangle of alpha.
                 tri_idx_prev = alpha[0]
                 alpha = alpha[1:]
+            else:
+                tri_idx_prev = int(tri_idx_prev)  # convert to int
         else:
             p_init = self.vertices_dual[alpha[0]]
             tri_idx_prev = alpha[0]
