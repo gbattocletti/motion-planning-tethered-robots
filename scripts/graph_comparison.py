@@ -62,7 +62,7 @@ n_runs = 5  # number of runs for time averaging
 #   - num of nodes in homotopy augmented graph (int)
 #   - computation time for homotopy augmented graph (float, seconds)
 # The last two columns are repeated for multiple grid resolutions (1, 0.5, 0.1)
-results_table = np.zeros((len(eval_cases), 12), dtype=float)
+results_table = np.zeros((len(eval_cases), 10), dtype=float)
 
 # Loop over evaluation cases
 for idx, case in enumerate(eval_cases):
@@ -110,22 +110,6 @@ for idx, case in enumerate(eval_cases):
     graph.set_max_dist(l)
     graph.n_max = 1_000_000  # increase max number of nodes for this test
 
-    # Coarse resolution
-    print(
-        f"{CmdColors.WARNING}[GridGraph]{CmdColors.ENDC} Running graph with "
-        "resolution 1."
-    )
-    graph.set_grid_resolution(1, 1)
-    t = (
-        timeit.timeit(
-            lambda graph=graph: graph.build_homotopy_augmented_graph(),
-            number=n_runs,
-        )
-        / n_runs
-    )
-    results_table[idx, 6] = len(graph.vertices_lift)  # nodes homotopy augmented graph
-    results_table[idx, 7] = t  # time homotopy augmented graph
-
     # Medium resolution
     print(
         f"{CmdColors.WARNING}[GridGraph]{CmdColors.ENDC} Running graph with "
@@ -139,8 +123,8 @@ for idx, case in enumerate(eval_cases):
         )
         / n_runs
     )
-    results_table[idx, 8] = len(graph.vertices_lift)  # nodes homotopy augmented graph
-    results_table[idx, 9] = t  # time homotopy augmented graph
+    results_table[idx, 6] = len(graph.vertices_lift)  # nodes homotopy augmented graph
+    results_table[idx, 7] = t  # time homotopy augmented graph
 
     # Fine resolution
     print(
@@ -156,8 +140,8 @@ for idx, case in enumerate(eval_cases):
         )
         / n_runs_fine
     )
-    results_table[idx, 10] = len(graph.vertices_lift)  # nodes homotopy augmented graph
-    results_table[idx, 11] = t  # time homotopy augmented graph
+    results_table[idx, 8] = len(graph.vertices_lift)  # nodes homotopy augmented graph
+    results_table[idx, 9] = t  # time homotopy augmented graph
 
     # Print intermediate results
     print(
@@ -182,7 +166,7 @@ for idx, case in enumerate(eval_cases):
     # Print results table and save to CSV file (updated after each eval case)
     with open("results/comparison_results.csv", "w", encoding="utf-8") as f:
         # Print header
-        print("env\tm\tl\t|T_2|\t|T'_2|\tt\t|G'|1\tt1\t|G'|.5\tt.5\t|G'|.25\tt.25")
+        print("env\tm\tl\t|T_2|\t|T'_2|\tt\t|G'|.5\tt.5\t|G'|.25\tt.25")
         for i, row in enumerate(results_table):
             # index
             print(f"{str(int(row[0]))}", end="")
@@ -208,20 +192,14 @@ for idx, case in enumerate(eval_cases):
             print(f"\t{row[5]:.2f} s", end="")
             f.write(f"{row[5]:.2f},")
 
-            # homotopy augmented graph with resolution 1
+            # homotopy augmented graph with resolution 0.5
             print(f"\t{int(row[6])}", end="")
             f.write(f"{int(row[6])},")
             print(f"\t{row[7]:.2f} s", end="")
             f.write(f"{row[7]:.2f}\n")
 
-            # homotopy augmented graph with resolution 0.5
+            # homotopy augmented graph with resolution 0.1
             print(f"\t{int(row[8])}", end="")
             f.write(f"{int(row[8])},")
             print(f"\t{row[9]:.2f} s", end="")
             f.write(f"{row[9]:.2f}\n")
-
-            # homotopy augmented graph with resolution 0.1
-            print(f"\t{int(row[10])}", end="")
-            f.write(f"{int(row[10])},")
-            print(f"\t{row[11]:.2f} s")
-            f.write(f"{row[11]:.2f}\n")
