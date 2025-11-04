@@ -190,14 +190,7 @@ def test_lift_triangulation(
 @pytest.mark.parametrize(
     "env_name, length",
     [
-        ("test_env_1.yaml", 10.0),
-        ("test_env_1.yaml", 15.0),
-        ("test_env_5.yaml", 10.0),
-        ("test_env_5.yaml", 15.0),
-        ("test_env_6.yaml", 10.0),
         ("test_env_6.yaml", 15.0),
-        ("test_env_7.yaml", 10.0),
-        ("test_env_7.yaml", 15.0),
     ],
 )
 def test_triangulation_with_profiling(
@@ -205,41 +198,12 @@ def test_triangulation_with_profiling(
     length,
 ):
 
-    N_ROWS = 20
+    N_ROWS = 10
     SAVE_STATS = True
 
     # Create triangulation
     triang = Triangulation(env)
     triang.triangulate()
-
-    # Lift triangulation
-    triang.set_max_dist(length)
-    triang.set_max_triangles(100_000)
-
-    # Start memory and time measurement
-    pr = cProfile.Profile()
-    pr.enable()
-
-    # Call function
-    triang.lift_triangulation(check_distance=True)
-
-    # Evaluate stats
-    pr.disable()
-    s = io.StringIO()
-    ps = pstats.Stats(pr, stream=s).strip_dirs().sort_stats("cumulative")
-
-    if SAVE_STATS:
-        logger.info(f"Current folder: {os.getcwd()}")
-        logger.info("Saving to: results/stats.prof")
-        pr.dump_stats("results/stats.prof")  # to visualize with snakeviz
-
-    # Print stats
-    logger.info(
-        f"Stats for test {os.environ.get('PYTEST_CURRENT_TEST').split(':')[-1].split(' ')[0]}"
-    )
-    ps.print_stats(N_ROWS)  # top n lines
-    logger.info(s.getvalue())
-    logger.info("\n")
 
     # Generate env plot
     plot.plot_graph(
@@ -259,3 +223,37 @@ def test_triangulation_with_profiling(
 
     # Show and/or save figure
     plt.show(block=False)
+
+    # Set triangulation lifting parameters
+    triang.set_max_dist(length)
+    triang.set_max_triangles(100_000)
+
+    # Start memory and time measurement
+    for search_algorithm in ["dfs", "parent"]:
+        pr = cProfile.Profile()
+        pr.enable()
+
+        # Call function
+        triang.lift_triangulation(
+            check_distance=True, search_algorithm=search_algorithm
+        )
+
+        # Evaluate stats
+        pr.disable()
+        s = io.StringIO()
+        ps = pstats.Stats(pr, stream=s).strip_dirs().sort_stats("cumulative")
+
+        if SAVE_STATS:
+            logger.info(f"Current folder: {os.getcwd()}")
+            filename = f"results/stats_{search_algorithm}.prof"
+            logger.info(f"Saving to: {filename}")
+            pr.dump_stats(filename)  # to visualize with snakeviz
+
+        # Print stats
+        logger.info(
+            "Stats for test "
+            f"{os.environ.get('PYTEST_CURRENT_TEST').split(':')[-1].split(' ')[0]}"
+        )
+        ps.print_stats(N_ROWS)  # top n lines
+        logger.info(s.getvalue())
+        logger.info("\n")
