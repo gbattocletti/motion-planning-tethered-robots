@@ -64,6 +64,7 @@ class GridGraph:
         self.edges_lift: list[list[int]]  # [[v1_lifted_idx, v2_lifted_idx], ...]
 
         # Debug info
+        self.INFO: bool = False
         self.DEBUG: bool = False
 
     def set_max_dist(self, max_dist: float) -> None:
@@ -266,13 +267,13 @@ class GridGraph:
                             self.edges_lift.append((i, j))
                         except ValueError:
                             # CHECKME: temporary solution
-                            # if self.DEBUG:
-                            #     print(
-                            #         f"{CmdColors.WARNING}[GridGraph]{CmdColors.ENDC} "
-                            #         "Warning: could not find lifted neighbor vertex "
-                            #         f"({neighbor_idx}, {neighbor_sign}) in vertices "
-                            #         "list when adding edge."
-                            #     )
+                            if self.DEBUG:
+                                print(
+                                    f"{CmdColors.WARNING}[GridGraph]{CmdColors.ENDC} "
+                                    "Warning: could not find lifted neighbor vertex "
+                                    f"({neighbor_idx}, {neighbor_sign}) in vertices "
+                                    "list when adding edge."
+                                )
                             pass
                     else:
                         if (n, neighbor_idx, neighbor_sign) not in open_queue:
@@ -290,7 +291,7 @@ class GridGraph:
             # Increment counter
             n += 1
 
-        if self.DEBUG:
+        if self.INFO or self.DEBUG:
             if n >= self.n_max:
                 print(
                     f"{CmdColors.WARNING}[GridGraph]{CmdColors.ENDC} Warning: "
