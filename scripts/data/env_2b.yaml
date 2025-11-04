@@ -1,8 +1,10 @@
-# Environment 2
+# Environment 2b
+# This environment features two obstacles symmetrically placed with respect to those of 
+# env 2
 
 # environment properties
 env:
-    name: "Env 2"
+    name: "Env 2b"
     dimension: 2
     origin: [0.0, 0.0]
     size: [10.0, 10.0]
@@ -10,15 +12,15 @@ env:
 # obstacles properties
 obstacles: 
     vertices: [
-        [[2.0, 2.0], [4.0, 2.0], [4.0, 4.0], [2.0, 4.0]],
-        [[6.0, 6.0], [8.0, 6.0], [8.0, 8.0], [6.0, 8.0]]
+        [[6.0, 2.0], [8.0, 2.0], [8.0, 4.0], [6.0, 4.0]],
+        [[2.0, 6.0], [4.0, 6.0], [4.0, 8.0], [2.0, 8.0]]
     ]
 
 # generators properties
 generators:
     vertices: [
-        [[3.0, 4.0], [3.0, 10.0]],
-        [[7.0, 8.0], [7.0, 10.0]]
+        [[7.0, 4.0], [7.0, 10.0]],
+        [[3.0, 8.0], [3.0, 10.0]]
     ]  
 
 goal:

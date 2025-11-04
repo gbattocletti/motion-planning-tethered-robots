@@ -3,13 +3,15 @@ Generates the following plots
 - plot of the 2D environment including the anchor point but not the robot;
 - the plot of the environment triangulation, including both primal and dual graphs;
 - the plot of the homotopy-augmented graph.
+- a plot showing a path planning scenario in which all the homotopy classes to a given
+  point are found and visualized.
 """
 
 import os
-import tkinter as tk
-from tkinter import filedialog
 
 import matplotlib as mpl
+import matplotlib.patheffects as path_effects
+import matplotlib.pyplot as plt
 from packaging import version
 
 from tethered_planning.env import env_2d
@@ -18,11 +20,28 @@ from tethered_planning.utils import plot, plot_triangulation
 from tethered_planning.utils.colors import CmdColors, CustomColors
 from tethered_planning.utils.settings import Settings
 
+labels_font_size = 8
+tick_labels_font_size = 8
+mpl.rcParams.update(
+    {
+        "pgf.texsystem": "xelatex",  # or any other engine you want to use
+        "text.usetex": True,  # use TeX for all texts
+        "font.family": "serif",
+        "font.size": labels_font_size,
+        "axes.labelsize": labels_font_size,
+        "legend.fontsize": labels_font_size,
+        "xtick.labelsize": tick_labels_font_size,
+        "ytick.labelsize": tick_labels_font_size,
+        "pgf.rcfonts": False,
+        "pgf.preamble": "\\usepackage[T1]{fontenc}",  # extra preamble for LaTeX
+    }
+)
+
 # Script settings
 SAVE_PNG = True
 SAVE_PGF = True
-# filename = None
-filename = "env_1.yaml"  # set to None to open file dialog
+SHOW_PLOTS = True
+filename = "env_2b.yaml"  # set to None to open file dialog and select manually
 
 # Check matplotlib version
 if version.parse(mpl.__version__) <= version.parse("3.7"):
@@ -39,19 +58,6 @@ abspath = os.path.abspath(__file__)
 dir_name = os.path.dirname(abspath)
 os.chdir(dir_name)
 
-# Select environment to use
-if "filename" not in globals() or filename is None:
-    root = tk.Tk()
-    root.withdraw()
-    try:
-        filename = filedialog.askopenfilename(initialdir=dir_name).split("/")[-1]
-    except FileNotFoundError:
-        print("File was not found, using default environment.")
-        filename = "env_1.yaml"
-env_name = filename.replace("_", "-")
-env_name = env_name.replace(".yaml", "")
-base_name = "results/" + env_name
-
 # Create settings and env objects
 settings = Settings(create_sim_folder=False)
 settings.env_name = filename
@@ -60,19 +66,19 @@ env = env_2d.Env2D(settings)
 # Plot and save the environment
 fig, _ = plot.plot_env(
     env,
-    show_tether=True,
-    show_robot=True,
+    show_tether=False,
+    show_robot=False,
     show_anchor=True,
     show_goal=False,
     show_legend=False,
     show_generators=True,
     show_generators_labels=True,
     show_obstacles_labels=True,
-    figsize=[5, 5],
+    figsize=[4.5, 4.5],
 )
 if SAVE_PNG is True:
     fig.savefig(
-        base_name + ".png",
+        "results/env2.png",
         dpi=300,
         format="png",
         bbox_inches="tight",
@@ -80,7 +86,7 @@ if SAVE_PNG is True:
     )
 if SAVE_PGF is True:
     fig.savefig(
-        base_name + ".pgf",
+        "results/env2.pgf",
         format="pgf",
         bbox_inches="tight",
         pad_inches=0.01,
@@ -88,10 +94,7 @@ if SAVE_PGF is True:
 
 # Generate triangulation
 triang = Triangulation(env)
-triang.set_max_dist(1000.0)
-triang.set_max_triangles(40)
 triang.triangulate()
-triang.lift_triangulation()
 
 # Plot and save the triangulation
 fig, _ = plot.plot_graph(
@@ -109,11 +112,11 @@ fig, _ = plot.plot_graph(
     show_anchor=True,
     show_robot=False,
     show_tether=False,
-    figsize=[5, 5],
+    figsize=[4.5, 4.5],
 )
 if SAVE_PNG is True:
     fig.savefig(
-        base_name + "-triang.png",
+        "results/env2-triang.png",
         dpi=300,
         format="png",
         bbox_inches="tight",
@@ -121,29 +124,25 @@ if SAVE_PNG is True:
     )
 if SAVE_PGF is True:
     fig.savefig(
-        base_name + "-triang.pgf",
+        "results/env2-triang.pgf",
         format="pgf",
         bbox_inches="tight",
         pad_inches=0.01,
     )
 
+# Lift the triangulation
+settings.env_name = "env_2.yaml"  # symmetric env to correct 3D perspective
+env = env_2d.Env2D(settings)
+triang = Triangulation(env)
+triang.triangulate()
+triang.set_max_dist(15.0)
+triang.set_max_triangles(100)
+pov = [15, 35, 2]
+order = [[2], [1], [], [-1], [-2], [-2, -1]]
+cmap = CustomColors.layers_cmap[0:7]
+triang.lift_triangulation()
+
 # Plot and save the lifted triangulation
-pov: list[float]  # point of view for 3D plot [elevation, azimuth, roll]
-order: list[list[int]]  # custom order for layers plotting
-cmap: list[str]  # custom colormap for layers plotting
-match settings.env_name:
-    case "env_1.yaml":
-        pov = [15, 35, 2]
-        order = [[1, 1, 1], [1, 1], [1], [], [-1], [-1, -1]]
-        cmap = CustomColors.layers_cmap[0:6]
-    case "env_2.yaml":
-        pov = [15, 35, 2]
-        order = [[1, 2], [2], [1], [], [-1], [-2]]
-        cmap = CustomColors.layers_cmap[0:6]
-    case "env_3.yaml":
-        pov = [15, 35, 2]
-        order = [[1, 2], [2], [1], [], [-1], [-2], [-2, -1]]
-        cmap = CustomColors.layers_cmap[0:7]
 fig, _ = plot_triangulation.plot_3d(
     triang,
     env,
@@ -152,16 +151,122 @@ fig, _ = plot_triangulation.plot_3d(
     custom_sign_order=order,
     layers_colormap=cmap,
     pov=pov,
-    figsize=[5, 5],
+    figsize=[4.5, 4.5],
 )
 if SAVE_PNG is True:
     fig.savefig(
-        base_name + "-lift.png",
+        "results/env2-lift.png",
         dpi=300,
         format="png",
     )
 if SAVE_PGF is True:
     fig.savefig(
-        base_name + "-lift.pgf",
+        "results/env2-lift.pgf",
         format="pgf",
     )
+
+# Plot and save the geodesic
+fig, ax = plot_triangulation.plot_3d(
+    triang,
+    env,
+    connect_layers=False,
+    multi_layer_triangles=True,
+    custom_sign_order=order,
+    layers_colormap=cmap,
+    pov=pov,
+    figsize=[4.5, 4.5],
+)
+
+# Add points, curves, and labels
+ax.plot(
+    env.anchor_point[0],
+    env.anchor_point[1],
+    2,
+    marker=".",
+    markersize=5,
+    color="red",
+    zorder=15,
+)
+txt = ax.text(
+    env.anchor_point[0],
+    env.anchor_point[1] - 1.5,
+    2,
+    "$\\tilde{x}_\\mathrm{a}$",
+    fontsize=8,
+    ha="center",
+    va="center",
+    color="black",
+    zorder=15,
+)
+txt.set_path_effects(
+    [
+        path_effects.Stroke(linewidth=1.5, foreground="white"),
+        path_effects.Normal(),
+    ]
+)
+ax.plot(
+    5,
+    7,
+    4.25,
+    marker=".",
+    markersize=5,
+    color="blue",
+    zorder=15,
+)
+txt = ax.text(
+    5,
+    7 + 1.5,
+    4.5,
+    "$\\tilde{x}_\\mathrm{g}$",
+    fontsize=8,
+    ha="center",
+    va="center",
+    color="black",
+    zorder=15,
+)
+txt.set_path_effects(
+    [
+        path_effects.Stroke(linewidth=1.5, foreground="white"),
+        path_effects.Normal(),
+    ]
+)
+ax.plot(
+    [5, 8, 8, 6, 5],
+    [5, 6, 8, 8, 7],
+    [2, 2, 2, 4, 4.25],
+    color="blue",
+    linewidth=1.1,
+    zorder=12,
+)
+txt = ax.text(
+    8 + 2.5,
+    8,
+    2,
+    "$\\tilde{{\\beta}}$",
+    fontsize=8,
+    ha="center",
+    va="center",
+    color="black",
+    zorder=12,
+)
+txt.set_path_effects(
+    [
+        path_effects.Stroke(linewidth=1.5, foreground="white"),
+        path_effects.Normal(),
+    ]
+)
+
+if SAVE_PNG is True:
+    fig.savefig(
+        "results/env2-paths.png",
+        dpi=300,
+        format="png",
+    )
+if SAVE_PGF is True:
+    fig.savefig(
+        "results/env2-paths.pgf",
+        format="pgf",
+    )
+
+if SHOW_PLOTS is True:
+    plt.show()
