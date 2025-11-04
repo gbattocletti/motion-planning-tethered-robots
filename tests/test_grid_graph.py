@@ -45,7 +45,13 @@ def show_plot():
     [
         (
             "test_env_1.yaml",
-            [[-1, -1], [-1], [], [1], [1, 1]],
+            [
+                [-1, -1],
+                [-1],
+                [],
+                [1],
+                [1, 1],
+            ],
             False,
         ),
         (
@@ -67,6 +73,16 @@ def show_plot():
             None,
             True,
         ),
+        (
+            "test_env_6.yaml",
+            None,
+            True,
+        ),
+        (
+            "test_env_7.yaml",
+            None,
+            True,
+        ),
     ],
 )
 def test_grid_graph(env, custom_sign_order, allow_boundary_overlap):
@@ -76,6 +92,7 @@ def test_grid_graph(env, custom_sign_order, allow_boundary_overlap):
     graph.DEBUG = True  # Enable debug info
     graph.set_max_dist(20.0)
     graph.set_grid_resolution(0.5, 0.5)
+    # graph.set_grid_resolution(1, 1)
     graph.build_homotopy_augmented_graph(allow_boundary_overlap=allow_boundary_overlap)
 
     # Visualize base environment
