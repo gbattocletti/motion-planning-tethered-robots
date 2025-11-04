@@ -196,10 +196,10 @@ for idx, case in enumerate(eval_cases):
             print(f"\t{int(row[6])}", end="")
             f.write(f"{int(row[6])},")
             print(f"\t{row[7]:.2f} s", end="")
-            f.write(f"{row[7]:.2f}\n")
+            f.write(f"{row[7]:.2f}")
 
             # homotopy augmented graph with resolution 0.1
             print(f"\t{int(row[8])}", end="")
             f.write(f"{int(row[8])},")
-            print(f"\t{row[9]:.2f} s", end="")
+            print(f"\t{row[9]:.2f} s")
             f.write(f"{row[9]:.2f}\n")
