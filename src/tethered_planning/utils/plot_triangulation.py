@@ -11,7 +11,7 @@ from shapely.plotting import plot_polygon
 from tethered_planning.utils import colors
 from tethered_planning.utils import curves as curves_fcns
 from tethered_planning.utils import plot
-from tethered_planning.utils.colors import PlotColors
+from tethered_planning.utils.colors import CmdColors, PlotColors
 
 if TYPE_CHECKING:
     from mpl_toolkits.mplot3d.axes3d import Axes3D
@@ -77,13 +77,17 @@ def get_unique_signatures(
     # If a custom order is specified, check its validity and apply it
     if order is not None:
         if len(order) != n_sign:
-            raise ValueError(
-                f"The length of order {len(order)} does not "
-                f"match the number of unique signatures {n_sign} in the triangulation."
+            print(
+                f"{CmdColors.WARNING}[PLOT]{CmdColors.ENDC} The length of order "
+                f"{len(order)} does not match the number of unique signatures "
+                f"{n_sign} in the triangulation. Only the signatures in order will be "
+                "plotted."
             )
-        for sign in unique_sign_list:
-            if sign not in order:
-                raise ValueError(f"The signature {sign} is not present in order")
+        for sign in order:
+            if sign not in unique_sign_list:
+                raise ValueError(
+                    f"The signature {sign} is not present in unique_sign_list."
+                )
         unique_sign_list = order  # override the signature order
 
     # Return the list of unique signatures
@@ -114,6 +118,12 @@ def plot_2d(
             corresponding to the different signatures. The length must match the number
             of unique signatures in the triangulation, or be one single color to be
             used for all layers. If None (default) a default colormap will be used.
+        max_cols (int, optional): maximum number of columns in the figure. Default is 4.
+        add_env_subplot (bool, optional): whether to add a subplot with the environment
+            at the beginning of the figure. Default is True.
+        show_obstacles (bool, optional): whether to show obstacles in the layers
+            subplots. Default is False.
+        fig_size (np.ndarray | list[float], optional): figure size in cm
 
     Returns:
         tuple[plt.Figure, plt.Axes]: Figure and Axes objects
@@ -128,6 +138,10 @@ def plot_2d(
     # Default kwarg values
     custom_sign_order: list[list[int]] | None = None  # custom order for signatures
     layers_cmap: list[str] | None = None  # colormap for the layers
+    max_cols: int = 4  # max number of columns in the figure
+    add_env_subplot: bool = True  # add subplot with the env at the beginning
+    show_obstacles: bool = False  # show obstacles in the env subplot
+    figsize: np.ndarray = np.array([8, 8])  # figure size in cm
 
     # Parse kwargs
     for key in kwargs:
@@ -145,18 +159,52 @@ def plot_2d(
                     f"got {type(kwargs['layers_colormap'])} instead."
                 )
             layers_cmap = kwargs["layers_colormap"]
+        elif key == "max_cols":
+            if not isinstance(kwargs["max_cols"], int):
+                raise TypeError(
+                    "Expected int for max_cols, "
+                    f"got {type(kwargs['max_cols'])} instead."
+                )
+            if kwargs["max_cols"] <= 0:
+                raise ValueError("max_cols must be a positive integer.")
+            max_cols = kwargs["max_cols"]
+        elif key == "add_env_subplot":
+            if not isinstance(kwargs["add_env_subplot"], bool):
+                raise TypeError(
+                    "Expected bool for add_env_subplot, "
+                    f"got {type(kwargs['add_env_subplot'])} instead."
+                )
+            add_env_subplot = kwargs["add_env_subplot"]
+        elif key == "show_obstacles":
+            if not isinstance(kwargs["show_obstacles"], bool):
+                raise TypeError(
+                    "Expected bool for show_obstacles, "
+                    f"got {type(kwargs['show_obstacles'])} instead."
+                )
+            show_obstacles = kwargs["show_obstacles"]
+        elif key == "figsize":
+            if not isinstance(kwargs["figsize"], (np.ndarray, list)):
+                raise TypeError(
+                    "Expected np.ndarray or list for figsize, got "
+                    f"{type(kwargs['figsize'])} instead."
+                )
+            if isinstance(kwargs["figsize"], list):
+                figsize = np.array(kwargs["figsize"])
+            else:
+                figsize = kwargs["figsize"]
+            if figsize.shape != (2,):
+                raise ValueError(
+                    f"Expected figsize to have shape (2,), got {figsize.shape} instead."
+                )
         else:
-            pass  # ignore other kwargs
-
-    # Function settings
-    max_cols: int = 4  # max number of columns in the figure
-    add_env_subplot: bool = True  # add subplot with the env at the beginning
-    show_obstacles: bool = False  # show obstacles in the env subplot
+            print(f"{CmdColors.WARNING}[PLOT]{CmdColors.ENDC} Unknown kwarg: {key}")
 
     ### PREPROCESSING ###
     # Find all unique signatures
     unique_sign_list = get_unique_signatures(triangulation, order=custom_sign_order)
     n_sign = len(unique_sign_list)  # number of unique signatures
+    if add_env_subplot is True:
+        n_sign += 1  # account for env subplot
 
     # Validate layers cmap
     if layers_cmap is None:
@@ -167,17 +215,23 @@ def plot_2d(
     n_rows: int = int(np.ceil(n_sign / max_cols))  # number of rows in the figure
     n_cols: int = min(n_sign, max_cols)  # number of columns in the figure
 
-    # Check if the env subplot can be added
-    add_env_subplot = bool(add_env_subplot is True and n_sign < n_cols * n_rows)
-
     ### GENERATE FIGURE ###
     # Initialize figure and axes
     fig: plt.Figure
     axs: np.ndarray[plt.Axes]
-    fig, axs = plt.subplots(n_rows, n_cols, figsize=(8, 8))
+    fig, axs = plt.subplots(
+        n_rows,
+        n_cols,
+        figsize=figsize / 2.54,
+        constrained_layout=True,
+    )
 
     # Plot the environment in the first subplot
     if add_env_subplot:
+        if len(axs.shape) > 1:
+            target_ax = axs[0, 0]
+        else:
+            target_ax = axs[0]
         plot.plot_env(
             env,
             show_generators=True,
@@ -187,19 +241,20 @@ def plot_2d(
             show_robot=False,
             show_goal=False,
             show_legend=False,
-            target_ax=axs[0, 0],
+            show_axes_labels=False,
+            target_ax=target_ax,
         )
-        start_idx = 1  # start other plots from 1 (0 is used by env)
+        ax_shift = 1  # start other plots from 1 (0 is used by env)
     else:
-        start_idx = 0  # start other plots from 0 (no env plot)
+        ax_shift = 0  # start other plots from 0 (no env plot)
 
     # Plot each layer of the lifted triangulation
     idx: int  # index of the subplot
     ax: plt.Axes  # individual axis objects found by iterating over the axs array
-    for idx, ax in enumerate(axs.ravel()[start_idx:], start=0):
+    for idx, ax in enumerate(axs.ravel()[ax_shift:], start=0):
 
         # Check if subplot is within range of signatures
-        if idx >= n_sign:
+        if idx + ax_shift >= n_sign:
             ax.axis("off")  # hide unused subplots
             continue
 
@@ -210,8 +265,8 @@ def plot_2d(
         ax.set_aspect("equal", "box")
         ax.set_xlim([0, env.size[0]])
         ax.set_ylim([0, env.size[1]])
-        ax.set_xlabel("$x$", rotation=0)
-        ax.set_ylabel("$y$", rotation=0)
+        # ax.set_xlabel("$x$", rotation=0)
+        # ax.set_ylabel("$y$", rotation=0)
         ax.grid(
             True,
             which="major",
@@ -229,6 +284,10 @@ def plot_2d(
             zorder=1,
         )
         ax.minorticks_on()
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
 
         # Add title
         chars: list[str] = []  # list of characters
@@ -245,9 +304,10 @@ def plot_2d(
         ax.set_title(
             word,
             **{
-                "fontsize": 12,
+                "fontsize": 8,
                 "fontweight": "bold",
             },
+            y=-0.18,  # title below plot NOTE: this value likely needs manual adjustment
         )
 
         # Add obstacles (optional)
