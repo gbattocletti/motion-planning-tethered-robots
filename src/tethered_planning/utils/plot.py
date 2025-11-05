@@ -80,6 +80,7 @@ def plot_env(env: Env2D, **kwargs) -> tuple[plt.Figure, plt.Axes]:
         show_polygons_nodes (bool, **kwargs): flag to display the nodes of the polygons
         show_polygons_labels (bool, **kwargs): add labels to the polygons
         title (str, **kwargs): plot title
+        show_axes_labels (bool, **kwargs): flag to display the x and y axes labels
         target_ax (plt.Axes, **kwargs): Existing Axes object to draw the plot on. If
             None (default), a new figure and axes are created. This kwarg is useful to
             use this plot function as a subplot of a larger figure.
@@ -111,6 +112,7 @@ def plot_env(env: Env2D, **kwargs) -> tuple[plt.Figure, plt.Axes]:
     show_polygons_nodes: bool = False  # show the nodes (points) of the polygons
     show_polygons_labels: bool = False  # label the polygons
     title: str = ""  # plot title
+    show_axes_labels: bool = True  # flag to display the x and y axes labels
     target_ax: plt.Axes | None = None  # Axes object to plot on (if None, create new)
     figsize: np.ndarray | list[float] = np.array([8, 8])  # figure size in cm
 
@@ -262,6 +264,12 @@ def plot_env(env: Env2D, **kwargs) -> tuple[plt.Figure, plt.Axes]:
             if not isinstance(value, str):
                 raise TypeError(f"Expected str for title, got {type(value)} instead.")
             title = value
+        elif key == "show_axes_labels":
+            if not isinstance(value, bool):
+                raise TypeError(
+                    f"Expected bool for show_axes_labels, got {type(value)} instead."
+                )
+            show_axes_labels = value
         elif key == "target_ax":
             if not isinstance(value, mpl.axes.Axes):
                 raise TypeError(
@@ -308,8 +316,9 @@ def plot_env(env: Env2D, **kwargs) -> tuple[plt.Figure, plt.Axes]:
             "fontweight": "bold",
         },
     )
-    ax.set_xlabel("$x$", rotation=0)
-    ax.set_ylabel("$y$", rotation=0)
+    if show_axes_labels:
+        ax.set_xlabel("$x$", rotation=0)
+        ax.set_ylabel("$y$", rotation=0)
     for tick in ax.xaxis.get_major_ticks():
         tick.tick1line.set_visible(False)
         tick.tick2line.set_visible(False)
@@ -373,7 +382,7 @@ def plot_env(env: Env2D, **kwargs) -> tuple[plt.Figure, plt.Axes]:
                 ax=ax,
                 color=PlotColors.generators_color,
                 alpha=1,
-                linewidth=1,
+                linewidth=0.5,
                 add_points=False,
                 zorder=3,
             )
@@ -443,8 +452,8 @@ def plot_env(env: Env2D, **kwargs) -> tuple[plt.Figure, plt.Axes]:
             linestyle="None",
         )
         ax.text(
-            env.anchor_point[0] - 0.5,
-            env.anchor_point[1] - 0.5,
+            env.anchor_point[0] + 0.3,
+            env.anchor_point[1] - 0.3,
             r"$x_\mathrm{a}$",  # latex mathmode
             fontsize=8,
             zorder=10,
@@ -466,8 +475,8 @@ def plot_env(env: Env2D, **kwargs) -> tuple[plt.Figure, plt.Axes]:
             linestyle="None",
         )
         ax.text(
-            env.robot_initial_pos[0] - 0.5,
-            env.robot_initial_pos[1] - 0.5,
+            env.robot_initial_pos[0] - 0.6,
+            env.robot_initial_pos[1] - 0.6,
             r"$x_\mathrm{r}$",  # latex mathmode
             fontsize=8,
             zorder=10,
@@ -490,8 +499,8 @@ def plot_env(env: Env2D, **kwargs) -> tuple[plt.Figure, plt.Axes]:
         )
 
         ax.text(
-            tether.coords[1][0] + 0.1,  # env-1: 0.1
-            tether.coords[1][1] + 0.1,  # env-1: 0.1
+            tether.coords[7][0] + 0.1,  # env-1: 0.1
+            tether.coords[7][1] - 0.4,  # env-1: 0.1
             r"$\gamma$",
             fontsize=8,
             zorder=10,
@@ -508,7 +517,7 @@ def plot_env(env: Env2D, **kwargs) -> tuple[plt.Figure, plt.Axes]:
                 color=PlotColors.points_color,
                 markersize=6,
                 marker=".",
-                zorder=8,
+                zorder=10,
             )
             if show_points_labels:
                 ax.text(
@@ -516,6 +525,7 @@ def plot_env(env: Env2D, **kwargs) -> tuple[plt.Figure, plt.Axes]:
                     point.coords[0][1] - 0.5,
                     rf"$\gamma_\mathrm{idx}$",  # latex mathmode
                     fontsize=6,
+                    zorder=10,
                 )
         points_handle = Line2D(
             [],
