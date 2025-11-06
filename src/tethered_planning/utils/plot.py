@@ -499,8 +499,8 @@ def plot_env(env: Env2D, **kwargs) -> tuple[plt.Figure, plt.Axes]:
         )
 
         ax.text(
-            tether.coords[7][0] + 0.1,  # env-1: 0.1
-            tether.coords[7][1] - 0.4,  # env-1: 0.1
+            tether.coords[1][0] + 0.1,  # env-1: 0.1
+            tether.coords[1][1] - 0.4,  # env-1: 0.1
             r"$\gamma$",
             fontsize=8,
             zorder=10,

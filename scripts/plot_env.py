@@ -12,6 +12,7 @@ import os
 import matplotlib as mpl
 import matplotlib.patheffects as path_effects
 import matplotlib.pyplot as plt
+import numpy as np
 from packaging import version
 
 from tethered_planning.env import env_2d
@@ -40,7 +41,7 @@ mpl.rcParams.update(
 # Script settings
 SAVE_PNG = True
 SAVE_PGF = True
-SHOW_PLOTS = True
+SHOW_PLOTS = False
 filename = "env_2b.yaml"  # set to None to open file dialog and select manually
 
 # Check matplotlib version
@@ -63,12 +64,33 @@ settings = Settings(create_sim_folder=False)
 settings.env_name = filename
 env = env_2d.Env2D(settings)
 
+# Manually define tether for visualization
+robot = [7, 1]
+tether = np.array(
+    [
+        [5.0, 5.0],
+        [4.7, 4.5],
+        [4.5, 4.0],
+        [4.4, 3.5],
+        [4.5, 3.0],
+        [4.7, 2.5],
+        [5.0, 2.0],
+        [5.5, 1.5],
+        [6.0, 1.2],
+        [6.5, 1.1],
+        [7.0, 1.0],
+    ]
+)
+env.robot_initial_pos = robot
+env.tether_state = tether
+
 # Plot and save the environment
 fig, _ = plot.plot_env(
     env,
-    show_tether=False,
-    show_robot=False,
+    show_tether=True,
+    show_robot=True,
     show_anchor=True,
+    tether=tether,
     show_goal=False,
     show_legend=False,
     show_generators=True,
@@ -183,16 +205,16 @@ ax.plot(
     env.anchor_point[1],
     2,
     marker=".",
-    markersize=5,
+    markersize=6,
     color="red",
     zorder=15,
 )
 txt = ax.text(
-    env.anchor_point[0],
-    env.anchor_point[1] - 1.5,
+    env.anchor_point[0] - 0.5,
+    env.anchor_point[1] - 2.0,
     2,
     "$\\tilde{x}_\\mathrm{a}$",
-    fontsize=8,
+    fontsize=10,
     ha="center",
     va="center",
     color="black",
@@ -209,16 +231,16 @@ ax.plot(
     7,
     4.25,
     marker=".",
-    markersize=5,
+    markersize=6,
     color="blue",
     zorder=15,
 )
 txt = ax.text(
     5,
-    7 + 1.5,
+    8.5,
     4.5,
     "$\\tilde{x}_\\mathrm{g}$",
-    fontsize=8,
+    fontsize=10,
     ha="center",
     va="center",
     color="black",
@@ -235,15 +257,15 @@ ax.plot(
     [5, 6, 8, 8, 7],
     [2, 2, 2, 4, 4.25],
     color="blue",
-    linewidth=1.1,
+    linewidth=1.5,
     zorder=12,
 )
 txt = ax.text(
-    8 + 2.5,
+    5.5,
     8,
-    2,
+    3,
     "$\\tilde{{\\beta}}$",
-    fontsize=8,
+    fontsize=10,
     ha="center",
     va="center",
     color="black",
