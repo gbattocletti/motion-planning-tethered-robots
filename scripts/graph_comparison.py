@@ -189,17 +189,17 @@ for idx, case in enumerate(eval_cases):
             f.write(f"{int(row[4])},")
 
             # time simplicial complex
-            print(f"\t{row[5]:.2f} s", end="")
+            print(f"\t{row[5]:.2f}", end="")
             f.write(f"{row[5]:.2f},")
 
             # homotopy augmented graph with resolution 0.5
             print(f"\t{int(row[6])}", end="")
             f.write(f"{int(row[6])},")
-            print(f"\t{row[7]:.2f} s", end="")
+            print(f"\t{row[7]:.2f}", end="")
             f.write(f"{row[7]:.2f}")
 
             # homotopy augmented graph with resolution 0.1
             print(f"\t{int(row[8])}", end="")
             f.write(f"{int(row[8])},")
-            print(f"\t{row[9]:.2f} s")
+            print(f"\t{row[9]:.2f}")
             f.write(f"{row[9]:.2f}\n")
