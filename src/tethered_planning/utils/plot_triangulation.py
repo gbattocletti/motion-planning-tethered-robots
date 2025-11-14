@@ -298,16 +298,18 @@ def plot_2d(
                 char += "^{-1}"
             chars.append(char)
         if not chars:
-            word = "`` ''"  # empty signature
+            word = "``\\;''"  # empty signature
+            title_offset = -0.15
         else:
             word = "``$" + "".join(chars) + "$''"  # latex mathmode
+            title_offset = -0.18
         ax.set_title(
             word,
             **{
                 "fontsize": 8,
                 "fontweight": "bold",
             },
-            y=-0.18,  # title below plot NOTE: this value likely needs manual adjustment
+            y=title_offset,  # title below plot
         )
 
         # Add obstacles (optional)

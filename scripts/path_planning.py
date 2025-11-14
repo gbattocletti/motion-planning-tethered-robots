@@ -50,7 +50,7 @@ env = env_2d.Env2D(settings)
 # Generate triangulation and lift it
 triang = Triangulation(env)
 triang.triangulate()
-triang.max_lifted_triangles = 5000
+triang.max_lifted_triangles = 1000  # high value to avoid cutting off layers
 triang.set_max_dist(12.0)  # max tether length
 triang.lift_triangulation()
 
@@ -103,7 +103,7 @@ tether = np.array(
         [2.0, 2.0],
     ]
 )
-goal = np.array([1.0, 9.0])
+goal = np.array([1.0, 8.3])
 env.robot_initial_pos = robot
 env.tether_state = tether
 
@@ -114,14 +114,14 @@ fig, ax = plot_triangulation.plot_2d(
     max_cols=5,
     custom_sign_order=[
         [],
-        [-5],
-        [-4],
-        [-1, 4],
-        [-1],
-        [-3, -2],
-        [-4, -2],
-        [-4, 1],
         [6],
+        [-4],
+        [-1],
+        [-1, 4],
+        [-3, -2],
+        [-4, 1],
+        [-4, -2],
+        [-6, -3, -2],
     ],
     add_env_subplot=True,
     show_obstacles=False,
@@ -151,9 +151,95 @@ ax[0, 0].plot(
     zorder=10,
 )
 ax[0, 0].text(
-    0.5,
-    9.5,
+    0.6,
+    8.8,
     "$x_\\mathrm{{{g}}}$",
+    fontsize=8,
+    zorder=10,
+)
+ax[0, 0].text(
+    0.8,
+    -1,
+    "env with $n=7, m=6$",
+    fontsize=8,
+    zorder=10,
+)
+
+# Manually add lifted points in the atlas
+x_text = 0.7
+y_text = 8.8
+ax[1, 3].plot(
+    goal[0],
+    goal[1],
+    color="green",
+    marker="o",
+    markersize=4,
+    zorder=10,
+)
+ax[1, 3].text(
+    x_text,
+    y_text,
+    "$\\tilde{{{x}}}_{{{\\mathrm{{{g}}}, 1}}}$",
+    fontsize=8,
+    zorder=10,
+)
+ax[0, 4].plot(
+    goal[0],
+    goal[1],
+    color="green",
+    marker="o",
+    markersize=4,
+    zorder=10,
+)
+ax[0, 4].text(
+    x_text,
+    y_text,
+    "$\\tilde{{{x}}}_{{{\\mathrm{{{g}}}, 2}}}$",
+    fontsize=8,
+    zorder=10,
+)
+ax[1, 4].plot(
+    goal[0],
+    goal[1],
+    color="green",
+    marker="o",
+    markersize=4,
+    zorder=10,
+)
+ax[1, 4].text(
+    x_text,
+    y_text,
+    "$\\tilde{{{x}}}_{{{\\mathrm{{{g}}}, 3}}}$",
+    fontsize=8,
+    zorder=10,
+)
+ax[1, 1].plot(
+    goal[0],
+    goal[1],
+    color="green",
+    marker="o",
+    markersize=4,
+    zorder=10,
+)
+ax[1, 1].text(
+    x_text,
+    y_text,
+    "$\\tilde{{{x}}}_{{{\\mathrm{{{g}}}, 4}}}$",
+    fontsize=8,
+    zorder=10,
+)
+ax[0, 3].plot(
+    goal[0],
+    goal[1],
+    color="green",
+    marker="o",
+    markersize=4,
+    zorder=10,
+)
+ax[0, 3].text(
+    x_text,
+    y_text,
+    "$\\tilde{{{x}}}_{{{\\mathrm{{{g}}}, 5}}}$",
     fontsize=8,
     zorder=10,
 )
@@ -297,19 +383,101 @@ for idx, path in enumerate(path_list):
         zorder=10,
     )
     axs[idx].text(
-        0.5,
-        9.5,
+        0.7,
+        8.8,
         "$x_\\mathrm{{{g}}}$",
         fontsize=8,
         zorder=10,
     )
     axs[idx].text(
-        4.7,
+        1.5,
         -1,
-        "$\\beta_{%d}$" % (idx + 1),
+        "$\\mathrm{len}(\\beta_{%d})=%.2f$" % (idx + 1, path_length_list[idx]),
         fontsize=8,
         zorder=10,
     )  # add text label below plot
+
+# Add curve labels in the plot
+axs[0].text(
+    3.7,
+    3,
+    "$\\beta_{{{1}}}$",
+    fontsize=8,
+    zorder=10,
+    color="blue",
+)
+axs[0].text(
+    3.8,
+    6,
+    "$\\gamma_{{{1}}}'$",
+    fontsize=8,
+    zorder=10,
+    color="black",
+)
+axs[1].text(
+    0.6,
+    3,
+    "$\\beta_{{{2}}}$",
+    fontsize=8,
+    zorder=10,
+    color="blue",
+)
+axs[1].text(
+    3.2,
+    3.2,
+    "$\\gamma_{{{2}}}'$",
+    fontsize=8,
+    zorder=10,
+    color="black",
+)
+axs[2].text(
+    3.7,
+    3,
+    "$\\beta_{{{3}}}$",
+    fontsize=8,
+    zorder=10,
+    color="blue",
+)
+axs[2].text(
+    6.5,
+    5.8,
+    "$\\gamma_{{{3}}}'$",
+    fontsize=8,
+    zorder=10,
+    color="black",
+)
+axs[3].text(
+    3.7,
+    3,
+    "$\\beta_{{{4}}}$",
+    fontsize=8,
+    zorder=10,
+    color="blue",
+)
+axs[3].text(
+    5.2,
+    5.8,
+    "$\\gamma_{{{4}}}'$",
+    fontsize=8,
+    zorder=10,
+    color="black",
+)
+axs[4].text(
+    3.7,
+    3,
+    "$\\beta_{{{5}}}$",
+    fontsize=8,
+    zorder=10,
+    color="blue",
+)
+axs[4].text(
+    3.7,
+    5.4,
+    "$\\gamma_{{{5}}}'$",
+    fontsize=8,
+    zorder=10,
+    color="black",
+)
 
 # Save the path planning figure
 if SAVE_PNG is True:
