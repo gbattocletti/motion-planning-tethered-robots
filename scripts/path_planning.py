@@ -107,7 +107,7 @@ goal = np.array([1.0, 8.3])
 env.robot_initial_pos = robot
 env.tether_state = tether
 
-# Generate 2D plot of the triangulation layers
+# Generate 2D plot of the triangulation layers - row 1
 fig, ax = plot_triangulation.plot_2d(
     triang,
     env,
@@ -117,15 +117,10 @@ fig, ax = plot_triangulation.plot_2d(
         [6],
         [-4],
         [-1],
-        [-1, 4],
-        [-3, -2],
-        [-4, 1],
-        [-4, -2],
-        [-6, -3, -2],
     ],
     add_env_subplot=True,
     show_obstacles=False,
-    figsize=[18, 8],
+    figsize=[18, 4.3],
 )
 
 # Manually update env subplot to show robot, goal, tether, and anchor
@@ -140,9 +135,9 @@ plot.plot_env(
     show_goal=False,
     show_legend=False,
     show_axes_labels=False,
-    target_ax=ax[0, 0],
+    target_ax=ax[0],
 )
-ax[0, 0].plot(
+ax[0].plot(
     goal[0],
     goal[1],
     color="green",
@@ -150,14 +145,14 @@ ax[0, 0].plot(
     markersize=4,
     zorder=10,
 )
-ax[0, 0].text(
+ax[0].text(
     0.6,
     8.8,
     "$x_\\mathrm{{{g}}}$",
     fontsize=8,
     zorder=10,
 )
-ax[0, 0].text(
+ax[0].text(
     0.8,
     -1,
     "env with $n=7, m=6$",
@@ -168,7 +163,7 @@ ax[0, 0].text(
 # Manually add lifted points in the atlas
 x_text = 0.7
 y_text = 8.8
-ax[1, 3].plot(
+ax[4].plot(
     goal[0],
     goal[1],
     color="green",
@@ -176,29 +171,14 @@ ax[1, 3].plot(
     markersize=4,
     zorder=10,
 )
-ax[1, 3].text(
-    x_text,
-    y_text,
-    "$\\tilde{{{x}}}_{{{\\mathrm{{{g}}}, 1}}}$",
-    fontsize=8,
-    zorder=10,
-)
-ax[0, 4].plot(
-    goal[0],
-    goal[1],
-    color="green",
-    marker="o",
-    markersize=4,
-    zorder=10,
-)
-ax[0, 4].text(
+ax[4].text(
     x_text,
     y_text,
     "$\\tilde{{{x}}}_{{{\\mathrm{{{g}}}, 2}}}$",
     fontsize=8,
     zorder=10,
 )
-ax[1, 4].plot(
+ax[3].plot(
     goal[0],
     goal[1],
     color="green",
@@ -206,37 +186,7 @@ ax[1, 4].plot(
     markersize=4,
     zorder=10,
 )
-ax[1, 4].text(
-    x_text,
-    y_text,
-    "$\\tilde{{{x}}}_{{{\\mathrm{{{g}}}, 3}}}$",
-    fontsize=8,
-    zorder=10,
-)
-ax[1, 1].plot(
-    goal[0],
-    goal[1],
-    color="green",
-    marker="o",
-    markersize=4,
-    zorder=10,
-)
-ax[1, 1].text(
-    x_text,
-    y_text,
-    "$\\tilde{{{x}}}_{{{\\mathrm{{{g}}}, 4}}}$",
-    fontsize=8,
-    zorder=10,
-)
-ax[0, 3].plot(
-    goal[0],
-    goal[1],
-    color="green",
-    marker="o",
-    markersize=4,
-    zorder=10,
-)
-ax[0, 3].text(
+ax[3].text(
     x_text,
     y_text,
     "$\\tilde{{{x}}}_{{{\\mathrm{{{g}}}, 5}}}$",
@@ -247,16 +197,93 @@ ax[0, 3].text(
 # Save the atlas figure
 if SAVE_PNG is True:
     fig.savefig(
-        "results/env3-atlas.png",
+        "results/env3-atlas-1.png",
         dpi=300,
         format="png",
     )
 if SAVE_PGF is True:
     fig.savefig(
-        "results/env3-atlas.pgf",
+        "results/env3-atlas-1.pgf",
         format="pgf",
     )
 
+
+fig, ax = plot_triangulation.plot_2d(
+    triang,
+    env,
+    max_cols=5,
+    custom_sign_order=[
+        [-1, 4],
+        [-3, -2],
+        [-4, 1],
+        [-4, -2],
+        [-6, -3, -2],
+    ],
+    add_env_subplot=False,
+    show_obstacles=False,
+    start_idx_cmap=4,
+    figsize=[18, 4.3],
+)
+ax[3].plot(
+    goal[0],
+    goal[1],
+    color="green",
+    marker="o",
+    markersize=4,
+    zorder=10,
+)
+ax[3].text(
+    x_text,
+    y_text,
+    "$\\tilde{{{x}}}_{{{\\mathrm{{{g}}}, 1}}}$",
+    fontsize=8,
+    zorder=10,
+)
+ax[4].plot(
+    goal[0],
+    goal[1],
+    color="green",
+    marker="o",
+    markersize=4,
+    zorder=10,
+)
+ax[4].text(
+    x_text,
+    y_text,
+    "$\\tilde{{{x}}}_{{{\\mathrm{{{g}}}, 3}}}$",
+    fontsize=8,
+    zorder=10,
+)
+ax[1].plot(
+    goal[0],
+    goal[1],
+    color="green",
+    marker="o",
+    markersize=4,
+    zorder=10,
+)
+ax[1].text(
+    x_text,
+    y_text,
+    "$\\tilde{{{x}}}_{{{\\mathrm{{{g}}}, 4}}}$",
+    fontsize=8,
+    zorder=10,
+)
+
+# Save the atlas figure
+if SAVE_PNG is True:
+    fig.savefig(
+        "results/env3-atlas-2.png",
+        dpi=300,
+        format="png",
+    )
+if SAVE_PGF is True:
+    fig.savefig(
+        "results/env3-atlas-2.pgf",
+        format="pgf",
+    )
+
+########################################################################################
 # Perform path planning
 alpha_tether = [28, 16, 30, 13, 1, 18]
 
