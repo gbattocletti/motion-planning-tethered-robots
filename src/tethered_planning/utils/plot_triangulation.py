@@ -123,6 +123,8 @@ def plot_2d(
             at the beginning of the figure. Default is True.
         show_obstacles (bool, optional): whether to show obstacles in the layers
             subplots. Default is False.
+        start_idx_cmap (int, optional): starting index for the colormap to use for the
+            layers (to skip some colors at the beginning of the colormap). Default is 0.
         fig_size (np.ndarray | list[float], optional): figure size in cm
 
     Returns:
@@ -141,6 +143,7 @@ def plot_2d(
     max_cols: int = 4  # max number of columns in the figure
     add_env_subplot: bool = True  # add subplot with the env at the beginning
     show_obstacles: bool = False  # show obstacles in the env subplot
+    start_idx_cmap: int = 0  # skip some colors at the beginning of the cmap
     figsize: np.ndarray = np.array([8, 8])  # figure size in cm
 
     # Parse kwargs
@@ -182,6 +185,15 @@ def plot_2d(
                     f"got {type(kwargs['show_obstacles'])} instead."
                 )
             show_obstacles = kwargs["show_obstacles"]
+        elif key == "start_idx_cmap":
+            if not isinstance(kwargs["start_idx_cmap"], int):
+                raise TypeError(
+                    "Expected int for start_idx_cmap, "
+                    f"got {type(kwargs['start_idx_cmap'])} instead."
+                )
+            if kwargs["start_idx_cmap"] < 0:
+                raise ValueError("start_idx_cmap must be a non-negative integer.")
+            start_idx_cmap = kwargs["start_idx_cmap"]
         elif key == "figsize":
             if not isinstance(kwargs["figsize"], (np.ndarray, list)):
                 raise TypeError(
@@ -208,8 +220,20 @@ def plot_2d(
 
     # Validate layers cmap
     if layers_cmap is None:
-        layers_cmap = PlotColors.layers_cmap[0:n_sign]
+        if start_idx_cmap + n_sign > len(PlotColors.layers_cmap):
+            layers_cmap = [
+                *PlotColors.layers_cmap[start_idx_cmap:n_sign],
+                *PlotColors.layers_cmap[0:start_idx_cmap],
+            ]
+        else:
+            layers_cmap = PlotColors.layers_cmap[
+                start_idx_cmap : start_idx_cmap + n_sign
+            ]
     n_cmap: int = len(layers_cmap)
+    if n_cmap != n_sign:
+        raise ValueError(
+            "The length of layers_colormap must match the number of unique signatures."
+        )
 
     # Define number of rows and columns in the figure
     n_rows: int = int(np.ceil(n_sign / max_cols))  # number of rows in the figure
@@ -302,7 +326,7 @@ def plot_2d(
             title_offset = -0.15
         else:
             word = "``$" + "".join(chars) + "$''"  # latex mathmode
-            title_offset = -0.18
+            title_offset = -0.16
         ax.set_title(
             word,
             **{
