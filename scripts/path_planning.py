@@ -4,6 +4,10 @@ Generates the following plots
 - a plot showing a path planning scenario in multiple homotopy classes between the robot
 and the goal are evaluated in parallel. The robot's paths and resulting tether
 configurations are shown.
+
+Some elements in this script, such as the label and some points that are added to the
+plots, are tailored to the specific environment defined in env_3.yaml. If the
+environment is changed, these elements may need to be adjusted accordingly.
 """
 
 import os
