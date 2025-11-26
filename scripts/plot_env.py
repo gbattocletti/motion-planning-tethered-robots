@@ -66,11 +66,12 @@ env = env_2d.Env2D(settings)
 
 # Manually define tether for visualization
 robot = [7, 1]
+env.anchor_point = np.array([4.0, 5.2])
 tether = np.array(
     [
-        [5.0, 5.0],
-        [4.7, 4.5],
-        [4.5, 4.0],
+        [4.0, 5.2],
+        [4.2, 4.5],
+        [4.3, 4.0],
         [4.4, 3.5],
         [4.5, 3.0],
         [4.7, 2.5],
