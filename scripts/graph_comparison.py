@@ -23,6 +23,8 @@ from tethered_planning.utils.settings import Settings
 # - m: int, number of obstacles in the environment that give rise to multiple homotopy
 #      classes (manually inserted from visual inspection)
 # - l: float, tether length
+# NOTE: some of the graphs may take a long time to compute depending on the
+#       environment and tether length
 eval_cases = [
     ("env_1.yaml", 1, 10.0),
     ("env_1.yaml", 1, 12.0),
@@ -39,7 +41,7 @@ eval_cases = [
     ("env_4.yaml", 8, 10.0),
     ("env_4.yaml", 8, 12.0),
     ("env_4.yaml", 8, 15.0),
-    ("env_4.yaml", 8, 20.0),
+    ("env_4.yaml", 8, 20.0),  # Warning: very high computation time (~24h)
 ]
 
 # Move to script directory

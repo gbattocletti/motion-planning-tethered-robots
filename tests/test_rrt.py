@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from tethered_planning.env import env_2d
-from tethered_planning.plan import outdated, rrt, rrt_star
+from tethered_planning.plan import rrt, rrt_star
 from tethered_planning.utils import plot
 from tethered_planning.utils.colors import CmdColors
 from tethered_planning.utils.settings import Settings
@@ -38,7 +38,6 @@ class TestWorld(unittest.TestCase):
 
         # Load settings for planner
         self.settings = Settings()  # initialize settings
-        self.settings.anim.animate = False  # disable animation for proper profiling
         self.settings.planner.max_nodes_n = 1_000
         if self.settings.fix_seed:
             random.seed(self.settings.seed)
@@ -57,18 +56,6 @@ class TestWorld(unittest.TestCase):
     def test_rrt(self):
         print(f"{CmdColors.OKBLUE}[TestRRT]{CmdColors.ENDC} Running test_rrt.")
         self.planner = rrt.RRT(self.env, self.settings)
-        self.planner.plan()
-
-    @measureStats
-    def test_rrt_np(self):
-        print(f"{CmdColors.OKBLUE}[TestRRT]{CmdColors.ENDC} Running test_rrt_np.")
-        self.planner = outdated.RRT_networkx_numpy(self.env, self.settings)
-        self.planner.plan()
-
-    @measureStats
-    def test_rrt_tuple(self):
-        print(f"{CmdColors.OKBLUE}[TestRRT]{CmdColors.ENDC} Running test_rrt_tuple.")
-        self.planner = outdated.RRT_networkx_tuple(self.env, self.settings)
         self.planner.plan()
 
     @measureStats
