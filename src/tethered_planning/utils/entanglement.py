@@ -18,6 +18,19 @@ def null_homotopy(curve: np.ndarray | LineString, env: Env2D) -> bool:
     Compute the entanglement stte of the input curve by checking if the curve is null
     homotopic to the anchor point of the environment. The curve is assumed to have start
     and end at the anchor point.
+
+    Args:
+    curve (np.ndarray | LineString): piecewise affine curve representing the tether
+        configuration to check the entanglement state of.
+    env (Env2D): 2D environment, which include the obstacles used in the evaluation
+        of the entanglement definition
+
+    Returns:
+        bool: 0 if the curve is entangled, 1 if it is not.
+
+    Raises:
+        TypeError: if the input curve is not a numpy array or a LineString.
+        ValueError: if the input curve does not start and end at the anchor point.
     """
     # Preprocess points to obtain a np.ndarray
     if isinstance(curve, LineString):
@@ -37,8 +50,8 @@ def null_homotopy(curve: np.ndarray | LineString, env: Env2D) -> bool:
     null_homotopy_polygon = Polygon(points)
     for obs in env.obstacle_polygons:
         if shapely.within(obs, null_homotopy_polygon):
-            return True
-    return False
+            return False
+    return True
 
 
 def convex_hull(curve: np.ndarray | LineString, env: Env2D) -> bool:
@@ -53,7 +66,10 @@ def convex_hull(curve: np.ndarray | LineString, env: Env2D) -> bool:
             of the entanglement definition
 
     Returns:
-        bool: 1 if the curve is entangled, 0 if it is not.
+        bool: 0 if the curve is entangled, 1 if it is not.
+
+    Raises:
+        TypeError: if the input curve is not a numpy array or a LineString.
     """
     # Preprocess points to obtain a MultiPoints object
     if isinstance(curve, LineString):
@@ -72,8 +88,8 @@ def convex_hull(curve: np.ndarray | LineString, env: Env2D) -> bool:
         if shapely.intersection(hull, env.obstacle_region) != shapely.intersection(
             hull, env.obstacle_region.boundary
         ):
-            return True
-    return False
+            return False
+    return True
 
 
 def linear_homotopy(curve: np.ndarray | LineString, env: Env2D) -> bool:
@@ -89,7 +105,11 @@ def linear_homotopy(curve: np.ndarray | LineString, env: Env2D) -> bool:
             of the entanglement definition
 
     Returns:
-        bool: 1 if the curve is entangled, 0 if it is not.
+        bool: 0 if the curve is entangled, 1 if it is not.
+
+    Raises:
+        TypeError: if the input curve is not a numpy array or a LineString.
+        ValueError: if the input curve does not start or end at the anchor point.
     """
     # Preprocess curve to ensure correct data type
     if isinstance(curve, LineString):
@@ -100,20 +120,20 @@ def linear_homotopy(curve: np.ndarray | LineString, env: Env2D) -> bool:
         raise TypeError("curve must be a numpy array or a LineString.")
     n = len(points)
 
-    anchor_idx = 0
-    start_idx = 1
-    end_idx = n - 1
-    # # Check if anchor point is first or last
-    # if np.allclose(points[0], env.anchor_point):
-    #     anchor_idx = 0
-    #     start_idx = 1
-    #     end_idx = n - 1
-    # elif np.allclose(points[-1], env.anchor_point):
-    #     anchor_idx = n - 1
-    #     start_idx = n - 2
-    #     end_idx = 0
-    # else:
-    #     raise ValueError("curve must start or end at the anchor point.")
+    # anchor_idx = 0
+    # start_idx = 1
+    # end_idx = n - 1
+    # Check if anchor point is first or last
+    if np.allclose(points[0], env.anchor_point):
+        anchor_idx = 0
+        start_idx = 1
+        end_idx = n - 1
+    elif np.allclose(points[-1], env.anchor_point):
+        anchor_idx = n - 1
+        start_idx = n - 2
+        end_idx = 0
+    else:
+        raise ValueError("curve must start or end at the anchor point.")
 
     # Iterate over the points to verify if any of the regions spanned by the curve
     # intersect with the obstacle region
@@ -124,8 +144,8 @@ def linear_homotopy(curve: np.ndarray | LineString, env: Env2D) -> bool:
             if shapely.intersection(
                 triangle, env.obstacle_region
             ) != shapely.intersection(triangle, env.obstacle_region.boundary):
-                return True
-    return False
+                return False
+    return True
 
 
 def local_visibility_homotopy(curve: np.ndarray | LineString, env: Env2D) -> bool:
@@ -140,7 +160,10 @@ def local_visibility_homotopy(curve: np.ndarray | LineString, env: Env2D) -> boo
             of the entanglement definition
 
     Returns:
-        bool: 1 if the curve is entangled, 0 if it is not.
+        bool: 0 if the curve is entangled, 1 if it is not.
+
+    Raises:
+        TypeError: if the input curve is not a numpy array or a LineString.
     """
     # Preprocess curve to ensure correct data type
     if isinstance(curve, LineString):
@@ -165,5 +188,5 @@ def local_visibility_homotopy(curve: np.ndarray | LineString, env: Env2D) -> boo
 
             # Check entanglement state
             if sign_1 != sign_2:
-                return True
-    return False
+                return False
+    return True
