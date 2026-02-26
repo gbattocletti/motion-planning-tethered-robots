@@ -658,11 +658,11 @@ def generate_curve(
 
     ## CURVE GENERATION ##
     # initialize curve
-    if init_curve:
+    if init_curve is not None:
         points = [list(point) for point in init_curve.coords]
         init_point = Point(points[0])
-    elif init_point:
-        points = [env.anchor_point]
+    elif init_point is not None:
+        points = [init_point]
     else:
         points = []
     kwargs["show_anchor"] = init_point is not None  # show anchor if init_point is set

@@ -214,16 +214,12 @@ class TestCurveFcns(unittest.TestCase):
         plt.show()
 
         # test shortening when allowing boundary overlap in edge check
-        shortened_curve = curves.shorten_curve(
-            curve, self.env, allow_boundary_overlap=True
-        )
+        shortened_curve = curves.shorten_curve(curve, self.env)
         plot.plot_env(self.env, tether=LineString(shortened_curve))
         plt.show()
 
         # test shortening without allowing boundary overlap in edge check
-        shortened_curve = curves.shorten_curve(
-            curve, self.env, allow_boundary_overlap=False
-        )
+        shortened_curve = curves.shorten_curve(curve, self.env)
         plot.plot_env(self.env, tether=LineString(shortened_curve))
         plt.show()
 
