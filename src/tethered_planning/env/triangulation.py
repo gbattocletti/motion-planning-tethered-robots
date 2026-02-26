@@ -104,6 +104,12 @@ class Triangulation:
         self.entanglement_triangles_lift: list[bool]
         self.entanglement_vertices_dual_lift: list[bool]
 
+        # List for extra simplices (conservativeness reduction)
+        # Each simplex is saved as a tuple containing
+        #   - the list of vertices
+        #   - the index of the parent triangle in the lifted triangulation
+        self.extra_simplices: list[tuple[list[np.ndarray], int]]
+
         # Termination criteria for lifting (large default values)
         self.max_lifted_triangles: int = 1000  # max number of triangles to expand
         self.max_dist: float = 10.0  # max distance between anchor point and vertices
@@ -432,6 +438,14 @@ class Triangulation:
         self.edges_dual_lift = []  # lifted dual graph edges
         self.parent_dual_lift = {}  # parent mapping
 
+        # Initialize entanglement state of simplices
+        self.entanglement_vertices_lift = []
+        self.entanglement_triangles_lift = []
+        self.entanglement_vertices_dual_lift = []
+
+        # Initialize list of extra simplices (conservativeness reduction)
+        self.extra_simplices = []
+
         # Initialize queues
         open_queue: list[int] = []  # list of triangles to lift
         closed_queue: list[int] = []  # list of triangles already visited
@@ -589,13 +603,59 @@ class Triangulation:
 
                 # Third, we perform the conservativeness correction operation (optional)
                 if reduce_conservativeness is True:
-                    pass  # TODO implement this (start with only 1 triangle)
+                    # Find vertices of the triangle
+                    old_nodes_idx = np.intersect1d(
+                        self.triangles[idx],
+                        self.triangles[self.vertices_dual_lift[parent_idx][0]],
+                    )
+                    v1 = old_nodes_idx[0]
+                    v2 = old_nodes_idx[1]
+                    p1 = new_vertex  # new vertex that cannot be added
+                    p2 = (v1 + v2) / 2  # midpoint of the two shared (old) vertices
+                    p = (p1 + p2) / 2  # initial point to start the binary search from
+
+                    # Find suitable vertex via binary search
+                    admissible_found: bool = False
+                    for _ in range(10):
+                        # Check if p is admissible
+                        sign = curves.simplify_signature(
+                            sign
+                            + curves.compute_signature(
+                                np.array([self.vertices_dual[idx], p]),
+                                self.env,
+                                simplify=False,
+                            )
+                        )
+                        dist, geodesic = self.geodesic_distance(
+                            p,
+                            sign,
+                            self.env.anchor_point,
+                            [],
+                            t1=idx,
+                            t2=self.root_idx,
+                            search_algorithm=search_algorithm,
+                        )
+                        if dist <= self.max_dist:
+                            # p is admissible, we can try to move closer to p1
+                            p1 = p
+                            admissible_found = True
+                        else:
+                            # p is not admissible, we need to move closer to p2
+                            p2 = p
+
+                        # Update p as midpoint between p1 and p2
+                        p = (p1 + p2) / 2
+
+                    if admissible_found is True:
+                        # Add new simplex to list of extra simplices
+                        self.extra_simplices.append(([v1, v2, new_vertex], parent_idx))
 
                 # Finally, we stop this iteration and move to the next triangle in
                 # the open queue. This also skips the addition of the neighboring
                 # triangles to the open queue, since they would be unreachable too.
                 continue
-            else:
+
+            if length_admissible is True:
                 # Length admissibility is ok. Add vertex and edges to lifted primal
                 # graph, store vertices indexes in lifted triangles
 
