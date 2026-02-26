@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import pickle
+from collections.abc import Callable
+from datetime import datetime
+
 import numpy as np
 import shapely
 from shapely import LineString, Point, Polygon
 
 from tethered_planning.env.env_2d import Env2D
 from tethered_planning.plan import graph_search
-from tethered_planning.utils import curves
+from tethered_planning.utils import curves, entanglement
 from tethered_planning.utils.colors import CmdColors
 
 
@@ -92,6 +96,14 @@ class Triangulation:
         self.edges_dual_lift: list[tuple[int, int]]
         self.parent_dual_lift: dict[int, int]
 
+        # Entanglement state of simplices
+        # Lists of boolean with the same length as the corresponding lifted simplicial
+        # component, where True indicates that an entanglement-free path to the
+        # simplex exists, and False indicates that it does not.
+        self.entanglement_vertices_lift: list[bool]
+        self.entanglement_triangles_lift: list[bool]
+        self.entanglement_vertices_dual_lift: list[bool]
+
         # Termination criteria for lifting (large default values)
         self.max_lifted_triangles: int = 1000  # max number of triangles to expand
         self.max_dist: float = 10.0  # max distance between anchor point and vertices
@@ -99,6 +111,49 @@ class Triangulation:
         # Debug info
         self.INFO: bool = False
         self.DEBUG: bool = False
+
+    def save(self, filename: str = None) -> str:
+        """
+        Save the triangulation to a file.
+
+        Args:
+            filename (str, optional): The name of the file to save the triangulation to.
+                If None, a default name is generated based on the current date and time.
+                Default is None.
+
+        Returns:
+            str: The name of the file where the triangulation was saved.
+        """
+        # Build filename
+        if filename is None:
+            now = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+            filename = f"triangulation-{now}.pkl"
+        else:
+            if not filename.endswith(".pkl"):
+                filename += ".pkl"
+
+        # Write triangulation to file
+        with open(filename, "wb") as f:
+            pickle.dump(self, f)
+
+        # Return filename
+        return filename
+
+    def load(self, filename: str) -> None:
+        """
+        Load a triangulation from a file.
+
+        Args:
+            filename (str): The name of the file to load the triangulation from.
+
+        Returns:
+            None
+        """
+        with open(filename, "rb") as f:
+            loaded_triangulation = pickle.load(f)
+
+        # Update current triangulation with loaded triangulation
+        self.__dict__.update(loaded_triangulation.__dict__)
 
     def set_max_dist(self, max_dist: float) -> None:
         """
@@ -286,6 +341,25 @@ class Triangulation:
             search_algorithm (str, optional): The search algorithm to use for finding
                 the candidate path. The argument is passed directly to the method
                 Triangulation.geodesic_distance.
+            check_entanglement (bool, optional): whether to check the entanglement of
+                each triangle before adding it to the lifted triangulation. Default is
+                False.
+            entanglement_definition (str, optional): The entanglement definition
+                to use for checking the existence of an entanglement-free path to the
+                points in each simplices. If check_entanglement is False, this value
+                is ignored.
+            reduce_conservativeness (bool, optional): whether to reduce the
+                conservativeness of the simplicial complex by adding extra triangles at
+                the boundaries of the simplicial complex. Default is False. If True,
+                adds the additional triangles. The extra triangles are evaluated with
+                respect to the followig criteria:
+                -   no extra triangles if check_distance is False and check_entanglement
+                    is False;
+                -   extra triangles must be length-admissible if check_distance is True
+                    and check_entanglement is False;
+                -   extra triangles must be both length-admissible and
+                    entanglement-admissible if check_distance is True and
+                    check_entanglement is True .
 
         Returns:
             None
@@ -293,6 +367,10 @@ class Triangulation:
         # Parse kwargs
         check_distance: bool = True  # default value
         search_algorithm: str = "parent"  # default value
+        check_entanglement: bool = False  # default value
+        entanglement_definition: str = "linear_visibility_homotopy"  # default value
+        entanglement_function: Callable = entanglement.local_visibility_homotopy
+        reduce_conservativeness: bool = False  # default value
         for key, value in kwargs.items():
             if key == "check_distance":
                 if not isinstance(value, bool):
@@ -304,6 +382,41 @@ class Triangulation:
                 if not isinstance(value, str):
                     raise TypeError("search_algorithm must be a string.")
                 search_algorithm = value
+            elif key == "check_entanglement":
+                if not isinstance(value, bool):
+                    raise TypeError("check_entanglement must be a boolean.")
+                check_entanglement = value
+            elif key == "entanglement_definition":
+                if not isinstance(value, str):
+                    raise TypeError("entanglement_definition must be a string.")
+                entanglement_definition = value
+                if entanglement_definition == "convex_hull":
+                    entanglement_function = entanglement.convex_hull
+                elif entanglement_definition == "linear_homotopy":
+                    entanglement_function = entanglement.linear_homotopy
+                elif entanglement_definition == "local_visibility_homotopy":
+                    entanglement_function = entanglement.local_visibility_homotopy
+                else:
+                    raise ValueError(
+                        f"Unknown entanglement definition: {entanglement_definition}"
+                    )
+            elif key == "reduce_conservativeness":
+                if not isinstance(value, bool):
+                    raise TypeError("reduce_conservativeness must be a boolean.")
+                if (
+                    reduce_conservativeness is True
+                    and check_distance is False
+                    and check_entanglement is False
+                ):
+                    print(
+                        f"{CmdColors.WARNING}[Triang]{CmdColors.WARNING} "
+                        "reduce_conservativeness is set to True, but check_distance "
+                        "and check_entanglement are both False. This setting will be "
+                        "ignored."
+                    )
+                    reduce_conservativeness = False
+                else:
+                    reduce_conservativeness = value
             else:
                 raise KeyError(f"Unknown keyword argument: {key}")
 
@@ -391,10 +504,18 @@ class Triangulation:
 
             # Check if the triangle is valid
             # Check that the geodesic connecting each vertex to the anchor point is
-            # less than self.max_dist. In practice, only one vertex is checked, since
-            # the other two are shared with the parent triangle, which has already been
-            # checked in a previous iteration.
-            if check_distance is True and parent_idx != -1:  # skip for root triangle
+            # less than self.max_dist, and/or if it is not entangled. In practice, only
+            # one vertex is checked for each new triangle, since the other two are
+            # shared with the parent triangle, which has already been checked in a
+            # previous iteration (when the parent was added).
+            if (
+                check_distance is True or check_entanglement is True
+            ) and parent_idx != -1:  # skip for root triangle
+
+                # Reset useful variables
+                length_admissible: bool = False
+                entanglement_admissible: bool = False
+                geodesic: None | np.ndarray = None
 
                 # Find the new vertex added with respect to the parent triangle (in the
                 # base triangulation)
@@ -410,8 +531,11 @@ class Triangulation:
                     new_vertex
                     - self.vertices_dual[self.vertices_dual_lift[parent_idx][0]]
                 )
-                if d_approx_new_vertex > self.max_dist:
-                    dist, _ = self.geodesic_distance(
+                if d_approx_new_vertex > self.max_dist or check_entanglement is True:
+                    # If entanglement is checked, then the geodesic is needed for the
+                    # entanglement check. Otherwise, an approximate distance is
+                    # sufficient to check the length constraint.
+                    dist, geodesic = self.geodesic_distance(
                         new_vertex,
                         sign,
                         self.env.anchor_point,
@@ -425,62 +549,101 @@ class Triangulation:
 
                 # Determine if triangle is valid
                 if dist > self.max_dist:
-                    # Vertex too far: the triangle currently being checked is not valid
-                    # and must not be added to the lifted triangulation. First we remove
-                    # the last added info (which was added to enable the computation
-                    # of geodesic_distance) from the lifted triangulation.
-                    self.vertices_dual_lift.pop()
-                    self.edges_dual_lift.pop()
-                    self.parent_dual_lift.pop(n - 1)
-                    n -= 1  # Bring counter back (triangle was removed)
-
-                    # Second, we add the triangle to the closed queue to avoid checking
-                    # it again in the future.
-                    closed_queue.append((idx, sign))
-
-                    # Finally, we stop this iteration and move to the next triangle in
-                    # the open queue. This also skips the addition of the neighboring
-                    # triangles to the open queue, since they would be unreachable too.
-                    continue
+                    length_admissible = False
+                    entanglement_admissible = False
+                elif check_entanglement is True:
+                    length_admissible = True
+                    entanglement_admissible = entanglement_function(geodesic, self.env)
                 else:
-                    # Add vertex and edges to lifted primal graph, store vertices
-                    # indexes in lifted triangles
+                    length_admissible = True
+                    entanglement_admissible = False  # entanglement ignored
 
-                    # Find signature of the new vertex
-                    sign_new_vertex = curves.simplify_signature(
-                        sign
-                        + curves.compute_signature(
-                            np.array([self.vertices_dual[idx], new_vertex]),
-                            self.env,
-                            simplify=False,
-                        )
+            else:
+                # Distance not checked, all triangles considered admissible. Currently
+                # The option to check only entanglement but not length is not available
+                length_admissible = True
+                entanglement_admissible = False
+
+            # Resolve addition of simplices depending on result of length check
+            # and entanglement check. Three scenarios are possible:
+            # - not length admissible: simplices not added, continue to next iter
+            # - length admissible but not entanglement admissible: simplices added,
+            #   but marked as not entanglement admissible
+            # - length admissible and entanglement admissible: simplices added and
+            #   marked as entanglement admissible
+            if length_admissible is False:
+                # Vertex too far: the triangle currently being checked is not valid
+                # and must not be added to the lifted triangulation. This means it also
+                # cannot be entanglement-admissible.
+
+                # First we remove the last added info (which was added to enable the
+                # computation of geodesic_distance) from the lifted triangulation.
+                self.vertices_dual_lift.pop()
+                self.edges_dual_lift.pop()
+                self.parent_dual_lift.pop(n - 1)
+                n -= 1  # Bring counter back (triangle was removed)
+
+                # Second, we add the triangle to the closed queue to avoid checking
+                # it again in the future.
+                closed_queue.append((idx, sign))
+
+                # Third, we perform the conservativeness correction operation (optional)
+                if reduce_conservativeness is True:
+                    pass  # TODO implement this (start with only 1 triangle)
+
+                # Finally, we stop this iteration and move to the next triangle in
+                # the open queue. This also skips the addition of the neighboring
+                # triangles to the open queue, since they would be unreachable too.
+                continue
+            else:
+                # Length admissibility is ok. Add vertex and edges to lifted primal
+                # graph, store vertices indexes in lifted triangles
+
+                # Find signature of the new vertex
+                sign_new_vertex = curves.simplify_signature(
+                    sign
+                    + curves.compute_signature(
+                        np.array([self.vertices_dual[idx], new_vertex]),
+                        self.env,
+                        simplify=False,
                     )
+                )
 
-                    # Add new vertex to lifted primal graph
-                    vert_lift_n += 1
-                    new_vertex_lift = (int(new_vertex_idx[0]), sign_new_vertex)
-                    if new_vertex_lift not in self.vertices_lift:
-                        self.vertices_lift.append(new_vertex_lift)
-                    else:
-                        raise ValueError(
-                            f"Vertex ({new_vertex_idx}, {sign_new_vertex} already "
-                            "present in lifted primal graph"
-                        )  # sanity check (should never happen)
+                # Add new vertex to lifted primal graph
+                vert_lift_n += 1
+                new_vertex_lift = (int(new_vertex_idx[0]), sign_new_vertex)
+                if new_vertex_lift not in self.vertices_lift:
+                    self.vertices_lift.append(new_vertex_lift)
+                else:
+                    raise ValueError(
+                        f"Vertex ({new_vertex_idx}, {sign_new_vertex} already "
+                        "present in lifted primal graph"
+                    )  # sanity check (should never happen)
 
-                    # Add new edges to primal graph
-                    indexes: list = [vert_lift_n]
-                    shared_vertices_idx = np.intersect1d(
-                        self.triangles[idx],
-                        self.triangles[self.vertices_dual_lift[parent_idx][0]],
-                    )
-                    parent_lifted_vertices_idx = self.triangles_lift[parent_idx]
-                    for p_idx in parent_lifted_vertices_idx:
-                        if self.vertices_lift[p_idx][0] in shared_vertices_idx:
-                            self.edges_lift.append(sorted((p_idx, vert_lift_n)))
-                            indexes.append(p_idx)
+                # Add new edges to primal graph
+                indexes: list = [vert_lift_n]
+                shared_vertices_idx = np.intersect1d(
+                    self.triangles[idx],
+                    self.triangles[self.vertices_dual_lift[parent_idx][0]],
+                )
+                parent_lifted_vertices_idx = self.triangles_lift[parent_idx]
+                for p_idx in parent_lifted_vertices_idx:
+                    if self.vertices_lift[p_idx][0] in shared_vertices_idx:
+                        self.edges_lift.append(sorted((p_idx, vert_lift_n)))
+                        indexes.append(p_idx)
 
-                    # Add vertices to lifted triangles
-                    self.triangles_lift.append(sorted(indexes))
+                # Add vertices to lifted triangles
+                self.triangles_lift.append(sorted(indexes))
+
+                # Mark simplices as entanglement admissible or not
+                if entanglement_admissible is True:
+                    self.entanglement_vertices_lift.append(True)
+                    self.entanglement_vertices_dual_lift.append(True)
+                    self.entanglement_triangles_lift.append(True)
+                else:
+                    self.entanglement_vertices_lift.append(False)
+                    self.entanglement_vertices_dual_lift.append(False)
+                    self.entanglement_triangles_lift.append(False)
 
             # Add current triangle to closed queue to avoid checking it again
             closed_queue.append((idx, sign))
