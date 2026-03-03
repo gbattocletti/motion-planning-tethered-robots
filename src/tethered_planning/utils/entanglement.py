@@ -7,7 +7,7 @@ Exploration and analysis", IEEE Access (2024).
 
 import numpy as np
 import shapely
-from shapely.geometry import LineString, MultiPoint, Polygon
+from shapely.geometry import LineString, MultiPoint, Point, Polygon
 
 from tethered_planning.env.env_2d import Env2D
 from tethered_planning.utils import curves
@@ -79,8 +79,20 @@ def convex_hull(curve: np.ndarray | LineString, env: Env2D) -> bool:
     else:
         raise TypeError("curve must be a numpy array or a LineString.")
 
+    boundary = points.convex_hull
+
+    # Automatically pass for only 2 coordinates, add dummy 4th coordinate in case only
+    # 3 are provided to avoid a ValueError
+    if isinstance(boundary, Point):
+        return True
+    if isinstance(boundary, LineString) and len(boundary.coords) < 3:
+        if len(boundary.coords) == 2:
+            return True
+        elif len(boundary.coords) == 3:
+            boundary = LineString(np.vstack([boundary.coords, boundary.coords[0]]))
+
     # Compute the convex hull
-    hull = Polygon(points.convex_hull)
+    hull = Polygon(boundary)
 
     # Check entanglement condition
     if shapely.intersection(hull, env.obstacle_region).area > 0:

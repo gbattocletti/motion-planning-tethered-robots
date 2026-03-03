@@ -100,6 +100,7 @@ class Triangulation:
         # Lists of boolean with the same length as the corresponding lifted simplicial
         # component, where True indicates that an entanglement-free path to the
         # simplex exists, and False indicates that it does not.
+        self.entanglement_function: Callable | None = None
         self.entanglement_vertices_lift: list[bool]
         self.entanglement_triangles_lift: list[bool]
         self.entanglement_vertices_dual_lift: list[bool]
@@ -186,6 +187,30 @@ class Triangulation:
         if max_triangles <= 0:
             raise ValueError("max_triangles must be a positive integer.")
         self.max_lifted_triangles = max_triangles
+
+    def set_entanglement_definition(self, entanglement_definition: str) -> None:
+        """
+        Setter for entanglement definition
+
+        Args:
+            entanglement_definition (str): the entanglement definition to use for
+                checking the entanglement state of the simplices.
+
+        Raises:
+            ValueError: if the input entanglement definition is not recognized.
+        """
+        if not isinstance(entanglement_definition, str):
+            raise TypeError("ent_def must be a string.")
+        if entanglement_definition == "convex_hull":
+            self.entanglement_function = entanglement.convex_hull
+        elif entanglement_definition == "linear_homotopy":
+            self.entanglement_function = entanglement.linear_homotopy
+        elif entanglement_definition == "local_visibility_homotopy":
+            self.entanglement_function = entanglement.local_visibility_homotopy
+        else:
+            raise ValueError(
+                f"Unknown entanglement definition: {entanglement_definition}"
+            )
 
     def triangulate(self) -> None:
         """
@@ -350,10 +375,6 @@ class Triangulation:
             check_entanglement (bool, optional): whether to check the entanglement of
                 each triangle before adding it to the lifted triangulation. Default is
                 False.
-            entanglement_definition (str, optional): The entanglement definition
-                to use for checking the existence of an entanglement-free path to the
-                points in each simplices. If check_entanglement is False, this value
-                is ignored.
             reduce_conservativeness (bool, optional): whether to reduce the
                 conservativeness of the simplicial complex by adding extra triangles at
                 the boundaries of the simplicial complex. Default is False. If True,
@@ -374,8 +395,6 @@ class Triangulation:
         check_distance: bool = True  # default value
         search_algorithm: str = "parent"  # default value
         check_entanglement: bool = False  # default value
-        entanglement_definition: str = "linear_visibility_homotopy"  # default value
-        entanglement_function: Callable = entanglement.local_visibility_homotopy
         reduce_conservativeness: bool = False  # default value
         for key, value in kwargs.items():
             if key == "check_distance":
@@ -392,20 +411,6 @@ class Triangulation:
                 if not isinstance(value, bool):
                     raise TypeError("check_entanglement must be a boolean.")
                 check_entanglement = value
-            elif key == "entanglement_definition":
-                if not isinstance(value, str):
-                    raise TypeError("entanglement_definition must be a string.")
-                entanglement_definition = value
-                if entanglement_definition == "convex_hull":
-                    entanglement_function = entanglement.convex_hull
-                elif entanglement_definition == "linear_homotopy":
-                    entanglement_function = entanglement.linear_homotopy
-                elif entanglement_definition == "local_visibility_homotopy":
-                    entanglement_function = entanglement.local_visibility_homotopy
-                else:
-                    raise ValueError(
-                        f"Unknown entanglement definition: {entanglement_definition}"
-                    )
             elif key == "reduce_conservativeness":
                 if not isinstance(value, bool):
                     raise TypeError("reduce_conservativeness must be a boolean.")
@@ -425,6 +430,13 @@ class Triangulation:
                     reduce_conservativeness = value
             else:
                 raise KeyError(f"Unknown keyword argument: {key}")
+
+        if check_entanglement and self.entanglement_function is None:
+            raise ValueError(
+                "Error: entanglement function not set. Please set the entanglement "
+                "definition using set_entanglement_definition() method before building "
+                "the homotopy-augmented graph with entanglement checking enabled."
+            )
 
         # Check if env was triangulated (if not, execute triangulation)
         if not self.triangulated:
@@ -454,9 +466,10 @@ class Triangulation:
         n: int = 0
 
         # Initial conditions
-        # Check that all the vertices of the root triangle are within max_dist (this
+        # Check that all the vertices of the root triangle are within max_dist. This
         # test should never fail as otherwise no triangle can be added in the lift.
-        # However, we keep it for safety)
+        # However, we keep it for safety. Entanglement is assumed to be satisfied for
+        # the root triangle if the length check is passed.
         for i in self.triangles[self.root_idx]:
             v = self.vertices[i, :]
             dist = np.linalg.norm(self.env.anchor_point - v)
@@ -475,6 +488,13 @@ class Triangulation:
         self.edges_lift.append([0, 2])
         self.triangles_lift.append([0, 1, 2])
         self.parent_dual_lift[0] = -1  # root triangle has no parent
+
+        # Mark first simplices as entanglement admissible if check_entanglement is True.
+        if check_entanglement is True:
+            for i in range(3):
+                self.entanglement_vertices_lift.append(True)  # for 3 vertices
+            self.entanglement_vertices_dual_lift.append(True)
+            self.entanglement_triangles_lift.append(True)
 
         # If the test is passed, add root triangle to open queue
         # Elements in the open queue have the following elements:
@@ -567,14 +587,18 @@ class Triangulation:
                     entanglement_admissible = False
                 elif check_entanglement is True:
                     length_admissible = True
-                    entanglement_admissible = entanglement_function(geodesic, self.env)
+                    entanglement_admissible = self.entanglement_function(
+                        geodesic, self.env
+                    )
                 else:
                     length_admissible = True
                     entanglement_admissible = False  # entanglement ignored
 
             else:
-                # Distance not checked, all triangles considered admissible. Currently
-                # The option to check only entanglement but not length is not available
+                # Distance not checked (both check_distance and check_entanglement are
+                # false), all triangles considered admissible.
+                # In this case, entanglemetn is ignored entirely.
+                # TODO: add case to check entanglement but not distance.
                 length_admissible = True
                 entanglement_admissible = False
 
@@ -585,7 +609,7 @@ class Triangulation:
             #   but marked as not entanglement admissible
             # - length admissible and entanglement admissible: simplices added and
             #   marked as entanglement admissible
-            if length_admissible is False:
+            if length_admissible is False and parent_idx != -1:
                 # Vertex too far: the triangle currently being checked is not valid
                 # and must not be added to the lifted triangulation. This means it also
                 # cannot be entanglement-admissible.
@@ -655,7 +679,7 @@ class Triangulation:
                 # triangles to the open queue, since they would be unreachable too.
                 continue
 
-            if length_admissible is True:
+            if length_admissible is True and parent_idx != -1:
                 # Length admissibility is ok. Add vertex and edges to lifted primal
                 # graph, store vertices indexes in lifted triangles
 
