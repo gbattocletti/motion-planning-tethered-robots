@@ -160,7 +160,7 @@ for idx, case in enumerate(eval_cases):
     # Print results table and save to CSV file (updated after each eval case)
     with open("results/comparison_results.csv", "w", encoding="utf-8") as f:
         # Print header
-        print("env\tm\tl\t|T_2|\t|T'_2|\tt\t|G'|.5\tt.5\t|G'|.25\tt.25")
+        print("env\tm\tl\tdef\t|T_2|\t|T'_2|\tt\t% T'\t|G'|\tt\t% G")
         for i, row in enumerate(results_table):
             # index
             print(f"{str(int(row[0]))}", end="")
@@ -174,26 +174,34 @@ for idx, case in enumerate(eval_cases):
             print(f"\t{row[2]:.1f}", end="")
             f.write(f"{row[2]:.1f},")
 
-            # number of triangles in the base triangulation
+            # entanglement definition (def)
             print(f"\t{int(row[3])}", end="")
             f.write(f"{int(row[3])},")
 
-            # num triangles simplicial complex
+            # number of triangles in the base triangulation
             print(f"\t{int(row[4])}", end="")
             f.write(f"{int(row[4])},")
 
+            # num triangles simplicial complex
+            print(f"\t{int(row[5])}", end="")
+            f.write(f"{int(row[5])},")
+
             # time simplicial complex
-            print(f"\t{row[5]:.2f}", end="")
-            f.write(f"{row[5]:.2f},")
+            print(f"\t{row[6]:.2f}", end="")
+            f.write(f"{row[6]:.2f},")
 
-            # homotopy augmented graph with resolution 0.5
-            print(f"\t{int(row[6])}", end="")
-            f.write(f"{int(row[6])},")
+            # entanglement-admissible area in simplicial complex
             print(f"\t{row[7]:.2f}", end="")
-            f.write(f"{row[7]:.2f}")
+            f.write(f"{row[7]:.2f},")
 
-            # homotopy augmented graph with resolution 0.1
+            # number of nodes in homotopy augmented graph
             print(f"\t{int(row[8])}", end="")
             f.write(f"{int(row[8])},")
-            print(f"\t{row[9]:.2f}")
-            f.write(f"{row[9]:.2f}\n")
+
+            # time homotopy augmented graph
+            print(f"\t{row[9]:.2f}", end="")
+            f.write(f"{row[9]:.2f}")
+
+            # entanglement-admissible area in homotopy augmented graph
+            print(f"\t{row[10]:.2f}")
+            f.write(f"{row[10]:.2f}\n")
