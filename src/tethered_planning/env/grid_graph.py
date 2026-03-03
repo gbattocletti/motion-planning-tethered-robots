@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import numpy as np
 
-from ..utils import curves
-from ..utils.colors import CmdColors
-from .env_2d import Env2D
+from tethered_planning.env.env_2d import Env2D
+from tethered_planning.utils import curves, entanglement
+from tethered_planning.utils.colors import CmdColors
 
 
 class GridGraph:
@@ -63,6 +65,12 @@ class GridGraph:
         self.vertices_lift: list[tuple[int, list[int]]]  # lifted vertices [idx, sign]
         self.edges_lift: list[list[int]]  # [[v1_lifted_idx, v2_lifted_idx], ...]
 
+        # Entanglement verification
+        # True if vertex is entanglement-admissible, False otherwise. Indexes match
+        # those of vertices_lift.
+        self.entanglement_function: Callable | None = None
+        self.vertices_mask: list[bool]
+
         # Debug info
         self.INFO: bool = False
         self.DEBUG: bool = False
@@ -95,6 +103,31 @@ class GridGraph:
         self.res_x = res_x
         self.res_y = res_y
         self.init_grid()
+
+    def set_entanglement_definition(self, entanglement_definition: str) -> None:
+        """
+        Setter for entanglement definition.
+
+        Args:
+            entanglement_definition (str): the entanglement definition to use for
+                checking the entanglement of the vertices in the homotopy-augmented
+                graph. Must be one of "convex_hull", "linear_homotopy", or
+                "local_visibility_homotopy".
+        Raises:
+            ValueError: if the input entanglement definition is not recognized.
+        """
+        if not isinstance(entanglement_definition, str):
+            raise TypeError("entanglement_definition must be a string.")
+        if entanglement_definition == "convex_hull":
+            self.entanglement_function = entanglement.convex_hull
+        elif entanglement_definition == "linear_homotopy":
+            self.entanglement_function = entanglement.linear_homotopy
+        elif entanglement_definition == "local_visibility_homotopy":
+            self.entanglement_function = entanglement.local_visibility_homotopy
+        else:
+            raise ValueError(
+                f"Unknown entanglement definition: {entanglement_definition}"
+            )
 
     def init_grid(self) -> None:
         """
@@ -158,6 +191,7 @@ class GridGraph:
     def build_homotopy_augmented_graph(
         self,
         allow_boundary_overlap: bool = True,
+        check_entanglement: bool = False,
     ) -> None:
         """
         Build the length-constrained homotopy-augmented grid graph.
@@ -166,13 +200,25 @@ class GridGraph:
             allow_boundary_overlap (bool, optional): if True, allows points of the graph
                 to lie on the boundary of obstacles. If False, points on the boundary
                 are considered invalid. (Default: True)
+            check_entanglement (bool, optional): whether to check the entanglement of
+                each triangle before adding it to the lifted triangulation. Default is
+                False.
 
         Returns:
             None
         """
+        # Select entanglement function based on definition
+        if check_entanglement and self.entanglement_function is None:
+            raise ValueError(
+                "Error: entanglement function not set. Please set the entanglement "
+                "definition using set_entanglement_definition() method before building "
+                "the homotopy-augmented graph with entanglement checking enabled."
+            )
+
         # Initialize lifted graph
         self.vertices_lift = []
         self.edges_lift = []
+        self.vertices_mask = []
 
         # Initialize counter
         n: int = 0  # current number of nodes
@@ -231,6 +277,15 @@ class GridGraph:
                     closed_queue.append((idx, sign))
                     continue
                 a_len = curve_len
+
+            if check_entanglement:
+                curve = np.array(self.vertices[parent_vec + [idx]])
+                curve = curves.shorten_curve(curve, self.env)
+                if not self.entanglement_function(curve, self.env):
+                    closed_queue.append((idx, sign))
+                    self.vertices_mask.append(False)  # entanglement-inadmissible
+                    continue
+                self.vertices_mask.append(True)  # entanglement-admissible
 
             # Add lifted vertex
             self.vertices_lift.append((idx, sign))  # add new lifted vertex
