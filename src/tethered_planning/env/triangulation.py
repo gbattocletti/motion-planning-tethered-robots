@@ -82,6 +82,8 @@ class Triangulation:
         #       base triangulation (identified as a dual graph node, i.e., the centroid
         #       of such triangle), and signature is a list[int] identifying the homotopy
         #       class of the path to the triangle;
+        #     - triangles_lift: a list [idx1, idx2, idx3] where the indexes point to the
+        #       lifted vertices (self.vertices_lift).
         #     - edges_dual_lift: a list [idx1, idx2] where the indexes point to the
         #       lifted vertices (self.vertices_dual_lift). A tuple indicates adjacency
         #       between the two triangles in the simplicial complex, i.e.,

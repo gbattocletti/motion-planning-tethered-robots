@@ -69,7 +69,7 @@ class GridGraph:
         # True if vertex is entanglement-admissible, False otherwise. Indexes match
         # those of vertices_lift.
         self.entanglement_function: Callable | None = None
-        self.vertices_mask: list[bool]
+        self.entanglement_vertices_lift: list[bool]
 
         # Debug info
         self.INFO: bool = False
@@ -218,7 +218,7 @@ class GridGraph:
         # Initialize lifted graph
         self.vertices_lift = []
         self.edges_lift = []
-        self.vertices_mask = []
+        self.entanglement_vertices_lift = []
 
         # Initialize counter
         n: int = 0  # current number of nodes
@@ -283,9 +283,11 @@ class GridGraph:
                 curve = curves.shorten_curve(curve, self.env)
                 if not self.entanglement_function(curve, self.env):
                     closed_queue.append((idx, sign))
-                    self.vertices_mask.append(False)  # entanglement-inadmissible
+                    self.entanglement_vertices_lift.append(
+                        False
+                    )  # entanglement-inadmissible
                     continue
-                self.vertices_mask.append(True)  # entanglement-admissible
+                self.entanglement_vertices_lift.append(True)  # entanglement-admissible
 
             # Add lifted vertex
             self.vertices_lift.append((idx, sign))  # add new lifted vertex

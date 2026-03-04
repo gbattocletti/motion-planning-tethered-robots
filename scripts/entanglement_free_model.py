@@ -27,12 +27,42 @@ from tethered_planning.utils.settings import Settings
 # - def: entanglement_definition: str, definition of entanglement to use to determine
 #      the entanglement of the curves in the graphs.
 eval_cases = [
+    ("env_1.yaml", 1, 10.0, "convex_hull"),
+    ("env_1.yaml", 1, 10.0, "linear_homotopy"),
+    ("env_1.yaml", 1, 10.0, "local_visibility_homotopy"),
     ("env_1.yaml", 1, 12.0, "convex_hull"),
     ("env_1.yaml", 1, 12.0, "linear_homotopy"),
     ("env_1.yaml", 1, 12.0, "local_visibility_homotopy"),
+    ("env_1.yaml", 1, 15.0, "convex_hull"),
+    ("env_1.yaml", 1, 15.0, "linear_homotopy"),
+    ("env_1.yaml", 1, 15.0, "local_visibility_homotopy"),
+    ("env_2.yaml", 2, 10.0, "convex_hull"),
+    ("env_2.yaml", 2, 10.0, "linear_homotopy"),
+    ("env_2.yaml", 2, 10.0, "local_visibility_homotopy"),
     ("env_2.yaml", 2, 12.0, "convex_hull"),
     ("env_2.yaml", 2, 12.0, "linear_homotopy"),
     ("env_2.yaml", 2, 12.0, "local_visibility_homotopy"),
+    ("env_2.yaml", 2, 15.0, "convex_hull"),
+    ("env_2.yaml", 2, 15.0, "linear_homotopy"),
+    ("env_2.yaml", 2, 15.0, "local_visibility_homotopy"),
+    ("env_3.yaml", 6, 10.0, "convex_hull"),
+    ("env_3.yaml", 6, 10.0, "linear_homotopy"),
+    ("env_3.yaml", 6, 10.0, "local_visibility_homotopy"),
+    ("env_3.yaml", 6, 12.0, "convex_hull"),
+    ("env_3.yaml", 6, 12.0, "linear_homotopy"),
+    ("env_3.yaml", 6, 12.0, "local_visibility_homotopy"),
+    ("env_3.yaml", 6, 15.0, "convex_hull"),
+    ("env_3.yaml", 6, 15.0, "linear_homotopy"),
+    ("env_3.yaml", 6, 15.0, "local_visibility_homotopy"),
+    ("env_4.yaml", 8, 10.0, "convex_hull"),
+    ("env_4.yaml", 8, 10.0, "linear_homotopy"),
+    ("env_4.yaml", 8, 10.0, "local_visibility_homotopy"),
+    ("env_4.yaml", 8, 12.0, "convex_hull"),
+    ("env_4.yaml", 8, 12.0, "linear_homotopy"),
+    ("env_4.yaml", 8, 12.0, "local_visibility_homotopy"),
+    ("env_4.yaml", 8, 15.0, "convex_hull"),
+    ("env_4.yaml", 8, 15.0, "linear_homotopy"),
+    ("env_4.yaml", 8, 15.0, "local_visibility_homotopy"),
 ]
 
 # Move to script directory
@@ -57,7 +87,8 @@ n_runs = 5  # number of runs for time averaging
 #   - num of nodes in homotopy augmented graph (int)
 #   - computation time for homotopy augmented graph (float, seconds)
 #   - % of entanglement-admissible nodes in homotopy augmented graph (float, 0-100)
-results_table = np.zeros((len(eval_cases), 11), dtype=float)
+# The last three columns are repeated for multiple grid resolutions (1, 0.5)
+results_table = np.zeros((len(eval_cases), 14), dtype=float)
 
 # Loop over evaluation cases
 for idx, case in enumerate(eval_cases):
@@ -83,6 +114,7 @@ for idx, case in enumerate(eval_cases):
     settings.env_name = env_name  # change environment
     env = env_2d.Env2D(settings)
 
+    ####################################################################################
     # Compute base triangulation
     triang = Triangulation(env)
     triang.INFO = True  # Enable info
@@ -106,36 +138,98 @@ for idx, case in enumerate(eval_cases):
         )
         / n_runs
     )
+
+    # Compute entanglement-admissible area ratio in simplicial complex
+    area_reachable: float = 0
+    area_entanglement_admissible: float = 0
+    for tri, ent in zip(triang.triangles_lift, triang.entanglement_triangles_lift):
+        i1, i2, i3 = tri  # triangle indexes
+        [x1, y1] = triang.vertices[triang.vertices_lift[i1][0]]  # coords vertex 1
+        [x2, y2] = triang.vertices[triang.vertices_lift[i2][0]]  # coords vertex 2
+        [x3, y3] = triang.vertices[triang.vertices_lift[i3][0]]  # coords vertex 3
+        area = 0.5 * abs(x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2))  # tri area
+        area_reachable += area
+        if ent is True:
+            area_entanglement_admissible += area
+        else:
+            pass
+    area_ratio_sc = area_entanglement_admissible / area_reachable * 100
+
+    # Store results for simplicial complex
     results_table[idx, 5] = len(triang.triangles_lift)  # triangs in simplicial complex
     results_table[idx, 6] = t  # time simplicial complex
-    results_table[idx, 7] = 0  # TODO
+    results_table[idx, 7] = area_ratio_sc
 
-    # Create homotopy augmented graph
-    graph = GridGraph(env)
-    graph.INFO = True  # Enable info
-    graph.DEBUG = False  # Disable verbose debug prints
-    graph.set_max_dist(l)
-    graph.n_max = 1_000_000  # increase max number of nodes for this test
-    graph.set_entanglement_definition(ent_def)  # set entanglement definition
-
-    # Medium resolution
+    ####################################################################################
+    # Coarse resolution
     print(
         f"{CmdColors.WARNING}[GridGraph]{CmdColors.ENDC} Running graph with "
-        "resolution 1."
+        "resolution 1.0."
     )
-    graph.set_grid_resolution(1, 1)
-    t = (
+
+    # Create graph
+    graph_1 = GridGraph(env)
+    graph_1.INFO = True  # Enable info
+    graph_1.DEBUG = False  # Disable verbose debug prints
+    graph_1.set_max_dist(l)
+    graph_1.n_max = 1_000_000  # increase max number of nodes for this test
+    graph_1.set_entanglement_definition(ent_def)  # set entanglement definition
+    graph_1.set_grid_resolution(1.0, 1.0)
+
+    # Compute homotopy augmented graph with entanglement check
+    t_1 = (
         timeit.timeit(
-            lambda graph=graph: graph.build_homotopy_augmented_graph(
+            lambda graph_1=graph_1: graph_1.build_homotopy_augmented_graph(
                 check_entanglement=True,
             ),
             number=n_runs,
         )
         / n_runs
     )
-    results_table[idx, 8] = len(graph.vertices_lift)  # nodes homotopy augmented graph
-    results_table[idx, 9] = t  # time homotopy augmented graph
-    results_table[idx, 10] = 0  # TODO
+
+    # Compute entanglement-admissible node ratio in homotopy augmented graph
+    n_reachable: int = len(graph_1.vertices_lift)
+    n_entanglement_admissible: int = sum(graph_1.entanglement_vertices_lift)
+    area_ratio_hag = n_entanglement_admissible / n_reachable * 100
+
+    # Store results for homotopy augmented graph
+    results_table[idx, 8] = len(graph_1.vertices_lift)  # nodes homotopy augmented graph
+    results_table[idx, 9] = t_1  # time homotopy augmented graph
+    results_table[idx, 10] = area_ratio_hag  # entanglement-admissible node ratio
+
+    ####################################################################################
+    # Medium resolution
+    print(
+        f"{CmdColors.WARNING}[GridGraph]{CmdColors.ENDC} Running graph with "
+        "resolution 0.5."
+    )
+
+    # Create graph
+    graph_2 = GridGraph(env)
+    graph_2.INFO = True  # Enable info
+    graph_2.DEBUG = False  # Disable verbose debug prints
+    graph_2.set_max_dist(l)
+    graph_2.n_max = 1_000_000  # increase max number of nodes for this test
+    graph_2.set_entanglement_definition(ent_def)  # set entanglement definition
+    graph_2.set_grid_resolution(0.5, 0.5)
+
+    # Compute homotopy augmented graph with entanglement check
+    t_2 = (
+        timeit.timeit(
+            lambda graph_2=graph_2: graph_2.build_homotopy_augmented_graph(),
+            number=n_runs,
+        )
+        / n_runs
+    )
+
+    # Compute entanglement-admissible node ratio in homotopy augmented graph
+    n_reachable: int = len(graph_2.vertices_lift)
+    n_entanglement_admissible: int = sum(graph_2.entanglement_vertices_lift)
+    area_ratio_hag = n_entanglement_admissible / n_reachable * 100
+
+    results_table[idx, 11] = len(graph_2.vertices_lift)  # nodes h-augmented graph
+    results_table[idx, 12] = t_2  # time homotopy augmented graph
+    results_table[idx, 13] = area_ratio_hag  # entanglement-admissible node ratio
 
     # Print intermediate results
     print(
@@ -149,7 +243,8 @@ for idx, case in enumerate(eval_cases):
         "runs": n_runs,
         "env": env,
         "triangulation": triang,
-        "graph": graph,
+        "graph_coarse": graph_1,
+        "graph_medium": graph_2,
         "results": results_table,
     }
     pickled = pickle.dumps(data)  # dump data dictionary in pickle file
@@ -160,7 +255,7 @@ for idx, case in enumerate(eval_cases):
     # Print results table and save to CSV file (updated after each eval case)
     with open("results/comparison_results.csv", "w", encoding="utf-8") as f:
         # Print header
-        print("env\tm\tl\tdef\t|T_2|\t|T'_2|\tt\t% T'\t|G'|\tt\t% G")
+        print("env\tm\tl\tdef\t|T_2|\t|T'_2|\tt\t% T'\t|G'|\tt\t% G\t|G'|\tt\t% G")
         for i, row in enumerate(results_table):
             # index
             print(f"{str(int(row[0]))}", end="")
@@ -203,5 +298,17 @@ for idx, case in enumerate(eval_cases):
             f.write(f"{row[9]:.2f}")
 
             # entanglement-admissible area in homotopy augmented graph
-            print(f"\t{row[10]:.2f}")
-            f.write(f"{row[10]:.2f}\n")
+            print(f"\t{row[10]:.2f}", end="")
+            f.write(f"{row[10]:.2f}")
+
+            # number of nodes in homotopy augmented graph
+            print(f"\t{int(row[11])}", end="")
+            f.write(f"{int(row[11])},")
+
+            # time homotopy augmented graph
+            print(f"\t{row[12]:.2f}", end="")
+            f.write(f"{row[12]:.2f}")
+
+            # entanglement-admissible area in homotopy augmented graph
+            print(f"\t{row[13]:.2f}")
+            f.write(f"{row[13]:.2f}\n")
