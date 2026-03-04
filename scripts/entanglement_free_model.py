@@ -216,7 +216,9 @@ for idx, case in enumerate(eval_cases):
     # Compute homotopy augmented graph with entanglement check
     t_2 = (
         timeit.timeit(
-            lambda graph_2=graph_2: graph_2.build_homotopy_augmented_graph(),
+            lambda graph_2=graph_2: graph_2.build_homotopy_augmented_graph(
+                check_entanglement=True,
+            ),
             number=n_runs,
         )
         / n_runs
