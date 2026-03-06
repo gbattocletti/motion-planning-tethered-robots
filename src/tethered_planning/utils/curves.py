@@ -731,3 +731,44 @@ def generate_curve(
             return LineString(points)
         else:
             return np.array(points)
+
+
+def find_intersection(
+    p1: np.ndarray, p2: np.ndarray, p3: np.ndarray, p4: np.ndarray
+) -> np.ndarray | None:
+    """
+    Find the intersection point of two line segments that are guaranteed to intersect in
+    one and only one point.
+    Segment 1: p1 -> p2
+    Segment 2: p3 -> p4
+
+    Args:
+        p1 (np.ndarray): Starting point of segment 1.
+        p2 (np.ndarray): Ending point of segment 1.
+        p3 (np.ndarray): Starting point of segment 2.
+        p4 (np.ndarray): Ending point of segment 2.
+
+    Returns:
+        np.ndarray | None: Intersection point if it exists, None otherwise.
+    """
+    # Unpack points
+    x1, y1 = p1
+    x2, y2 = p2
+    x3, y3 = p3
+    x4, y4 = p4
+
+    # Compute denominator
+    denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4)
+
+    # Parallel or collinear
+    if denom == 0:
+        return None
+
+    t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom
+    u = ((x1 - x3) * (y1 - y2) - (y1 - y3) * (x1 - x2)) / denom
+
+    # Intersection is within both segments only if t and u are both in [0, 1]
+    if 0 <= t <= 1 and 0 <= u <= 1:
+        return np.array([x1 + t * (x2 - x1), y1 + t * (y2 - y1)])
+
+    return None

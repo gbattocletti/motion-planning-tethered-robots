@@ -633,12 +633,49 @@ class Triangulation:
                     # Add new simplex to list of extra simplices. Note that the new
                     # simplex is not directly connected to the simplicial complex, as
                     # some additional changes are required to do so.
-                    # NOTE: parent_idxx refers to the lifted triangulation.
+                    # NOTE: parent_idx refers to the lifted triangulation.
                     if p is not None:
                         self.extra_simplices.append(([v1, v2, p], parent_idx))
 
-                    # TODO: compute also other 2 triangles
-                    # 2. Side triangles (either 1 or 2)
+                        # 2. Side triangles (extending toward adjacent triangles)
+                        for neighbor_idx in self.get_neighbors(idx):
+                            if neighbor_idx == self.vertices_dual_lift[parent_idx][0]:
+                                continue  # skip parent triangle (already checked)
+
+                            # Find new vertex of new triangle
+                            new_vertex_idx = np.setdiff1d(
+                                self.triangles[neighbor_idx],
+                                self.triangles[idx],
+                            )[0]
+                            new_vertex = self.vertices[new_vertex_idx]
+
+                            # Find intersection between the edge shared by the two
+                            # triangles and the line segment between. Then find the only
+                            # one shared with the previous extra triangle
+                            common_vertex_idx = np.intersect1d(
+                                self.triangles[neighbor_idx],
+                                self.triangles[idx],
+                            )  # edge between triangles
+                            v3 = self.vertices[common_vertex_idx[0]]
+                            v4 = self.vertices[common_vertex_idx[1]]
+                            set_a = {tuple(v1), tuple(v2)}
+                            set_b = {tuple(v3), tuple(v4)}
+                            v_common = np.array(list(set_a.intersection(set_b))[0])
+
+                            # Find endpoints for binary search
+                            p1 = curves.find_intersection(v3, v4, p, new_vertex)
+                            if p2 is None:
+                                continue  # no intersection between segments
+                            p2 = (v_common + p) / 2  # second point for binary search
+
+                            # Run binary search and add new simplex
+                            p_new = self.binary_search(
+                                p1, p2, sign, idx, search_algorithm
+                            )
+                            if p_new is not None:
+                                self.extra_simplices.append(
+                                    ([v_common, p_new, p], parent_idx)
+                                )
 
                 # Second we remove the last added info (which was added to enable the
                 # computation of geodesic_distance) from the lifted triangulation.
@@ -1278,18 +1315,20 @@ class Triangulation:
 
         Args:
             p1 (np.ndarray): the first endpoint of the line segment
-            p2 (np.ndarray): the second endpoint of the line segment. Assumed to lie in 
+            p2 (np.ndarray): the second endpoint of the line segment. Assumed to lie in
                 the same triangle as p1
             sign (list[int]): the signature of the triangle where the points lie
             idx (int): the index of the triangle where the points lie (expressed as a
                 triangle index referring to the base triangulation)
-            search_algorithm (str): graph search algorithm to use in the geodesic 
+            search_algorithm (str): graph search algorithm to use in the geodesic
                 distance computation.
 
         Returns
-            np.ndarray | None: None indicates that no admissible point was found, 
+            np.ndarray | None: None indicates that no admissible point was found,
                 otherwise the point farthest from the anchor point is returned as a
                 np.ndarray with the coordinates of the point.
+
+        NOTE: in the current implementation p1 must be further away than p2
         """
         # Function settings
         n_iter: int = 5
@@ -1312,7 +1351,7 @@ class Triangulation:
                 search_algorithm=search_algorithm,
             )
 
-            # If p is admissible move closer to p1, otherwise closer to p2
+            # If p is admissible move farther toward p1, otherwise move closer to p2
             if dist <= self.max_dist:
                 p2 = p
                 admissible_found = True
