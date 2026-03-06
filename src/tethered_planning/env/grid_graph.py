@@ -269,6 +269,7 @@ class GridGraph:
             # The sequence of edges is maintained in the parent_vec variable. Since
             # multiple paths can lead to the same vertex, the path with the shortest
             # manhattan distance is the one stored in memory.
+            curve = None  # set as None to avoid unnecessary computations
             if a_len > self.max_dist:
                 curve = np.array(self.vertices[parent_vec + [idx]])
                 curve = curves.shorten_curve(curve, self.env)
@@ -278,16 +279,14 @@ class GridGraph:
                     continue
                 a_len = curve_len
 
+            # Check if vertex is entanglement-admissible
             if check_entanglement:
-                curve = np.array(self.vertices[parent_vec + [idx]])
-                curve = curves.shorten_curve(curve, self.env)
-                if not self.entanglement_function(curve, self.env):
-                    closed_queue.append((idx, sign))
-                    self.entanglement_vertices_lift.append(
-                        False
-                    )  # entanglement-inadmissible
-                    continue
-                self.entanglement_vertices_lift.append(True)  # entanglement-admissible
+                if curve is None:
+                    curve = np.array(self.vertices[parent_vec + [idx]])
+                    curve = curves.shorten_curve(curve, self.env)
+                self.entanglement_vertices_lift.append(
+                    self.entanglement_function(curve, self.env)
+                )  # True for entanglement-admissible, False for entangled
 
             # Add lifted vertex
             self.vertices_lift.append((idx, sign))  # add new lifted vertex
