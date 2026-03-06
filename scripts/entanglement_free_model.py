@@ -72,7 +72,7 @@ os.chdir(dir_name)
 
 # Initialize settings
 settings = Settings(create_sim_folder=False)
-n_runs = 1  # number of runs for time averaging
+n_runs = 5  # number of runs for time averaging
 
 # Initialize results table
 # Results table columns:
