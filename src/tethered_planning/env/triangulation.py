@@ -618,6 +618,7 @@ class Triangulation:
                 # First, we perform the conservativeness correction operation (optional)
                 if reduce_conservativeness is True:
 
+                    # 1. Main triangle
                     # Find vertices of the triangle
                     old_nodes_idx = np.intersect1d(
                         self.triangles[idx],
@@ -627,38 +628,17 @@ class Triangulation:
                     v2 = self.vertices[old_nodes_idx[1]]
                     p1 = new_vertex  # new vertex that cannot be added
                     p2 = (v1 + v2) / 2  # midpoint of the two shared (old) vertices
-                    p = (p1 + p2) / 2  # initial point to start the binary search from
+                    p = self.binary_search(p1, p2, sign, idx, search_algorithm)
 
-                    # Find suitable vertex via binary search
-                    admissible_found: bool = False
-                    for _ in range(10):
-                        # Check if p is admissible
-                        dist, geodesic = self.geodesic_distance(
-                            p,
-                            sign,  # signature of triangle where p lies
-                            self.env.anchor_point,
-                            [],
-                            t1=idx,
-                            t2=self.root_idx,
-                            search_algorithm=search_algorithm,
-                        )
-                        if dist <= self.max_dist:
-                            # p is admissible, we can try to move closer to p1
-                            p2 = p
-                            admissible_found = True
-                        else:
-                            # p is not admissible, we need to move closer to p2
-                            p1 = p
-
-                        # Update p as midpoint between p1 and p2
-                        p = (p1 + p2) / 2
-
-                    if admissible_found is True:
-                        # Add new simplex to list of extra simplicex. Note that the
-                        # new simplex is not directly connected to the simplicial
-                        # complex, as some additional changes are required to do so.
-                        # NOTE: parent_idxx refers to the lifted triangulation.
+                    # Add new simplex to list of extra simplices. Note that the new
+                    # simplex is not directly connected to the simplicial complex, as
+                    # some additional changes are required to do so.
+                    # NOTE: parent_idxx refers to the lifted triangulation.
+                    if p is not None:
                         self.extra_simplices.append(([v1, v2, p], parent_idx))
+
+                    # TODO: compute also other 2 triangles
+                    # 2. Side triangles (either 1 or 2)
 
                 # Second we remove the last added info (which was added to enable the
                 # computation of geodesic_distance) from the lifted triangulation.
@@ -1282,3 +1262,67 @@ class Triangulation:
 
         # Return the shortest path
         return tail
+
+    def binary_search(
+        self,
+        p1: np.ndarray,
+        p2: np.ndarray,
+        sign: list[int],
+        idx: int,
+        search_algorithm: str,
+    ) -> np.ndarray | None:
+        """
+        Perform binary search along a line segment between two points p1 and
+        p2 to find the point farthest from the anchor point in a given
+        homotopy class while respecting the length constraint.
+
+        Args:
+            p1 (np.ndarray): the first endpoint of the line segment
+            p2 (np.ndarray): the second endpoint of the line segment. Assumed to lie in 
+                the same triangle as p1
+            sign (list[int]): the signature of the triangle where the points lie
+            idx (int): the index of the triangle where the points lie (expressed as a
+                triangle index referring to the base triangulation)
+            search_algorithm (str): graph search algorithm to use in the geodesic 
+                distance computation.
+
+        Returns
+            np.ndarray | None: None indicates that no admissible point was found, 
+                otherwise the point farthest from the anchor point is returned as a
+                np.ndarray with the coordinates of the point.
+        """
+        # Function settings
+        n_iter: int = 5
+
+        # Initialize variables
+        admissible_found: bool = False
+
+        # Run binary search
+        p = (p1 + p2) / 2  # initial point to start the binary search from
+        for _ in range(n_iter):
+
+            # Check if p is admissible
+            dist, _ = self.geodesic_distance(
+                p,
+                sign,  # signature of triangle where p lies
+                self.env.anchor_point,
+                [],
+                t1=idx,
+                t2=self.root_idx,
+                search_algorithm=search_algorithm,
+            )
+
+            # If p is admissible move closer to p1, otherwise closer to p2
+            if dist <= self.max_dist:
+                p2 = p
+                admissible_found = True
+            else:
+                p1 = p
+
+            # Update p as midpoint between p1 and p2
+            p = (p1 + p2) / 2
+
+        if admissible_found:
+            return p
+        else:
+            return None
