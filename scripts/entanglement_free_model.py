@@ -27,12 +27,12 @@ from tethered_planning.utils.settings import Settings
 # - def: entanglement_definition: str, definition of entanglement to use to determine
 #      the entanglement of the curves in the graphs.
 eval_cases = [
-    # ("env_1.yaml", 1, 10.0, "convex_hull"),
-    # ("env_1.yaml", 1, 10.0, "linear_homotopy"),
-    # ("env_1.yaml", 1, 10.0, "local_visibility_homotopy"),
-    # ("env_1.yaml", 1, 12.0, "convex_hull"),
-    # ("env_1.yaml", 1, 12.0, "linear_homotopy"),
-    # ("env_1.yaml", 1, 12.0, "local_visibility_homotopy"),
+    ("env_1.yaml", 1, 10.0, "convex_hull"),
+    ("env_1.yaml", 1, 10.0, "linear_homotopy"),
+    ("env_1.yaml", 1, 10.0, "local_visibility_homotopy"),
+    ("env_1.yaml", 1, 12.0, "convex_hull"),
+    ("env_1.yaml", 1, 12.0, "linear_homotopy"),
+    ("env_1.yaml", 1, 12.0, "local_visibility_homotopy"),
     ("env_1.yaml", 1, 15.0, "convex_hull"),
     ("env_1.yaml", 1, 15.0, "linear_homotopy"),
     ("env_1.yaml", 1, 15.0, "local_visibility_homotopy"),
