@@ -168,23 +168,23 @@ for idx, case in enumerate(eval_cases):
 
     ####################################################################################
     # Homotopy augmented graph with fine resolution
-    # print(
-    #     f"{CmdColors.WARNING}[GridGraph]{CmdColors.ENDC} Running graph with "
-    #     "resolution 0.1."
-    # )
+    print(
+        f"{CmdColors.WARNING}[GridGraph]{CmdColors.ENDC} Running graph with "
+        "resolution 0.1."
+    )
 
-    # # Create graph
-    # graph_3 = GridGraph(env)
-    # graph_3.INFO = True  # Enable info
-    # graph_3.DEBUG = False  # Disable verbose debug prints
-    # graph_3.set_max_dist(l)
-    # graph_3.n_max = 1_000_000
-    # graph_3.set_grid_resolution(0.1, 0.1)
-    # graph_3.build_homotopy_augmented_graph()
+    # Create graph
+    graph_3 = GridGraph(env)
+    graph_3.INFO = True  # Enable info
+    graph_3.DEBUG = False  # Disable verbose debug prints
+    graph_3.set_max_dist(l)
+    graph_3.n_max = 1_000_000
+    graph_3.set_grid_resolution(0.1, 0.1)
+    graph_3.build_homotopy_augmented_graph()
 
-    # # Store results in table
-    # results_table[idx, 10] = len(graph_3.vertices_lift)  # nodes h augmented graph
-    # results_table[idx, 11] = len(graph_3.vertices_lift) * 0.1 * 0.1  # approx area
+    # Store results in table
+    results_table[idx, 10] = len(graph_3.vertices_lift)  # nodes h augmented graph
+    results_table[idx, 11] = len(graph_3.vertices_lift) * 0.1 * 0.1  # approx area
 
     ####################################################################################
     # Save iteration rdesults in pickle file for later analysis
