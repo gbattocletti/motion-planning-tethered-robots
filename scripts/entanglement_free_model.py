@@ -363,7 +363,7 @@ for idx, case in enumerate(eval_cases):
     # Save iteration rdesults in pickle file for later analysis
     # A separate pkl file is saved for each evaluation case, containing all the data
     # structures (simplicial complexes and graphs) created during that iteration.
-    filename = f"results/comparison-{idx+1}.pkl"
+    filename = f"results/entanglement_free_model/comparison-{idx+1}.pkl"
     data = {
         "settings": settings,
         "runs": n_runs,
@@ -388,7 +388,9 @@ for idx, case in enumerate(eval_cases):
     )
 
     # Print results table and save to CSV file (updated after each eval case)
-    with open("results/comparison_results.csv", "w", encoding="utf-8") as f:
+    with open(
+        "results/entanglement_free_model/comparison_results.csv", "w", encoding="utf-8"
+    ) as f:
         # Print header
         print(
             "env\tm\tl\tdef\t|T|\t|R|\tt\tA\t|N|\tt\tA\t% N"
