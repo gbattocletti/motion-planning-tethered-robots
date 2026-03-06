@@ -598,9 +598,8 @@ class Triangulation:
 
             else:
                 # Distance not checked (both check_distance and check_entanglement are
-                # false), all triangles considered admissible.
-                # In this case, entanglemetn is ignored entirely.
-                # TODO: add case to check entanglement but not distance.
+                # false), all triangles considered admissible. In this case,
+                # entanglement is ignored.
                 length_admissible = True
                 entanglement_admissible = False
 
@@ -616,26 +615,16 @@ class Triangulation:
                 # and must not be added to the lifted triangulation. This means it also
                 # cannot be entanglement-admissible.
 
-                # First we remove the last added info (which was added to enable the
-                # computation of geodesic_distance) from the lifted triangulation.
-                self.vertices_dual_lift.pop()
-                self.edges_dual_lift.pop()
-                self.parent_dual_lift.pop(n - 1)
-                n -= 1  # Bring counter back (triangle was removed)
-
-                # Second, we add the triangle to the closed queue to avoid checking
-                # it again in the future.
-                closed_queue.append((idx, sign))
-
-                # Third, we perform the conservativeness correction operation (optional)
+                # First, we perform the conservativeness correction operation (optional)
                 if reduce_conservativeness is True:
+
                     # Find vertices of the triangle
                     old_nodes_idx = np.intersect1d(
                         self.triangles[idx],
                         self.triangles[self.vertices_dual_lift[parent_idx][0]],
                     )
-                    v1 = old_nodes_idx[0]
-                    v2 = old_nodes_idx[1]
+                    v1 = self.vertices[old_nodes_idx[0]]
+                    v2 = self.vertices[old_nodes_idx[1]]
                     p1 = new_vertex  # new vertex that cannot be added
                     p2 = (v1 + v2) / 2  # midpoint of the two shared (old) vertices
                     p = (p1 + p2) / 2  # initial point to start the binary search from
@@ -644,17 +633,9 @@ class Triangulation:
                     admissible_found: bool = False
                     for _ in range(10):
                         # Check if p is admissible
-                        sign = curves.simplify_signature(
-                            sign
-                            + curves.compute_signature(
-                                np.array([self.vertices_dual[idx], p]),
-                                self.env,
-                                simplify=False,
-                            )
-                        )
                         dist, geodesic = self.geodesic_distance(
                             p,
-                            sign,
+                            sign,  # signature of triangle where p lies
                             self.env.anchor_point,
                             [],
                             t1=idx,
@@ -663,25 +644,39 @@ class Triangulation:
                         )
                         if dist <= self.max_dist:
                             # p is admissible, we can try to move closer to p1
-                            p1 = p
+                            p2 = p
                             admissible_found = True
                         else:
                             # p is not admissible, we need to move closer to p2
-                            p2 = p
+                            p1 = p
 
                         # Update p as midpoint between p1 and p2
                         p = (p1 + p2) / 2
 
                     if admissible_found is True:
-                        # Add new simplex to list of extra simplices
-                        self.extra_simplices.append(([v1, v2, new_vertex], parent_idx))
+                        # Add new simplex to list of extra simplicex. Note that the
+                        # new simplex is not directly connected to the simplicial
+                        # complex, as some additional changes are required to do so.
+                        # NOTE: parent_idxx refers to the lifted triangulation.
+                        self.extra_simplices.append(([v1, v2, p], parent_idx))
+
+                # Second we remove the last added info (which was added to enable the
+                # computation of geodesic_distance) from the lifted triangulation.
+                self.vertices_dual_lift.pop()
+                self.edges_dual_lift.pop()
+                self.parent_dual_lift.pop(n - 1)
+                n -= 1  # Bring counter back (triangle was removed)
+
+                # Third, we add the triangle to the closed queue to avoid checking
+                # it again in the future.
+                closed_queue.append((idx, sign))
 
                 # Finally, we stop this iteration and move to the next triangle in
                 # the open queue. This also skips the addition of the neighboring
                 # triangles to the open queue, since they would be unreachable too.
                 continue
 
-            if length_admissible is True and parent_idx != -1:
+            elif length_admissible is True and parent_idx != -1:
                 # Length admissibility is ok. Add vertex and edges to lifted primal
                 # graph, store vertices indexes in lifted triangles
 

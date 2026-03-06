@@ -107,14 +107,18 @@ for idx, case in enumerate(eval_cases):
         [x1, y1] = triang.vertices[triang.vertices_lift[i1][0]]
         [x2, y2] = triang.vertices[triang.vertices_lift[i2][0]]
         [x3, y3] = triang.vertices[triang.vertices_lift[i3][0]]
-        area = 0.5 * abs(x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2))  # tri area
+        area = 0.5 * abs(x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2))
         area_sc += area
 
     # Compute extra area added by the extra triangles for conservativeness reduction
     area_extra: float = 0
     n_extra: int = len(triang.extra_simplices)
     for tri in triang.extra_simplices:
-        pass  # TODO
+        [x1, y1] = tri[0][0]
+        [x2, y2] = tri[0][1]
+        [x3, y3] = tri[0][2]
+        area = 0.5 * abs(x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2))
+        area_extra += area
 
     # Store results in table
     results_table[idx, 2] = len(triang.triangles_lift)  # nr of triangs
@@ -164,23 +168,23 @@ for idx, case in enumerate(eval_cases):
 
     ####################################################################################
     # Homotopy augmented graph with fine resolution
-    print(
-        f"{CmdColors.WARNING}[GridGraph]{CmdColors.ENDC} Running graph with "
-        "resolution 0.1."
-    )
+    # print(
+    #     f"{CmdColors.WARNING}[GridGraph]{CmdColors.ENDC} Running graph with "
+    #     "resolution 0.1."
+    # )
 
-    # Create graph
-    graph_3 = GridGraph(env)
-    graph_3.INFO = True  # Enable info
-    graph_3.DEBUG = False  # Disable verbose debug prints
-    graph_3.set_max_dist(l)
-    graph_3.n_max = 1_000_000
-    graph_3.set_grid_resolution(0.1, 0.1)
-    graph_3.build_homotopy_augmented_graph()
+    # # Create graph
+    # graph_3 = GridGraph(env)
+    # graph_3.INFO = True  # Enable info
+    # graph_3.DEBUG = False  # Disable verbose debug prints
+    # graph_3.set_max_dist(l)
+    # graph_3.n_max = 1_000_000
+    # graph_3.set_grid_resolution(0.1, 0.1)
+    # graph_3.build_homotopy_augmented_graph()
 
-    # Store results in table
-    results_table[idx, 10] = len(graph_3.vertices_lift)  # nodes h augmented graph
-    results_table[idx, 11] = len(graph_3.vertices_lift) * 0.1 * 0.1  # approx area
+    # # Store results in table
+    # results_table[idx, 10] = len(graph_3.vertices_lift)  # nodes h augmented graph
+    # results_table[idx, 11] = len(graph_3.vertices_lift) * 0.1 * 0.1  # approx area
 
     ####################################################################################
     # Save iteration rdesults in pickle file for later analysis
@@ -193,7 +197,7 @@ for idx, case in enumerate(eval_cases):
         "triangulation": triang,
         "graph_coarse": graph_1,
         "graph_medium": graph_2,
-        "graph_fine": graph_3,
+        # "graph_fine": graph_3,
         "results": results_table,
     }
     pickled = pickle.dumps(data)  # dump data dictionary in pickle file
