@@ -664,7 +664,7 @@ class Triangulation:
 
                             # Find endpoints for binary search
                             p1 = curves.find_intersection(v3, v4, p, new_vertex)
-                            if p2 is None:
+                            if p1 is None:
                                 continue  # no intersection between segments
                             p2 = (v_common + p) / 2  # second point for binary search
 
