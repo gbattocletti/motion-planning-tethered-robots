@@ -61,13 +61,26 @@ settings = Settings(create_sim_folder=False)
 #
 #   - num of nodes in homotopy augmented graph with res 1 (int)
 #   - approximate area of homotopy augmented graph (number of nodes * res^2) (float)
+#   - approximate area of homotopy augmented graph (number of edges * 1/2*res^2) (float)
 #
 #   - num of nodes in homotopy augmented graph with res 0.5 (int)
 #   - approximate area of homotopy augmented graph (number of nodes * res^2) (float)
+#   - approximate area of homotopy augmented graph (number of edges * 1/2*res^2) (float)
 #
-#   - num of nodes in homotopy augmented graph with res 0.1 (int)
+#   - num of nodes in homotopy augmented graph with res 0.25 (int)
 #   - approximate area of homotopy augmented graph (number of nodes * res^2) (float)
-results_table = np.zeros((len(eval_cases), 12), dtype=float)
+#   - approximate area of homotopy augmented graph (number of edges * 1/2*res^2) (float)
+#
+# NOTE: the approximate area of the homotopy augmented graph is computed in two
+# different ways. In the first, we consider the number of nodes and multiply by the area
+# of each grid cell (res^2). This approximation is an upper bound of the real area, as
+# it includes some area that overlaps with obstacles or that is actually unreachable.
+# The approximation error decreases with the grid resolution. In the second method, we
+# consider the number of edges and we consider a cell having the edge as diagonal. The
+# resulting area is (1/sqrt(2)*res)^2 = 1/2*res^2. This approximation is still an upper
+# bound of the real area, but the approximation error is smaller.
+
+results_table = np.zeros((len(eval_cases), 15), dtype=float)
 
 # Loop over evaluation cases
 for idx, case in enumerate(eval_cases):
@@ -145,6 +158,7 @@ for idx, case in enumerate(eval_cases):
     # Store results in table
     results_table[idx, 6] = len(graph_1.vertices_lift)  # nodes h augmented graph
     results_table[idx, 7] = len(graph_1.vertices_lift) * 1.0 * 1.0  # approx area
+    results_table[idx, 8] = len(graph_1.edges_lift) * 1 / 2 * (1.0 * 1.0)
 
     ####################################################################################
     # Homotopy augmented graph with medium resolution
@@ -163,14 +177,15 @@ for idx, case in enumerate(eval_cases):
     graph_2.build_homotopy_augmented_graph()
 
     # Store results in table
-    results_table[idx, 8] = len(graph_2.vertices_lift)  # nodes h augmented graph
-    results_table[idx, 9] = len(graph_2.vertices_lift) * 0.5 * 0.5  # approx area
+    results_table[idx, 9] = len(graph_2.vertices_lift)  # nodes h augmented graph
+    results_table[idx, 10] = len(graph_2.vertices_lift) * 0.5 * 0.5  # approx area
+    results_table[idx, 11] = len(graph_2.edges_lift) * 1 / 2 * (0.5 * 0.5)
 
     ####################################################################################
     # Homotopy augmented graph with fine resolution
     print(
         f"{CmdColors.WARNING}[GridGraph]{CmdColors.ENDC} Running graph with "
-        "resolution 0.1."
+        "resolution 0.25."
     )
 
     # Create graph
@@ -179,12 +194,13 @@ for idx, case in enumerate(eval_cases):
     graph_3.DEBUG = False  # Disable verbose debug prints
     graph_3.set_max_dist(l)
     graph_3.n_max = 1_000_000
-    graph_3.set_grid_resolution(0.1, 0.1)
+    graph_3.set_grid_resolution(0.25, 0.25)
     graph_3.build_homotopy_augmented_graph()
 
     # Store results in table
-    results_table[idx, 10] = len(graph_3.vertices_lift)  # nodes h augmented graph
-    results_table[idx, 11] = len(graph_3.vertices_lift) * 0.1 * 0.1  # approx area
+    results_table[idx, 12] = len(graph_3.vertices_lift)  # nodes h augmented graph
+    results_table[idx, 13] = len(graph_3.vertices_lift) * 0.25 * 0.25  # approx area
+    results_table[idx, 14] = len(graph_3.edges_lift) * 1 / 2 * (0.25 * 0.25)
 
     ####################################################################################
     # Save iteration rdesults in pickle file for later analysis
@@ -197,7 +213,7 @@ for idx, case in enumerate(eval_cases):
         "triangulation": triang,
         "graph_coarse": graph_1,
         "graph_medium": graph_2,
-        # "graph_fine": graph_3,
+        "graph_fine": graph_3,
         "results": results_table,
     }
     pickled = pickle.dumps(data)  # dump data dictionary in pickle file
@@ -219,11 +235,12 @@ for idx, case in enumerate(eval_cases):
     ) as f:
         # Print header
         print(
-            "env\tl\t|R|\tA_R\t|R'|\tA_R'\t|H_1|\tA_H_1\t|H_2|\tA_H_2\t|H_3|\tA_H_3",
+            "env\tl\t|R|\tA_R\t|R'|\tA_R'"
+            "\t|H_1|\tA_H_1\tA_H_1\t|H_2|\tA_H_2\tA_H_2\t|H_3|\tA_H_3\tA_H_3",
             end="\n",
         )
         for i, row in enumerate(results_table):
-            # index
+            # env
             print(f"{str(int(row[0]))}", end="")
             f.write(f"{str(int(row[0]))},")
 
@@ -249,15 +266,21 @@ for idx, case in enumerate(eval_cases):
             f.write(f"{int(row[6])},")
             print(f"\t{row[7]:.2f}", end="")
             f.write(f"{row[7]:.2f}")
+            print(f"\t{row[8]:.2f}", end="")
+            f.write(f"{row[8]:.2f}")
 
             # number of nodes and approximate area in homotopy augmented graph 2
-            print(f"\t{int(row[8])}", end="")
-            f.write(f"{int(row[8])},")
-            print(f"\t{row[9]:.2f}", end="")
-            f.write(f"{row[9]:.2f},")
+            print(f"\t{int(row[9])}", end="")
+            f.write(f"{int(row[9])},")
+            print(f"\t{row[10]:.2f}", end="")
+            f.write(f"{row[10]:.2f},")
+            print(f"\t{row[11]:.2f}", end="")
+            f.write(f"{row[11]:.2f}")
 
             # number of nodes and approximate area in homotopy augmented graph 3
-            print(f"\t{int(row[10])}", end="")
-            f.write(f"{int(row[10])},")
-            print(f"\t{row[11]:.2f}")
-            f.write(f"{row[11]:.2f}\n")
+            print(f"\t{int(row[12])}", end="")
+            f.write(f"{int(row[12])},")
+            print(f"\t{row[13]:.2f}", end="")
+            f.write(f"{row[13]:.2f}")
+            print(f"\t{row[14]:.2f}")
+            f.write(f"{row[14]:.2f}\n")
