@@ -360,3 +360,47 @@ class GridGraph:
                 f"graph built with {len(self.vertices_lift)} vertices and "
                 f"{len(self.edges_lift)} edges."
             )
+
+    def compute_area(self) -> float:
+        """
+        Computes the area covered by the homotopy-augmented graph.
+
+        The area is computed as the sum of the areas of squares having the edges of the
+        graph as diagonals. In case an edge lies on the boundary of an obstacle, only
+        half of the square area is added. The result is a slight overapproximation of
+        the real area as the edges on the boundaries of the reachable workspace are
+        added in full.
+
+        Args:
+            None
+
+        Returns:
+            float: the area covered by the homotopy-augmented grap.
+
+        """
+        a_square = 1 / 2 * self.res_x * self.res_y  # square having edge as diagonal
+        area: float = 0  # initialize area
+
+        # Iterate over edges and compute area
+        for edge in self.edges_lift:
+            v1_idx, v2_idx = edge
+            v1 = self.vertices[self.vertices_lift[v1_idx][0]]
+            v2 = self.vertices[self.vertices_lift[v2_idx][0]]
+            edge = LineString([v1, v2])
+
+            # Check if edge lies on the boundary of an obstacle
+            if self.env.obstacle_region.intersects(edge):
+                intersection = self.env.obstacle_region.intersection(edge)
+                if isinstance(intersection, LineString) and not intersection.is_empty:
+                    area += 1 / 2 * a_square  # edge lies on the boundary, add half area
+                elif isinstance(intersection, (Point)) and not intersection.is_empty:
+                    area += a_square  # edge touches obs at one point, add full area
+                else:
+                    raise ValueError(
+                        "Unexpected intersection type when computing area of "
+                        "homotopy-augmented graph."
+                    )
+            else:
+                area += a_square  # no intersections with obstacles, add full area
+
+        return area
