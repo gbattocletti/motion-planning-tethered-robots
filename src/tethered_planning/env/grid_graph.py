@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 import numpy as np
+from shapely import LineString, Point
 
 from tethered_planning.env.env_2d import Env2D
 from tethered_planning.utils import curves, entanglement
@@ -269,7 +270,17 @@ class GridGraph:
             # The sequence of edges is maintained in the parent_vec variable. Since
             # multiple paths can lead to the same vertex, the path with the shortest
             # manhattan distance is the one stored in memory.
+            # FIXME: there is a bug linked to shorten_curve that makes so that when the
+            # size of obstacles is the same as the grid resolution AND when the grid
+            # resolution is not an exact fraction of the obstacle size (e.g., 0.75 with
+            # obstacles of size 1.0). In those scenarios, the curve shortening fails and
+            # leads to incorrect length computation. This will be fixed in the future,
+            # but for the moment the suggested workaround is to avoid having the same
+            # grid resolution as the obstacles' size.
+
             curve = None  # set as None to avoid unnecessary computations
+
+            # Check if vertex is within max distance from anchor point
             if a_len > self.max_dist:
                 curve = np.array(self.vertices[parent_vec + [idx]])
                 curve = curves.shorten_curve(curve, self.env)

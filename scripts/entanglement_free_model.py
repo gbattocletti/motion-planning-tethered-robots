@@ -72,7 +72,7 @@ os.chdir(dir_name)
 
 # Initialize settings
 settings = Settings(create_sim_folder=False)
-n_runs = 5  # number of runs for time averaging
+n_runs = 3  # number of runs for time averaging
 
 # Initialize results table
 # Results table columns:
@@ -94,14 +94,14 @@ n_runs = 5  # number of runs for time averaging
 #
 #   - num of nodes in homotopy augmented graph (int)
 #   - computation time for homotopy augmented graph (float, seconds)
-#   - approximate area of homotopy augmented graph (number of nodes * res^2) (float)
+#   - approximate area of homotopy augmented graph (float)
 #
 #   - num of nodes in homotopy augmented graph with entanglement check (int)
 #   - computation time for homotopy augmented graph with entanglement check (float)
-#   - approximate area of homotopy augmented graph (number of nodes * res^2) (float)
+#   - approximate area of homotopy augmented graph (float)
 #   - % of entanglement-admissible nodes (ratio between nodes count) (float, 0-100)
 #
-#   The last 7 columns are repeated for multiple grid resolutions (1, 0.5, possibly 0.2)
+#   The last 7 columns are repeated for multiple grid resolutions (0.5, 0.25)
 results_table = np.zeros((len(eval_cases), 26), dtype=float)
 
 # Loop over evaluation cases
@@ -229,7 +229,7 @@ for idx, case in enumerate(eval_cases):
     # Homotopy augmented graph with coarse resolution
     print(
         f"{CmdColors.WARNING}[GridGraph]{CmdColors.ENDC} Running graph with "
-        "resolution 1.0."
+        "resolution 0.5."
     )
 
     # Create graph
@@ -238,7 +238,7 @@ for idx, case in enumerate(eval_cases):
     graph_1.DEBUG = False  # Disable verbose debug prints
     graph_1.set_max_dist(l)
     graph_1.n_max = 1_000_000
-    graph_1.set_grid_resolution(1.0, 1.0)
+    graph_1.set_grid_resolution(0.5, 0.5)
 
     # Compute homotopy augmented graph with entanglement check
     t_1 = (
@@ -252,13 +252,13 @@ for idx, case in enumerate(eval_cases):
     # Store results in table
     results_table[idx, 12] = len(graph_1.vertices_lift)  # nodes h augmented graph
     results_table[idx, 13] = t_1  # time homotopy augmented graph
-    results_table[idx, 14] = len(graph_1.vertices_lift) * 1.0 * 1.0  # approx area
+    results_table[idx, 14] = graph_1.compute_area()  # area of h augmented graph
 
     ####################################################################################
     # Homotopy augmented graph with coarse resolution and entanglement check
     print(
         f"{CmdColors.WARNING}[GridGraph]{CmdColors.ENDC} Running graph with "
-        "resolution 1.0 and entanglement check."
+        "resolution 0.5 and entanglement check."
     )
 
     # Create graph
@@ -267,7 +267,7 @@ for idx, case in enumerate(eval_cases):
     graph_1_ent.DEBUG = False  # Disable verbose debug prints
     graph_1_ent.set_max_dist(l)
     graph_1_ent.n_max = 1_000_000
-    graph_1_ent.set_grid_resolution(1.0, 1.0)
+    graph_1_ent.set_grid_resolution(0.5, 0.5)
     graph_1_ent.set_entanglement_definition(ent_def)  # set entanglement definition
 
     # Compute homotopy augmented graph with entanglement check
@@ -289,14 +289,14 @@ for idx, case in enumerate(eval_cases):
     # Store results in table
     results_table[idx, 15] = n_entanglement_admissible  # nodes h augmented graph
     results_table[idx, 16] = t_1_ent  # time homotopy augmented graph
-    results_table[idx, 17] = n_entanglement_admissible * 1.0 * 1.0  # approx area
+    results_table[idx, 17] = graph_1_ent.compute_area()  # area of h augmented graph
     results_table[idx, 18] = area_ratio_hag  # entanglement-admissible node ratio
 
     ####################################################################################
     # Homotopy augmented graph with medium resolution
     print(
         f"{CmdColors.WARNING}[GridGraph]{CmdColors.ENDC} Running graph with "
-        "resolution 0.5."
+        "resolution 0.25."
     )
 
     # Create graph
@@ -305,7 +305,7 @@ for idx, case in enumerate(eval_cases):
     graph_2.DEBUG = False  # Disable verbose debug prints
     graph_2.set_max_dist(l)
     graph_2.n_max = 1_000_000
-    graph_2.set_grid_resolution(0.5, 0.5)
+    graph_2.set_grid_resolution(0.25, 0.25)
 
     # Compute homotopy augmented graph with entanglement check
     t_2 = (
@@ -319,13 +319,13 @@ for idx, case in enumerate(eval_cases):
     # Store results in table
     results_table[idx, 19] = len(graph_2.vertices_lift)  # nodes h-augmented graph
     results_table[idx, 20] = t_2  # time homotopy augmented graph
-    results_table[idx, 21] = len(graph_2.vertices_lift) * 0.5 * 0.5  # approx area
+    results_table[idx, 21] = graph_2.compute_area()  # approx area
 
     ####################################################################################
     # Homotopy augmented graph with medium resolution and entanglement check
     print(
         f"{CmdColors.WARNING}[GridGraph]{CmdColors.ENDC} Running graph with "
-        "resolution 0.5 and entanglement check."
+        "resolution 0.25 and entanglement check."
     )
 
     # Create graph
@@ -334,7 +334,7 @@ for idx, case in enumerate(eval_cases):
     graph_2_ent.DEBUG = False  # Disable verbose debug prints
     graph_2_ent.set_max_dist(l)
     graph_2_ent.n_max = 1_000_000
-    graph_2_ent.set_grid_resolution(0.5, 0.5)
+    graph_2_ent.set_grid_resolution(0.25, 0.25)
     graph_2_ent.set_entanglement_definition(ent_def)  # set entanglement definition
 
     # Compute homotopy augmented graph with entanglement check
@@ -356,7 +356,7 @@ for idx, case in enumerate(eval_cases):
     # Store results in table
     results_table[idx, 22] = n_entanglement_admissible  # nodes h-augmented graph
     results_table[idx, 23] = t_2_ent  # time homotopy augmented graph
-    results_table[idx, 24] = n_entanglement_admissible * 0.5 * 0.5  # approx area
+    results_table[idx, 24] = graph_2_ent.compute_area()  # approx area
     results_table[idx, 25] = area_ratio_hag  # entanglement-admissible node ratio
 
     ####################################################################################
@@ -370,10 +370,10 @@ for idx, case in enumerate(eval_cases):
         "env": env,
         "triangulation": triang,
         "triangulation_entanglement": triang_ent,
-        "graph_coarse": graph_1,
-        "graph_coarse_entanglement": graph_1_ent,
-        "graph_medium": graph_2,
-        "graph_medium_entanglement": graph_2_ent,
+        "graph_1": graph_1,
+        "graph_1_entanglement": graph_1_ent,
+        "graph_2": graph_2,
+        "graph_2_entanglement": graph_2_ent,
         "results": results_table,
     }
     pickled = pickle.dumps(data)  # dump data dictionary in pickle file
