@@ -15,9 +15,11 @@ the plots, are tailored to the specific environment defined in env_4.yaml. If th
 environment is changed, these elements may need to be adjusted accordingly.
 """
 
+import datetime
 import os
 import pickle
 import time
+from collections.abc import Callable
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -30,7 +32,7 @@ from tethered_planning.env.grid_graph import GridGraph
 from tethered_planning.env.triangulation import Triangulation
 
 # from tethered_planning.plan import graph_search
-from tethered_planning.utils import curves, plot
+from tethered_planning.utils import curves, entanglement, plot
 from tethered_planning.utils.colors import CmdColors
 from tethered_planning.utils.settings import Settings
 
@@ -44,6 +46,7 @@ experiments = [
     ["results/entanglement_free_model/comparison-32.pkl", "linear_homotopy"],
     ["results/entanglement_free_model/comparison-33.pkl", "local_visibility"],
 ]
+SELECT_TETHER_MANUALLY: bool = True
 
 # Check matplotlib version
 if version.parse(mpl.__version__) <= version.parse("3.7"):
@@ -60,14 +63,35 @@ abspath = os.path.abspath(__file__)
 dir_name = os.path.dirname(abspath)
 os.chdir(dir_name)
 
-# Iterate over experiments and perform path planning
+# Initialize data structures
 settings: Settings
 env: env_2d.Env2D
 anchor: np.ndarray
 robot: np.ndarray
 goal: np.ndarray
 tether: np.ndarray
+colors = [
+    "#0050A0",
+    "#158AFF",
+    "#071F36",
+    "#28BBFF",
+    "#000BA0",
+    "#009CA1",
+    "#0EEFFF",
+    "#2200E4",
+    "#004B55",
+    "#246AB1",
+]
+
+# Reset log file
+with open("results/path-planning", "r", encoding="utf-8") as f:
+    f.write(f"[Started at: {datetime.datetime.now()}]\n")
+f.close()
+
+# Iterate over experiments and perform path planning
 for idx, [filename, definition] in list(enumerate(experiments)):
+
+    # Load data
     objects: list = []
     with open(filename, "rb") as openfile:
         while True:
@@ -81,16 +105,33 @@ for idx, [filename, definition] in list(enumerate(experiments)):
         env = data["env"]
         length: float = env.tether_length
         anchor = env.anchor_point
-        tether = curves.generate_curve(
-            env,
-            init_point=env.anchor_point,  # CHECKME
-            check_self_intersection=True,
-            show_goal=False,
-            output_type="numpy",
+        if SELECT_TETHER_MANUALLY is True:
+            tether = curves.generate_curve(
+                env,
+                init_point=env.anchor_point,
+                check_self_intersection=True,
+                show_goal=False,
+                output_type="numpy",
+            )
+            print(tether)  # TEMP (to remove once a nice config is selected)
+        else:
+            pass  # TODO: hardcode the tether config
+        signature = curves.compute_signature(tether, env, simplify=True)
+        robot = tether[-1]
+        goal = np.array([1.0, 8.3])  # TODO  update (select manually)
+
+    # Sanity check: verify that config is not entangled
+    entanglement_function: Callable
+    if definition == "convex_hull":
+        entanglement_function = entanglement.convex_hull
+    elif definition == "linear_homotopy":
+        entanglement_function = entanglement.linear_homotopy
+    elif definition == "local_visibility_homotopy":
+        entanglement_function = entanglement.local_visibility_homotopy
+    if entanglement_function(tether, env) is not True:
+        raise ValueError(
+            f"Tether configuration is entangled w.r.t. definiton {definition}"
         )
-        print(tether)  # TODO: copy good one and hardcode the tether config
-        robot = tether[-1]  # CHECKME check dimension
-        goal = np.array([1.0, 8.3])  # TODO  select manually
 
     # Entanglement definition-specific data
     triang_R: Triangulation = data["triangulation"]  # length reachable model
@@ -138,7 +179,7 @@ for idx, [filename, definition] in list(enumerate(experiments)):
         triang_robot_lift = [
             idx
             for idx, tri in enumerate(triang.vertices_dual_lift)
-            if ((tri[0] == triang_robot) and (tri[1] == [-1]))
+            if ((tri[0] == triang_robot) and (tri[1] == signature))
         ][0]
         triang_anchor_lift = [
             idx
@@ -167,6 +208,8 @@ for idx, [filename, definition] in list(enumerate(experiments)):
             description = "R"
         else:
             description = f"N_{definition}"
+
+        # Print stats + write them to file
         print(f"Path planning: {description}")
         print(
             f"Time stats: mean {np.mean(comp_time):.6f}, "
@@ -180,6 +223,21 @@ for idx, [filename, definition] in list(enumerate(experiments)):
         )
         for i, (l, t) in list(enumerate(zip(path_length_list, comp_time))):
             print(f"\t#{i}\t length: {l:.2f}, time: {t:.6f}")
+        with open("results/path-planning", "a", encoding="utf-8") as f:
+            f.write(f"Path planning: {description}\n")
+            f.write(
+                f"Time stats: mean {np.mean(comp_time):.6f}, "
+                f"std {np.std(comp_time):.6f}, "
+                f"max {np.max(comp_time):.6f}\n"
+            )
+            f.write(
+                f"Length stats: mean {np.mean(path_length_list):.6f}, "
+                f"std {np.std(path_length_list):.6f}, "
+                f"max {np.max(path_length_list):.6f}\n"
+            )
+            for i, (l, t) in list(enumerate(zip(path_length_list, comp_time))):
+                f.write(f"\t#{i}\t length: {l:.2f}, time: {t:.6f}\n")
+        f.close()
 
         # Generate and save plot
         fig: plt.Figure
@@ -200,8 +258,8 @@ for idx, [filename, definition] in list(enumerate(experiments)):
         )
         ax.plot(goal[0], goal[1], color="green", marker="o", markersize=4, zorder=10)
         ax.text(0.7, 8.8, "$x_\\mathrm{{{g}}}$", fontsize=8, zorder=10)
-        for path in path_list:
-            ax.plot(path[:, 0], path[:, 1], color="blue", zorder=8, linewidth=1)
+        for i, path in enumerate(path_list):
+            ax.plot(path[:, 0], path[:, 1], color=colors[i], zorder=8, linewidth=1)
         fig.savefig(f"results/{description}.png", dpi=900, format="png")
         fig.savefig(f"results/{description}.svg")
 
@@ -221,4 +279,5 @@ for idx, [filename, definition] in list(enumerate(experiments)):
         #   - find lifted robot location (unique due to lifted anchor)
         #   - graph search from robot to goal (BFS, DFS, A*?)
         # TODO: print data
+        # TODO: generate and save plots
         # TODO: generate and save plots
