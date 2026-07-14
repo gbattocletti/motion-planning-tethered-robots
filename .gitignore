@@ -4,6 +4,7 @@ doc/
 tests/results
 scripts/results
 results-paper-ifac
+results-paper-journal
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
