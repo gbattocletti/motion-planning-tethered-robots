@@ -452,7 +452,7 @@ for idx, case in enumerate(eval_cases):
 
             # time homotopy augmented graph
             print(f"\t{row[13]:.2f}", end="")
-            f.write(f"{row[13]:.2f}")
+            f.write(f"{row[13]:.2f},")
 
             # area homotopy augmented graph
             print(f"\t{row[14]:.2f}", end="")
@@ -464,7 +464,7 @@ for idx, case in enumerate(eval_cases):
 
             # time homotopy augmented graph with entanglement check
             print(f"\t{row[16]:.2f}", end="")
-            f.write(f"{row[16]:.2f}")
+            f.write(f"{row[16]:.2f},")
 
             # area homotopy augmented graph with entanglement check
             print(f"\t{row[17]:.2f}", end="")
@@ -472,7 +472,7 @@ for idx, case in enumerate(eval_cases):
 
             # percentage of entanglement-admissible area in homotopy augmented graph
             print(f"\t{row[18]:.2f}", end="")
-            f.write(f"{row[18]:.2f}")
+            f.write(f"{row[18]:.2f},")
 
             # RESOLUTION 1
             # number of nodes in homotopy augmented graph
@@ -481,7 +481,7 @@ for idx, case in enumerate(eval_cases):
 
             # time homotopy augmented graph
             print(f"\t{row[20]:.2f}", end="")
-            f.write(f"{row[20]:.2f}")
+            f.write(f"{row[20]:.2f},")
 
             # area homotopy augmented graph
             print(f"\t{row[21]:.2f}", end="")
@@ -493,7 +493,7 @@ for idx, case in enumerate(eval_cases):
 
             # time homotopy augmented graph with entanglement check
             print(f"\t{row[23]:.2f}", end="")
-            f.write(f"{row[23]:.2f}")
+            f.write(f"{row[23]:.2f},")
 
             # area homotopy augmented graph with entanglement check
             print(f"\t{row[24]:.2f}", end="")
