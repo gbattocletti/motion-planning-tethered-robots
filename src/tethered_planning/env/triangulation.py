@@ -1041,7 +1041,7 @@ class Triangulation:
                 tri_idx_prev = alpha[0]
                 alpha = alpha[1:]
             else:
-                tri_idx_prev = int(tri_idx_prev)  # convert to int
+                tri_idx_prev = int(tri_idx_prev[0])  # convert to int
         else:
             p_init = self.vertices_dual[alpha[0]]
             tri_idx_prev = alpha[0]
