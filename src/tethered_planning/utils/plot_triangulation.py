@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+from mpl_toolkits.mplot3d import proj3d
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from shapely.plotting import plot_polygon
 
@@ -401,6 +402,9 @@ def plot_3d(
             corresponding to the different signatures. The length must match the number
             of unique signatures in the triangulation, or be one single color to be
             used for all layers. If None (default) a default colormap will be used.
+        show_layer_area (bool, optional): wether to show the black rectangle bounding
+            each signature layer.
+        show_obstacles (bool, optional): show obstacles extruded in 3D.
         pov (list[float] | None, optional): point of view for the 3D plot expressed as
             a list of 3 angles [elevation, azimuth, roll]. Angles are expressed in deg.
             If None (default) a default point of view will be used.
@@ -419,6 +423,8 @@ def plot_3d(
     multi_layer_triangles: bool = False  # triangles can span multiple layers
     custom_sign_order: list[list[int]] | None = None  # custom order for signatures
     layers_cmap: list[str] | None = None  # colormap for the layers
+    show_layer_area: bool = True
+    show_obstacles: bool = False
     pov: list[float] | None = None  # point of view for the 3D plot
     figsize: np.ndarray = np.array([8, 8])  # figure size in cm
 
@@ -451,6 +457,18 @@ def plot_3d(
                     f"got {type(value)} instead."
                 )
             layers_cmap = value
+        elif key == "show_layer_area":
+            if not isinstance(value, bool):
+                raise ValueError(
+                    f"Expected bool for show_layer_area, got {type(value)} instead."
+                )
+            show_layer_area = value
+        elif key == "show_obstacles":
+            if not isinstance(value, bool):
+                raise ValueError(
+                    f"Expected bool for show_obstacles, got {type(value)} instead."
+                )
+            show_obstacles = value
         elif key == "pov":
             if not isinstance(value, (list, type(None))):
                 raise TypeError(
@@ -492,25 +510,15 @@ def plot_3d(
         layers_cmap = PlotColors.layers_cmap[0:n_sign]
     n_cmap: int = len(layers_cmap)
 
-    # Define colormap for the triangles (organized by layers)
-    triangles_cmap: list[str]
-    if layers_cmap is not None:
-        # if len(layers_cmap) != n_sign and len(layers_cmap) != 1:
-        #     raise ValueError(
-        #         "The length of layers_colormap must be either 1 (single color for "
-        #         f"all layers) or match the number of unique signatures {n_sign} in "
-        #         "the triangulation."
-        #     )
-        if len(layers_cmap) == 1:
-            triangles_cmap = [layers_cmap[0]]
-        else:
-            triangles_cmap = []
-
     ### GENERATE FIGURE ###
     # Initialize 3d axes
     figsize = figsize / 2.54
     fig: plt.Figure = plt.figure(figsize=figsize)  # convert cm to in
-    ax: Axes3D = fig.add_subplot(projection="3d")
+    ax: Axes3D = fig.add_subplot(projection="3d", computed_zorder=False)
+
+    # Initialize variables for depth ordering
+    artists = []  # every depth-sortable artist
+    artists_points = []  # artists representative point (e.g. obstacle centroid)
 
     # Set limits and aspect
     ax.set_xlim(0, env.size[0])
@@ -520,21 +528,45 @@ def plot_3d(
     ax.view_init(elev=pov[0], azim=pov[1], roll=pov[2])
 
     # Plot layers and label them by h signature
-    layer_list: list[np.ndarray] = []
-    for layer_idx in range(n_sign):
+    if show_layer_area is True:
+        layer_list: list[np.ndarray] = []
+        for layer_idx in range(n_sign):
 
-        # Define the rectangle of the layer
-        padding: float = 0  # extend layer beyond env limits for better visualization
-        layer = np.array(
-            [
-                [0 - padding, 0 - padding, layer_idx],
-                [env.size[0] + padding, 0 - padding, layer_idx],
-                [env.size[0] + padding, env.size[1] + padding, layer_idx],
-                [0 - padding, env.size[1] + padding, layer_idx],
-                [0 - padding, 0 - padding, layer_idx],  # repeat to close rectangle
-            ]
-        )
-        layer_list.append(layer)
+            # Define the rectangle of the layer
+            padding: float = 0  # extend layer beyond env limits for better plotting
+            layer = np.array(
+                [
+                    [0 - padding, 0 - padding, layer_idx],
+                    [env.size[0] + padding, 0 - padding, layer_idx],
+                    [env.size[0] + padding, env.size[1] + padding, layer_idx],
+                    [0 - padding, env.size[1] + padding, layer_idx],
+                    [0 - padding, 0 - padding, layer_idx],  # repeat to close rectangle
+                ]
+            )
+            layer_list.append(layer)
+
+    # Plot obstacles
+    if show_obstacles is True:
+        for obs in env.obstacle_vertices:
+            n = len(obs)
+            bottom = np.column_stack([obs, np.full(n, 0)])
+            top = np.column_stack([obs, np.full(n, layer_idx)])
+            faces = [bottom, top]
+            for i in range(n):
+                j = (i + 1) % n
+                side = [bottom[i], bottom[j], top[j], top[i]]
+                faces.append(side)
+            obs_faces = Poly3DCollection(
+                faces,
+                facecolor="gray",
+                alpha=0.6,
+                edgecolor="black",
+            )
+            artists.append(obs_faces)
+            artists_points.append(
+                np.array([obs[:, 0].mean(), obs[:, 1].mean(), 0.5 * (0 + layer_idx)])
+            )
+            ax.add_collection3d(obs_faces)
 
     # Plot triangles in layer
     layer_list = np.array(layer_list)
@@ -549,7 +581,6 @@ def plot_3d(
 
     # PLOT LIFTED TRIANGULATION
     # Plot each layer of the lifted triangulation
-    triangles_3d_list: list[np.ndarray] = []  # list of triangle vertices in 3D
     for layer_idx, sign in enumerate(unique_sign_list):
 
         # Select triangles with the same signature and plot them on the same level
@@ -616,60 +647,54 @@ def plot_3d(
                 except ValueError:
                     layer_idx_3: int = unique_sign_list.index(list(sign))
 
-                # use signature index for z coordinate of each vertex
-                triangles_3d_list.append(
-                    np.array(
-                        [
-                            [v1[0], v1[1], layer_idx_1],
-                            [v2[0], v2[1], layer_idx_2],
-                            [v3[0], v3[1], layer_idx_3],
-                            [v1[0], v1[1], layer_idx_1],
-                        ]
-                    )
-                )
-
-                # Add color for the triangle to the color list. If multiple indexes are
+                # Select for the triangle to the color list. If multiple indexes are
                 # present (i.e., triangle spans multiple layers) the color of the
                 # triangle is obtained by mixing the colors corresponding to the layers
-                if layers_cmap is not None:
-                    layer_idx = np.unique(
-                        np.array([layer_idx_1, layer_idx_2, layer_idx_3])
-                    )
-                    c1 = layers_cmap[layer_idx[0] % n_cmap]
-                    c2 = layers_cmap[layer_idx[-1] % n_cmap]
-                    color = colors.combine_colors(c1, c2)
-                    triangles_cmap.append(color)
+                layer_idx = np.unique(np.array([layer_idx_1, layer_idx_2, layer_idx_3]))
+                c1 = layers_cmap[layer_idx[0] % n_cmap]
+                c2 = layers_cmap[layer_idx[-1] % n_cmap]
+                color = colors.combine_colors(c1, c2)
+
+                # use signature index for z coordinate of each vertex
+                tri_pts = np.array(
+                    [
+                        [v1[0], v1[1], layer_idx_1],
+                        [v2[0], v2[1], layer_idx_2],
+                        [v3[0], v3[1], layer_idx_3],
+                        [v1[0], v1[1], layer_idx_1],
+                    ]
+                )
+                tri_artist = Poly3DCollection(
+                    [tri_pts],
+                    facecolors=color,
+                    edgecolors="black",
+                    alpha=0.7,
+                )
+                ax.add_collection3d(tri_artist)
+                artists.append(tri_artist)
+                artists_points.append(tri_pts.mean(axis=0))
 
             else:
 
                 # use layer index for z coordinate of all vertices
-                triangles_3d_list.append(
-                    np.array(
-                        [
-                            [v1[0], v1[1], layer_idx],
-                            [v2[0], v2[1], layer_idx],
-                            [v3[0], v3[1], layer_idx],
-                            [v1[0], v1[1], layer_idx],
-                        ]
-                    )
+                tri_pts = np.array(
+                    [
+                        [v1[0], v1[1], layer_idx],
+                        [v2[0], v2[1], layer_idx],
+                        [v3[0], v3[1], layer_idx],
+                        [v1[0], v1[1], layer_idx],
+                    ]
                 )
-
-                # Add color for the triangle to the color list
-                if layers_cmap is not None:
-                    triangles_cmap.append(layers_cmap[layer_idx % n_cmap])
-
-    # Plot triangles
-    triangles_3d_list = np.array(triangles_3d_list)
-    if layers_cmap is None:
-        triangles_cmap = "cyan"
-    ax.add_collection3d(
-        Poly3DCollection(
-            triangles_3d_list,
-            facecolors=triangles_cmap,
-            edgecolors="black",
-            alpha=0.7,
-        )
-    )
+                color = layers_cmap[layer_idx % n_cmap]
+                tri_artist = Poly3DCollection(
+                    [tri_pts],
+                    facecolors=color,
+                    edgecolors="black",
+                    alpha=0.7,
+                )
+                ax.add_collection3d(tri_artist)
+                artists.append(tri_artist)
+                artists_points.append(tri_pts.mean(axis=0))
 
     # Add connections between layers (optional, alternative to multi_layer_triangles)
     if connect_layers:
@@ -727,6 +752,15 @@ def plot_3d(
                 alpha=0.4,
             )
         )
+
+    # Set zorder for all artists to plot with correct depth
+    artists_points = np.array(artists_points)
+    _, _, depths = proj3d.proj_transform(
+        artists_points[:, 0], artists_points[:, 1], artists_points[:, 2], ax.get_proj()
+    )
+    order = np.flip(np.argsort(depths))
+    for rank, idx in enumerate(order):
+        artists[idx].set_zorder(rank)
 
     # Add title and labels
     ax.set_title("")
