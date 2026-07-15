@@ -474,6 +474,7 @@ def plot_3d(
                 raise TypeError(
                     f"Expected list or None for pov, got {type(value)} instead."
                 )
+            pov = value
         elif key == "figsize":
             if not isinstance(value, (np.ndarray, list)):
                 raise TypeError(
@@ -550,7 +551,7 @@ def plot_3d(
         for obs in env.obstacle_vertices:
             n = len(obs)
             bottom = np.column_stack([obs, np.full(n, 0)])
-            top = np.column_stack([obs, np.full(n, layer_idx)])
+            top = np.column_stack([obs, np.full(n, n_sign)])
             faces = [bottom, top]
             for i in range(n):
                 j = (i + 1) % n
@@ -564,20 +565,21 @@ def plot_3d(
             )
             artists.append(obs_faces)
             artists_points.append(
-                np.array([obs[:, 0].mean(), obs[:, 1].mean(), 0.5 * (0 + layer_idx)])
+                np.array([obs[:, 0].mean(), obs[:, 1].mean(), 0.5 * (0 + n_sign)])
             )
             ax.add_collection3d(obs_faces)
 
-    # Plot triangles in layer
-    layer_list = np.array(layer_list)
-    ax.add_collection3d(
-        Poly3DCollection(
-            layer_list,
-            facecolors="lightgrey",
-            edgecolors="black",
-            alpha=0.0,
+    # Plot layer bounding boxes
+    if show_layer_area is True:
+        layer_list = np.array(layer_list)
+        ax.add_collection3d(
+            Poly3DCollection(
+                layer_list,
+                facecolors="lightgrey",
+                edgecolors="black",
+                alpha=0.0,
+            )
         )
-    )
 
     # PLOT LIFTED TRIANGULATION
     # Plot each layer of the lifted triangulation

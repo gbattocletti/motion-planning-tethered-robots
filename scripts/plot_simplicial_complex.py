@@ -28,19 +28,19 @@ os.chdir(dir_name)
 settings = Settings(create_sim_folder=False)
 settings.env_name = f"{env_name}.yaml"
 env = env_2d.Env2D(settings)
-# fig, _ = plot.plot_env(
-#     env,
-#     show_tether=False,
-#     show_robot=False,
-#     show_anchor=True,
-#     show_goal=False,
-#     show_legend=False,
-#     show_generators=True,
-#     show_generators_labels=True,
-#     show_obstacles_labels=True,
-#     figsize=[15, 15],
-# )
-# fig.savefig(f"results/{env_name}.png", dpi=900, format="png", bbox_inches="tight")
+fig, _ = plot.plot_env(
+    env,
+    show_tether=False,
+    show_robot=False,
+    show_anchor=True,
+    show_goal=False,
+    show_legend=False,
+    show_generators=True,
+    show_generators_labels=True,
+    show_obstacles_labels=True,
+    figsize=[15, 15],
+)
+fig.savefig(f"results/{env_name}.png", dpi=900, format="png", bbox_inches="tight")
 
 # Generate triangulation
 triang = Triangulation(env)
@@ -87,19 +87,19 @@ fig, ax = plot_triangulation.plot_3d(
     multi_layer_triangles=True,
     custom_sign_order=order,
     layers_colormap=cmap,
-    # show_layer_area=False,
+    show_layer_area=False,
     show_obstacles=True,
     pov=[25, -70, 0],
     figsize=[7.5, 6.5],
 )
 ax.set_proj_type("ortho")
 ax.set_box_aspect((1, 1, 0.7))
-# ax.set_xlabel("")
-# ax.set_ylabel("")
-# ax.set_zlabel("")
-# ax.set_xticklabels([])
-# ax.set_yticklabels([])
-# ax.set_zticklabels([])
+ax.set_xlabel("")
+ax.set_ylabel("")
+ax.set_zlabel("")
+ax.set_xticklabels([])
+ax.set_yticklabels([])
+ax.set_zticklabels([])
 
 # Save + show plot
 fig.savefig("results/env2-simplicial-complex.png", dpi=900, format="png")
