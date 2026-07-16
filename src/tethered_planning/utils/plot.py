@@ -451,13 +451,13 @@ def plot_env(env: Env2D, **kwargs) -> tuple[plt.Figure, plt.Axes]:
             label="Anchor",
             linestyle="None",
         )
-        ax.text(
-            env.anchor_point[0] + 0.3,
-            env.anchor_point[1] - 0.3,
-            r"$x_\mathrm{a}$",  # latex mathmode
-            fontsize=8,
-            zorder=10,
-        )
+        # ax.text(
+        #     env.anchor_point[0] + 0.3,
+        #     env.anchor_point[1] - 0.3,
+        #     r"$x_\mathrm{a}$",  # latex mathmode
+        #     fontsize=8,
+        #     zorder=10,
+        # )
 
     # Plot robot
     if show_robot:
@@ -474,13 +474,13 @@ def plot_env(env: Env2D, **kwargs) -> tuple[plt.Figure, plt.Axes]:
             label="Robot",
             linestyle="None",
         )
-        ax.text(
-            env.robot_initial_pos[0] - 0.6,
-            env.robot_initial_pos[1] - 0.6,
-            r"$x_\mathrm{r}$",  # latex mathmode
-            fontsize=8,
-            zorder=10,
-        )
+        # ax.text(
+        #     env.robot_initial_pos[0] - 0.6,
+        #     env.robot_initial_pos[1] - 0.6,
+        #     r"$x_\mathrm{r}$",  # latex mathmode
+        #     fontsize=8,
+        #     zorder=10,
+        # )
 
     # Plot tether configuration
     if show_tether:
@@ -498,13 +498,13 @@ def plot_env(env: Env2D, **kwargs) -> tuple[plt.Figure, plt.Axes]:
             [], [], color=PlotColors.tether_color, lw=1.5, label="Tether"
         )
 
-        ax.text(
-            tether.coords[7][0] + 0.1,  # env-1: 0.1
-            tether.coords[7][1] - 0.4,  # env-1: 0.1
-            r"$\gamma$",
-            fontsize=8,
-            zorder=10,
-        )
+        # ax.text(
+        #     tether.coords[7][0] + 0.1,  # env-1: 0.1
+        #     tether.coords[7][1] - 0.4,  # env-1: 0.1
+        #     r"$\gamma$",
+        #     fontsize=8,
+        #     zorder=10,
+        # )
 
     # Plot points
     if points:
