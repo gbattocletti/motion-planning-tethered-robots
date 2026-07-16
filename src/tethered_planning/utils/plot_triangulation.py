@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+import plotly.graph_objects as go
 from mpl_toolkits.mplot3d import proj3d
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from shapely.plotting import plot_polygon
@@ -524,7 +525,7 @@ def plot_3d(
     # Set limits and aspect
     ax.set_xlim(0, env.size[0])
     ax.set_ylim(0, env.size[1])
-    ax.set_zlim(0, n_sign)
+    ax.set_zlim(0, n_sign - 1)
     ax.set_box_aspect([1, 1, 1.7])  # ax.set_aspect("equalxy")
     ax.view_init(elev=pov[0], azim=pov[1], roll=pov[2])
 
@@ -551,7 +552,7 @@ def plot_3d(
         for obs in env.obstacle_vertices:
             n = len(obs)
             bottom = np.column_stack([obs, np.full(n, 0)])
-            top = np.column_stack([obs, np.full(n, n_sign)])
+            top = np.column_stack([obs, np.full(n, n_sign - 1)])
             faces = [bottom, top]
             for i in range(n):
                 j = (i + 1) % n
@@ -808,3 +809,384 @@ def plot_3d(
     ax.set_position([0.08, 0.04, 1, 1])  # left, bottom, width, height
 
     return fig, ax
+
+
+def plot_3d_plotly(
+    triangulation: Triangulation,
+    env: Env2D,
+    **kwargs,
+) -> go.Figure:
+    """
+    Plot the lifted triangulation in 3D with plotly to ensure better rendering of the
+    simplicial complex, since plotly natively manages depth rendering. Some options that
+    are available in the matplotlib version of this function are currently disabled for
+    ease of development.
+
+    Args:
+        triangulation (Triangulation): Triangulation object to plot
+        env (Env2D): Env object to plot
+
+    Kwargs:
+        custom_sign_order (list[list[int]] | None, optional): custom order in which to
+            plot the layers corresponding to the different signatures. This argument
+            allows for custom tailoring of the signature order and is intended to be
+            used only for plotting specific examples with improved visualization.
+        layers_colormap (list[str] | None, optional): colormap to use for the layers
+            corresponding to the different signatures. The length must match the number
+            of unique signatures in the triangulation, or be one single color to be
+            used for all layers. If None (default) a default colormap will be used.
+        show_layer_area (bool, optional): wether to show the black rectangle bounding
+            each signature layer.
+        show_obstacles (bool, optional): show obstacles extruded in 3D.
+        pov (list[float] | None, optional): point of view for the 3D plot expressed as
+            a list of 3 angles [elevation, azimuth, roll]. Angles are expressed in deg.
+            If None (default) a default point of view will be used.
+
+    Note:
+        connect_layers: set to False
+        multi_layer_triangles: set to True
+        fig_size: unused
+
+    Returns:
+        tuple[plt.Figure, plt.Axes]: Figure and Axes objects
+
+    Raises:
+        TypeError: If any of the kwargs are not of the expected type.
+        ValueError: If any of the kwargs are not recognized or not consistent.
+    """
+    # Default kwarg values
+    custom_sign_order: list[list[int]] | None = None  # custom order for signatures
+    layers_cmap: list[str] | None = None  # colormap for the layers
+    show_layer_area: bool = True
+    show_obstacles: bool = False
+    pov: list[float] | None = None  # point of view for the 3D plot
+
+    # Parse Kwargs
+    for key, value in kwargs.items():
+        if key == "connect_layers":
+            print("Warning: conenct_layers cannot currently be changed.")
+        elif key == "multi_layer_triangles":
+            print("Warning: multi_layer_triangles cannot currently be changed.")
+        elif key == "custom_sign_order":
+            if not isinstance(value, (list, type(None))):
+                raise TypeError(
+                    "Expected list or None for custom_sign_order, "
+                    f"got {type(value)} instead."
+                )
+            custom_sign_order = value
+        elif key == "layers_colormap":
+            if not isinstance(value, (list, type(None))):
+                raise TypeError(
+                    "Expected list or None for layers_colormap, "
+                    f"got {type(value)} instead."
+                )
+            layers_cmap = value
+        elif key == "show_layer_area":
+            if not isinstance(value, bool):
+                raise ValueError(
+                    f"Expected bool for show_layer_area, got {type(value)} instead."
+                )
+            show_layer_area = value
+        elif key == "show_obstacles":
+            if not isinstance(value, bool):
+                raise ValueError(
+                    f"Expected bool for show_obstacles, got {type(value)} instead."
+                )
+            show_obstacles = value
+        elif key == "pov":
+            if not isinstance(value, (list, type(None))):
+                raise TypeError(
+                    f"Expected list or None for pov, got {type(value)} instead."
+                )
+            pov = value
+        elif key == "figsize":
+            print("Figsize cannot be changed in plotly")
+        else:
+            raise ValueError(f"Unknown kwarg: {key}")
+
+    ### PREPROCESSING ###
+    # Find all unique signatures
+    unique_sign_list = get_unique_signatures(triangulation, order=custom_sign_order)
+    n_sign = len(unique_sign_list)  # number of unique signatures
+
+    # Validate layers cmap
+    # CHECKME: does this only work if n_sign <= 10?
+    if layers_cmap is None:
+        layers_cmap = PlotColors.layers_cmap[0:n_sign]
+    n_cmap: int = len(layers_cmap)
+
+    # Initialize collection of artists
+    artists = []
+
+    # Plot layers and label them by h signature
+    if show_layer_area is True:
+        for layer_idx in range(n_sign):
+
+            # Define the rectangle of the layer
+            padding: float = 0  # extend layer beyond env limits for better plotting
+            layer = np.array(
+                [
+                    [0 - padding, 0 - padding, layer_idx],
+                    [env.size[0] + padding, 0 - padding, layer_idx],
+                    [env.size[0] + padding, env.size[1] + padding, layer_idx],
+                    [0 - padding, env.size[1] + padding, layer_idx],
+                    [0 - padding, 0 - padding, layer_idx],  # repeat to close rectangle
+                ]
+            )
+            artists.append(
+                go.Mesh3d(
+                    x=layer[:, 0],
+                    y=layer[:, 1],
+                    z=layer[:, 2],
+                    i=[0, 0],
+                    j=[1, 2],
+                    k=[2, 3],
+                    color="lightgray",
+                    opacity=0.2,
+                    flatshading=True,
+                )
+            )
+            loop = np.vstack([layer, layer[0]])  # close back to first vertex
+            artists.append(
+                go.Scatter3d(
+                    x=loop[:, 0],
+                    y=loop[:, 1],
+                    z=loop[:, 2],
+                    mode="lines",
+                    line=dict(color="black", width=2),
+                    showlegend=False,
+                )
+            )
+
+    # Plot obstacles
+    if show_obstacles is True:
+        for obs in env.obstacle_vertices:
+            n = len(obs)
+
+            # Add faces of obstacles
+            x_obs = np.concatenate([obs[:, 0], obs[:, 0]])
+            y_obs = np.concatenate([obs[:, 1], obs[:, 1]])
+            z_obs = np.concatenate([np.full(n, 0), np.full(n, n_sign - 1)])
+            i, j, k = [], [], []
+            for t in range(1, n - 1):  # bottom cap
+                i += [0]
+                j += [t]
+                k += [t + 1]
+            for t in range(1, n - 1):  # top cap
+                i += [n]
+                j += [n + t]
+                k += [n + t + 1]
+            for a in range(n):  # side walls
+                b = (a + 1) % n
+                i += [a, a]
+                j += [b, n + b]
+                k += [n + b, n + a]
+            artists.append(
+                go.Mesh3d(
+                    x=x_obs,
+                    y=y_obs,
+                    z=z_obs,
+                    i=i,
+                    j=j,
+                    k=k,
+                    color="gray",
+                    opacity=0.6,
+                    flatshading=True,
+                )
+            )
+
+            # Add edges of obstacles
+            x_edge, y_edge, z_edge = [], [], []
+            for a in list(range(n)) + [0]:  # bottom loop
+                x_edge.append(obs[a, 0])
+                y_edge.append(obs[a, 1])
+                z_edge.append(0)
+            x_edge.append(None)
+            y_edge.append(None)
+            z_edge.append(None)
+            for a in list(range(n)) + [0]:  # top loop
+                x_edge.append(obs[a, 0])
+                y_edge.append(obs[a, 1])
+                z_edge.append(n_sign - 1)
+            x_edge.append(None)
+            y_edge.append(None)
+            z_edge.append(None)
+            for a in range(n):  # verticals
+                x_edge += [obs[a, 0], obs[a, 0], None]
+                y_edge += [obs[a, 1], obs[a, 1], None]
+                z_edge += [0, n_sign - 1, None]
+            artists.append(
+                go.Scatter3d(
+                    x=x_edge,
+                    y=y_edge,
+                    z=z_edge,
+                    mode="lines",
+                    line=dict(color="black", width=2),
+                    showlegend=False,
+                )
+            )
+
+    # Plot each layer of the lifted triangulation
+    for layer_idx, sign in enumerate(unique_sign_list):
+
+        # Select triangles with the same signature and plot them on the same level
+        triangle_idx_list: list[int] = [
+            tri[0] for tri in triangulation.vertices_dual_lift if tri[1] == sign
+        ]
+
+        # Define triangle and add it to list
+        for triangle_idx in triangle_idx_list:
+
+            # get indexes to triangle vertices (coords are in triangulation.vertices)
+            vertices_idx: np.ndarray = triangulation.triangles[triangle_idx]
+            vertices_idx = vertices_idx.astype(int)  # ensure right data type
+            v1: np.ndarray = triangulation.vertices[vertices_idx[0], :]
+            v2: np.ndarray = triangulation.vertices[vertices_idx[1], :]
+            v3: np.ndarray = triangulation.vertices[vertices_idx[2], :]
+
+            # Build triangle by collecting [x, y, z] coordinates and add to list.
+            # Find signature index for each vertex separately. The signature of a
+            # vertex is defined as the signature of the centroid (signature of the
+            # triangle) plus the signature of the path from the centroid to the
+            # vertex. The signature is simplified and then the corresponding index
+            # from the unique_sign_list is found. This allows for triangles that
+            # span multiple layers.
+            sign_1 = curves_fcns.simplify_signature(
+                sign
+                + curves_fcns.compute_signature(
+                    np.array([triangulation.vertices_dual[triangle_idx], v1]),
+                    env,
+                    simplify=False,
+                )
+            )
+            sign_2 = curves_fcns.simplify_signature(
+                sign
+                + curves_fcns.compute_signature(
+                    np.array([triangulation.vertices_dual[triangle_idx], v2]),
+                    env,
+                    simplify=False,
+                )
+            )
+            sign_3 = curves_fcns.simplify_signature(
+                sign
+                + curves_fcns.compute_signature(
+                    np.array([triangulation.vertices_dual[triangle_idx], v3]),
+                    env,
+                    simplify=False,
+                )
+            )
+            # Find layer index for each vertex
+            # If sign_i is not found (i.e., layer with that signature does not
+            # exist), default to the layer where the triangle centroid lies
+            try:
+                layer_idx_1: int = unique_sign_list.index(list(sign_1))
+            except ValueError:
+                layer_idx_1: int = unique_sign_list.index(list(sign))
+            try:
+                layer_idx_2: int = unique_sign_list.index(list(sign_2))
+            except ValueError:
+                layer_idx_2: int = unique_sign_list.index(list(sign))
+            try:
+                layer_idx_3: int = unique_sign_list.index(list(sign_3))
+            except ValueError:
+                layer_idx_3: int = unique_sign_list.index(list(sign))
+
+            # Select for the triangle to the color list. If multiple indexes are
+            # present (i.e., triangle spans multiple layers) the color of the
+            # triangle is obtained by mixing the colors corresponding to the layers
+            layer_idx = np.unique(np.array([layer_idx_1, layer_idx_2, layer_idx_3]))
+            c1 = layers_cmap[layer_idx[0] % n_cmap]
+            c2 = layers_cmap[layer_idx[-1] % n_cmap]
+            color = colors.combine_colors(c1, c2)
+
+            # Add triangle face
+            tri_pts = np.array(
+                [
+                    [v1[0], v1[1], layer_idx_1],  # signature index for z coordinate
+                    [v2[0], v2[1], layer_idx_2],
+                    [v3[0], v3[1], layer_idx_3],
+                    [v1[0], v1[1], layer_idx_1],
+                ]
+            )
+            artists.append(
+                go.Mesh3d(
+                    x=tri_pts[:, 0],
+                    y=tri_pts[:, 1],
+                    z=tri_pts[:, 2],
+                    i=[0],
+                    j=[1],
+                    k=[2],
+                    color=color,
+                    flatshading=True,
+                )
+            )
+
+            # Add triangle edges
+            loop = np.vstack([tri_pts, tri_pts[0]])
+            artists.append(
+                go.Scatter3d(
+                    x=loop[:, 0],
+                    y=loop[:, 1],
+                    z=loop[:, 2],
+                    mode="lines",
+                    line=dict(color="black", width=2),
+                    showlegend=False,
+                )
+            )
+
+    # Convert pov to eye
+    if pov is None:
+        pov = [15, 35, 2]  # default value
+    e = np.radians(pov[0])
+    a = np.radians(pov[1])
+    r = pov[2]
+
+    # Generate figure
+    fig = go.Figure(data=artists)
+    fig.update_layout(
+        scene=dict(
+            aspectmode="manual",
+            aspectratio=dict(x=1, y=1, z=0.65),
+            xaxis=dict(
+                range=[0, 10],
+                title="",
+                showticklabels=False,
+                ticks="",
+                showbackground=True,
+                backgroundcolor="white",
+                gridcolor="lightgrey",
+                zeroline=True,
+            ),
+            yaxis=dict(
+                range=[0, 10],
+                title="",
+                showticklabels=False,
+                ticks="",
+                showbackground=True,
+                backgroundcolor="white",
+                gridcolor="lightgrey",
+                zeroline=True,
+            ),
+            zaxis=dict(
+                range=[0, n_sign - 1],
+                title="",
+                showticklabels=False,
+                ticks="",
+                showbackground=True,
+                backgroundcolor="white",
+                gridcolor="lightgrey",
+                zeroline=True,
+            ),
+            camera=dict(
+                eye=dict(
+                    x=r * np.cos(e) * np.cos(a),
+                    y=r * np.cos(e) * np.sin(a),
+                    z=r * np.sin(e),
+                ),
+                projection=dict(type="orthographic"),
+            ),
+        ),
+        margin=dict(l=0, r=0, t=0, b=0),
+        showlegend=False,
+    )
+    return fig

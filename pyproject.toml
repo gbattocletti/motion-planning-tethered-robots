@@ -22,6 +22,8 @@ dependencies = [
     "openpyxl",
     "PyYAML",
     "typing-extensions",
+    "plotly",
+    "kaleido>=1.3.0",
 ]
 
 [project.optional-dependencies]

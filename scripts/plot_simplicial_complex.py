@@ -18,6 +18,7 @@ from tethered_planning.utils.colors import CustomColors
 from tethered_planning.utils.settings import Settings
 
 env_name = "env_3"  # set to None to open file dialog and select manually
+show_figures = False
 
 # Move to script directory
 abspath = os.path.abspath(__file__)
@@ -72,10 +73,10 @@ order = [
     [-3, -2],
     [-3],
     [-1],
+    [-1, -2],
     [-1, 4],
     # [-1, 4, -1],
     [-1, 2],
-    [-1, -2],
 ]
 cmap = CustomColors.layers_cmap[::-1] + CustomColors.layers_cmap
 
@@ -101,7 +102,24 @@ ax.set_xticklabels([])
 ax.set_yticklabels([])
 ax.set_zticklabels([])
 
+fig_plotly = plot_triangulation.plot_3d_plotly(
+    triang,
+    env,
+    custom_sign_order=order,
+    layers_colormap=cmap,
+    show_obstacles=True,
+    show_layer_area=False,
+    pov=[20, -55, 2],
+)
 # Save + show plot
-fig.savefig("results/env2-simplicial-complex.png", dpi=900, format="png")
-fig.savefig("results/env2-simplicial-complex.svg")
-plt.show()
+fig.savefig("results/env-3-sc.png", dpi=900, format="png")
+fig.savefig("results/env-3-sc.svg")
+fig_plotly.write_image(
+    "results/env-3-sc-plotly.png",
+    width=600,
+    height=600,
+    scale=2,
+)
+if show_figures is True:
+    plt.show()
+    fig_plotly.show()
