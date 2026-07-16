@@ -122,7 +122,7 @@ class CustomColors:
         "#BCD857",
         "#11B92D",
         "#3CFF4C",
-        "#80FA8A",
+        # "#80FA8A",
     ]
 
 

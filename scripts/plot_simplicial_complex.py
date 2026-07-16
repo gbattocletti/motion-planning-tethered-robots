@@ -17,7 +17,7 @@ from tethered_planning.utils import plot, plot_triangulation
 from tethered_planning.utils.colors import CustomColors
 from tethered_planning.utils.settings import Settings
 
-env_name = "env_3"  # set to None to open file dialog and select manually
+env_name = "env_3b"  # set to None to open file dialog and select manually
 show_figures = False
 
 # Move to script directory
@@ -46,7 +46,7 @@ fig.savefig(f"results/{env_name}.png", dpi=900, format="png", bbox_inches="tight
 # Generate triangulation
 triang = Triangulation(env)
 triang.triangulate()
-triang.set_max_dist(10.0)
+triang.set_max_dist(11.0)  # NOTE: use 10 for env_3, 11 for env_3b
 triang.set_max_triangles(200)
 triang.lift_triangulation()
 print(
@@ -54,31 +54,49 @@ print(
 )
 
 # Visualization specifications
+cmap = CustomColors.layers_cmap[::-1] + CustomColors.layers_cmap[1:]
 signatures = [list(s) for s in set(tuple(v[1]) for v in triang.vertices_dual_lift)]
 print(f"Signatures (#{len(signatures)}): {signatures}.")
+# order for env_3
+# order = [
+#     [-6, -4],
+#     [-6],
+#     [-4, 1, -4],
+#     [-4, 1],
+#     [-4, -2],
+#     [-4],
+#     [-4, 2],
+#     # [-4, 2, 4],
+#     # [-5],
+#     # [1],
+#     [],
+#     [5],
+#     [6],
+#     [-3, -2],
+#     [-3],
+#     [-1],
+#     [-1, -2],
+#     [-1, 4],
+#     # [-1, 4, -1],
+#     [-1, 2],
+# ]
+
+# order for env_3b
 order = [
-    [-6, -4],
-    [-6],
-    [-4, 1, -4],
-    [-4, 1],
-    [-4, -2],
-    [-4],
-    [-4, 2],
-    # [-4, 2, 4],
-    # [-5],
-    # [1],
+    [2, 3, -2],
+    [2, 3, 3],
+    [2, 3],
+    [2, 2],
+    [2, -3, -2],
+    [2, -3],
+    [2],
     [],
-    [5],
-    [6],
-    [-3, -2],
-    [-3],
     [-1],
-    [-1, -2],
-    [-1, 4],
-    # [-1, 4, -1],
-    [-1, 2],
+    [4],
+    [4, 3],
+    [-2],
 ]
-cmap = CustomColors.layers_cmap[::-1] + CustomColors.layers_cmap
+order = order[::-1]
 
 # Generate plot
 fig, ax = plot_triangulation.plot_3d(
@@ -109,16 +127,16 @@ fig_plotly = plot_triangulation.plot_3d_plotly(
     layers_colormap=cmap,
     show_obstacles=True,
     show_layer_area=False,
-    pov=[20, -55, 2],
+    pov=[25, -85, 2],
 )
 # Save + show plot
-fig.savefig("results/env-3-sc.png", dpi=900, format="png")
-fig.savefig("results/env-3-sc.svg")
+fig.savefig(f"results/{env_name}-sc.png", dpi=900, format="png")
+fig.savefig(f"results/{env_name}-sc.svg")
 fig_plotly.write_image(
-    "results/env-3-sc-plotly.png",
-    width=600,
-    height=600,
-    scale=2,
+    f"results/{env_name}-sc-plotly.png",
+    width=300,
+    height=300,
+    scale=4,
 )
 if show_figures is True:
     plt.show()
