@@ -71,6 +71,7 @@ def plot_env(env: Env2D, **kwargs) -> tuple[plt.Figure, plt.Axes]:
         show_generators (bool, **kwargs): flag to display the generators
         show_generators_labels (bool, **kwargs): add labels to the generators
         points (list[Point | np.ndarray], **kwargs): list of points to plot
+        show_robot_anchor_labels (bool, **kwargs): add label to robot anchor and goal
         show_points_labels (bool, **kwargs): add labels to the points
         curves (list[LineString | np.ndarray], **kwargs): list of curves to plot
         show_curves_nodes (bool, **kwargs): flag to display the nodes of the curves
@@ -100,6 +101,7 @@ def plot_env(env: Env2D, **kwargs) -> tuple[plt.Figure, plt.Axes]:
     tether: LineString | np.ndarray | None = None  # tether configuration
     show_goal: bool = True  # show the goal region
     show_legend: bool = False  # display the legend
+    show_robot_anchor_labels: bool = True  # display labels for robot anchor and goal
     show_obstacles_labels: bool = True  # label the obstacles
     show_generators: bool = True  # display the generators
     show_generators_labels: bool = True  # label the generators
@@ -152,6 +154,13 @@ def plot_env(env: Env2D, **kwargs) -> tuple[plt.Figure, plt.Axes]:
                     f"Expected bool for show_goal, got {type(value)} instead."
                 )
             show_goal = value
+        elif key == "show_robot_anchor_labels":
+            if not isinstance(value, bool):
+                raise TypeError(
+                    "Expected bool for show_robot_anchor_labels, "
+                    f"got {type(value)} instead."
+                )
+            show_robot_anchor_labels = value
         elif key == "show_legend":
             if not isinstance(value, bool):
                 raise TypeError(
@@ -428,13 +437,14 @@ def plot_env(env: Env2D, **kwargs) -> tuple[plt.Figure, plt.Axes]:
                 zorder=2,
             )
         goal_handle = Patch(color=PlotColors.goal_color, label="Goal")
-        ax.text(
-            env.goal_region.centroid.x,
-            env.goal_region.centroid.y,
-            r"$\mathcal{X}_\mathrm{goal}$",  # latex mathmode
-            fontsize=8,
-            zorder=10,
-        )
+        if show_robot_anchor_labels is True:
+            ax.text(
+                env.goal_region.centroid.x,
+                env.goal_region.centroid.y,
+                r"$\mathcal{X}_\mathrm{goal}$",  # latex mathmode
+                fontsize=8,
+                zorder=10,
+            )
 
     # Plot anchor point
     if show_anchor:
@@ -451,13 +461,14 @@ def plot_env(env: Env2D, **kwargs) -> tuple[plt.Figure, plt.Axes]:
             label="Anchor",
             linestyle="None",
         )
-        # ax.text(
-        #     env.anchor_point[0] + 0.3,
-        #     env.anchor_point[1] - 0.3,
-        #     r"$x_\mathrm{a}$",  # latex mathmode
-        #     fontsize=8,
-        #     zorder=10,
-        # )
+        if show_robot_anchor_labels is True:
+            ax.text(
+                env.anchor_point[0] + 0.3,
+                env.anchor_point[1] - 0.3,
+                r"$x_\mathrm{a}$",  # latex mathmode
+                fontsize=8,
+                zorder=10,
+            )
 
     # Plot robot
     if show_robot:
@@ -474,13 +485,14 @@ def plot_env(env: Env2D, **kwargs) -> tuple[plt.Figure, plt.Axes]:
             label="Robot",
             linestyle="None",
         )
-        # ax.text(
-        #     env.robot_initial_pos[0] - 0.6,
-        #     env.robot_initial_pos[1] - 0.6,
-        #     r"$x_\mathrm{r}$",  # latex mathmode
-        #     fontsize=8,
-        #     zorder=10,
-        # )
+        if show_robot_anchor_labels is True:
+            ax.text(
+                env.robot_initial_pos[0] - 0.6,
+                env.robot_initial_pos[1] - 0.6,
+                r"$x_\mathrm{r}$",  # latex mathmode
+                fontsize=8,
+                zorder=10,
+            )
 
     # Plot tether configuration
     if show_tether:
@@ -497,14 +509,14 @@ def plot_env(env: Env2D, **kwargs) -> tuple[plt.Figure, plt.Axes]:
         tether_handle = Line2D(
             [], [], color=PlotColors.tether_color, lw=1.5, label="Tether"
         )
-
-        # ax.text(
-        #     tether.coords[7][0] + 0.1,  # env-1: 0.1
-        #     tether.coords[7][1] - 0.4,  # env-1: 0.1
-        #     r"$\gamma$",
-        #     fontsize=8,
-        #     zorder=10,
-        # )
+        if show_robot_anchor_labels is True:
+            ax.text(
+                tether.coords[7][0] + 0.1,  # env-1: 0.1
+                tether.coords[7][1] - 0.4,  # env-1: 0.1
+                r"$\gamma$",
+                fontsize=8,
+                zorder=10,
+            )
 
     # Plot points
     if points:
