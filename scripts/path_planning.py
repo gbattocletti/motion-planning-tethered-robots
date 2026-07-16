@@ -43,6 +43,7 @@ env_name = "env_4"
 length_max = 15
 
 # Select experiments
+experiments: list[list[str]] = []
 if env_name == "env_4" and length_max == 10:
     experiments = [
         ["results/entanglement_free_model/comparison-25.pkl", "convex_hull"],
