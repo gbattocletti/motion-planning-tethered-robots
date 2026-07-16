@@ -1,5 +1,5 @@
 """
-Generates the following plots
+Generates the following plots for env_3b (note: script is tailored to this env)
 - plot of the 2D environment including the anchor point but not the robot;
 - the plot of the environment triangulation, including both primal and dual graphs;
 - the plot of the homotopy-augmented graph.
@@ -46,42 +46,18 @@ fig.savefig(f"results/{env_name}.png", dpi=900, format="png", bbox_inches="tight
 # Generate triangulation
 triang = Triangulation(env)
 triang.triangulate()
-triang.set_max_dist(11.0)  # NOTE: use 10 for env_3, 11 for env_3b
+triang.set_max_dist(11.0)
 triang.set_max_triangles(200)
-triang.lift_triangulation()
-print(
-    f"Triangulation completed with {len(triang.entanglement_triangles_lift)} triangles."
-)
+triang.set_entanglement_definition("convex_hull")
+triang.lift_triangulation(check_entanglement=True)
+triang.entanglement_triangles_lift[21] = False  # HACK bugfix triangulation
 
 # Visualization specifications
 cmap = CustomColors.layers_cmap[::-1] + CustomColors.layers_cmap[1:]
 signatures = [list(s) for s in set(tuple(v[1]) for v in triang.vertices_dual_lift)]
 print(f"Signatures (#{len(signatures)}): {signatures}.")
-# order for env_3
-# order = [
-#     [-6, -4],
-#     [-6],
-#     [-4, 1, -4],
-#     [-4, 1],
-#     [-4, -2],
-#     [-4],
-#     [-4, 2],
-#     # [-4, 2, 4],
-#     # [-5],
-#     # [1],
-#     [],
-#     [5],
-#     [6],
-#     [-3, -2],
-#     [-3],
-#     [-1],
-#     [-1, -2],
-#     [-1, 4],
-#     # [-1, 4, -1],
-#     [-1, 2],
-# ]
 
-# order for env_3b
+# Custom signatures order for plotting simplicial complex model of env_3b
 order = [
     [2, 3, -2],
     [2, 3, 3],
@@ -96,9 +72,10 @@ order = [
     [4, 3],
     [-2],
 ]
-order = order[::-1]
+order = order[::-1]  # flip list (cosmetic only)
 
-# Generate plot
+# Generate plots
+# Matplotlib plot -- used only to select the ordering of the signature layers
 fig, ax = plot_triangulation.plot_3d(
     triang,
     env,
@@ -107,7 +84,7 @@ fig, ax = plot_triangulation.plot_3d(
     custom_sign_order=order,
     layers_colormap=cmap,
     show_layer_area=False,
-    show_obstacles=True,
+    show_obstacles=False,
     pov=[25, -70, 0],
     figsize=[7.5, 6.5],
 )
@@ -120,7 +97,8 @@ ax.set_xticklabels([])
 ax.set_yticklabels([])
 ax.set_zticklabels([])
 
-fig_plotly = plot_triangulation.plot_3d_plotly(
+# Pyplot plot - length-reachable simplicial complex R
+fig_R = plot_triangulation.plot_3d_plotly(
     triang,
     env,
     custom_sign_order=order,
@@ -129,15 +107,35 @@ fig_plotly = plot_triangulation.plot_3d_plotly(
     show_layer_area=False,
     pov=[25, -85, 2],
 )
-# Save + show plot
-fig.savefig(f"results/{env_name}-sc.png", dpi=900, format="png")
-fig.savefig(f"results/{env_name}-sc.svg")
-fig_plotly.write_image(
-    f"results/{env_name}-sc-plotly.png",
+
+# Pyplot plot - entanglement-free simplicial complex N
+fig_N = plot_triangulation.plot_3d_plotly(
+    triang,
+    env,
+    custom_sign_order=order,
+    layers_colormap=cmap,
+    show_obstacles=True,
+    show_layer_area=False,
+    plot_entanglement_free_simplices=True,
+    pov=[25, -85, 2],
+)
+
+# Save plots
+fig_R.write_image(
+    f"results/{env_name}-sc-R.png",
     width=300,
     height=300,
     scale=4,
 )
+fig_N.write_image(
+    f"results/{env_name}-sc-N.png",
+    width=300,
+    height=300,
+    scale=4,
+)
+
+# Show plots
 if show_figures is True:
     plt.show()
-    fig_plotly.show()
+    fig_R.show()
+    fig_N.show()

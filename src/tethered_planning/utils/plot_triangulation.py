@@ -838,6 +838,8 @@ def plot_3d_plotly(
         show_layer_area (bool, optional): wether to show the black rectangle bounding
             each signature layer.
         show_obstacles (bool, optional): show obstacles extruded in 3D.
+        plot_entanglement_free_simplices (bool, optional): plot only simplices that are
+            entanglement free.
         pov (list[float] | None, optional): point of view for the 3D plot expressed as
             a list of 3 angles [elevation, azimuth, roll]. Angles are expressed in deg.
             If None (default) a default point of view will be used.
@@ -848,7 +850,7 @@ def plot_3d_plotly(
         fig_size: unused
 
     Returns:
-        tuple[plt.Figure, plt.Axes]: Figure and Axes objects
+        go.Figure: Figure and Axes objects
 
     Raises:
         TypeError: If any of the kwargs are not of the expected type.
@@ -859,6 +861,7 @@ def plot_3d_plotly(
     layers_cmap: list[str] | None = None  # colormap for the layers
     show_layer_area: bool = True
     show_obstacles: bool = False
+    plot_entanglement_free_simplices: bool = False
     pov: list[float] | None = None  # point of view for the 3D plot
 
     # Parse Kwargs
@@ -887,6 +890,13 @@ def plot_3d_plotly(
                     f"Expected bool for show_layer_area, got {type(value)} instead."
                 )
             show_layer_area = value
+        elif key == "plot_entanglement_free_simplices":
+            if not isinstance(value, bool):
+                raise ValueError(
+                    "Expected bool for plot_entanglement_free_simplices, "
+                    f"got {type(value)} instead."
+                )
+            plot_entanglement_free_simplices = value
         elif key == "show_obstacles":
             if not isinstance(value, bool):
                 raise ValueError(
@@ -904,7 +914,6 @@ def plot_3d_plotly(
         else:
             raise ValueError(f"Unknown kwarg: {key}")
 
-    ### PREPROCESSING ###
     # Find all unique signatures
     unique_sign_list = get_unique_signatures(triangulation, order=custom_sign_order)
     n_sign = len(unique_sign_list)  # number of unique signatures
@@ -1030,12 +1039,23 @@ def plot_3d_plotly(
     for layer_idx, sign in enumerate(unique_sign_list):
 
         # Select triangles with the same signature and plot them on the same level
-        triangle_idx_list: list[int] = [
-            tri[0] for tri in triangulation.vertices_dual_lift if tri[1] == sign
+        triangle_idx_list: list[int, int] = [
+            (i, tri[0])
+            for i, tri in enumerate(triangulation.vertices_dual_lift)
+            if tri[1] == sign
         ]
 
         # Define triangle and add it to list
-        for triangle_idx in triangle_idx_list:
+        for triangle_lifted_idx, triangle_idx in triangle_idx_list:
+
+            # Check if triangle is present in entanglement-free simplicial complex. If
+            # not, skip it and move to next index.
+            if (
+                plot_entanglement_free_simplices is True
+                and triangulation.entanglement_triangles_lift[triangle_lifted_idx]
+                is False
+            ):
+                continue
 
             # get indexes to triangle vertices (coords are in triangulation.vertices)
             vertices_idx: np.ndarray = triangulation.triangles[triangle_idx]
