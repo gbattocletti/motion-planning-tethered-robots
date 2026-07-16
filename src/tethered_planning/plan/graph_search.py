@@ -21,7 +21,7 @@ def a_star_search(
     **kwargs,
 ) -> list[int]:
     """
-    Perform A* search on the graph. Also suitable for Dijkstra's algorithm (UCS) if
+    Perform A* seearch on the graph. Also suitable for Dijkstra's algorithm (UCS) if
     use_heuristic is set to False.
 
     Args:
