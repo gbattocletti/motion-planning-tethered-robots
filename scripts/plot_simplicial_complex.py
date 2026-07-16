@@ -125,13 +125,13 @@ fig_R.write_image(
     f"results/{env_name}-sc-R.png",
     width=300,
     height=300,
-    scale=4,
+    scale=10,
 )
 fig_N.write_image(
     f"results/{env_name}-sc-N.png",
     width=300,
     height=300,
-    scale=4,
+    scale=10,
 )
 
 # Show plots
