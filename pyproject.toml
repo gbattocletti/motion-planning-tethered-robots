@@ -23,7 +23,8 @@ dependencies = [
     "PyYAML",
     "typing-extensions",
     "plotly",
-    "kaleido>=1.3.0",
+    "kaleido",
+    "networkx",
 ]
 
 [project.optional-dependencies]
