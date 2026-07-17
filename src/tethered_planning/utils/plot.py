@@ -186,12 +186,6 @@ def plot_env(env: Env2D, **kwargs) -> tuple[plt.Figure, plt.Axes]:
                     "Expected bool for show_generators_labels, "
                     f"got {type(value)} instead."
                 )
-            if show_generators is False:
-                print(
-                    "[PLOT] Warning: show_generators_labels is True but "
-                    "show_generators is False. This is inconsistent and will have no "
-                    "effect."
-                )
             show_generators_labels = value
         elif key == "points":
             if not isinstance(value, list):
