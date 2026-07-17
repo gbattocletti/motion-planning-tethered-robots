@@ -19,13 +19,11 @@ import datetime
 import os
 import pickle
 import time
-from collections import defaultdict  # , deque
+from collections import defaultdict, deque
 from collections.abc import Callable
 
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-from packaging import version
 from shapely import LineString, Point
 
 from tethered_planning.env import env_2d
@@ -34,44 +32,37 @@ from tethered_planning.env.triangulation import Triangulation
 
 # from tethered_planning.plan import graph_search
 from tethered_planning.utils import curves, entanglement, plot
-from tethered_planning.utils.colors import CmdColors
 from tethered_planning.utils.settings import Settings
 
 # Script settings
 SELECT_TETHER_MANUALLY: bool = False
-env_name = "env_4"
-length_max = 15
+env_name = "env_4"  # NOTE: currently only env_4 is supported in this script
+goal = np.array([1.0, 8.3])  # NOTE: change to select different goal
+length_max = 15  # current available options: {10, 12, 15}
 
 # Select experiments
 experiments: list[list[str]] = []
 if env_name == "env_4" and length_max == 10:
     experiments = [
+        ["results/entanglement_free_model/comparison-25.pkl", "none"],
         ["results/entanglement_free_model/comparison-25.pkl", "convex_hull"],
         ["results/entanglement_free_model/comparison-26.pkl", "linear_homotopy"],
         ["results/entanglement_free_model/comparison-27.pkl", "local_visibility"],
     ]
 elif env_name == "env_4" and length_max == 12:
     experiments = [
+        ["results/entanglement_free_model/comparison-28.pkl", "none"],
         ["results/entanglement_free_model/comparison-28.pkl", "convex_hull"],
         ["results/entanglement_free_model/comparison-29.pkl", "linear_homotopy"],
         ["results/entanglement_free_model/comparison-30.pkl", "local_visibility"],
     ]
 elif env_name == "env_4" and length_max == 15:
     experiments = [
+        ["results/entanglement_free_model/comparison-31.pkl", "none"],
         ["results/entanglement_free_model/comparison-31.pkl", "convex_hull"],
         ["results/entanglement_free_model/comparison-32.pkl", "linear_homotopy"],
         ["results/entanglement_free_model/comparison-33.pkl", "local_visibility"],
     ]
-
-# Check matplotlib version
-if version.parse(mpl.__version__) <= version.parse("3.7"):
-    mpl.use("pgf")
-else:
-    print(
-        f"{CmdColors.WARNING}[IO]{CmdColors.ENDC} PGF export is not supported "
-        "in this version of matplotlib. The figure will not be saved."
-    )
-    SAVE_PGF = False
 
 # Move to script directory
 abspath = os.path.abspath(__file__)
@@ -104,7 +95,7 @@ with open("results/path-planning.txt", "w", encoding="utf-8") as f:
 f.close()
 
 # Iterate over experiments and perform path planning
-for idx, [filename, definition] in list(enumerate(experiments)):
+for filename, definition in experiments:
 
     # Load data
     objects: list = []
@@ -115,10 +106,9 @@ for idx, [filename, definition] in list(enumerate(experiments)):
             except EOFError:
                 break
     data: dict = objects[0]
-    if idx == 0:
+    if definition == "none":  # 1st loop
         settings = data["settings"]
         env = data["env"]
-        length: float = env.tether_length
         anchor = env.anchor_point
         if SELECT_TETHER_MANUALLY is True:
             tether = curves.generate_curve(
@@ -142,11 +132,16 @@ for idx, [filename, definition] in list(enumerate(experiments)):
                 ]
             )
         signature = curves.compute_signature(tether, env, simplify=True)
+        length_curve = curves.measure_length(tether)
+        if length_curve > length_max:
+            raise ValueError(f"Tether is too long {length_curve}>{length_max}")
         robot = tether[-1]
-        goal = np.array([1.0, 8.3])  # NOTE: change to select different goal
+
+        # Update env
         env.robot_initial_pos = robot
         env.tether_state = tether
         env.tether_configuration = LineString(tether)
+        env.tether_length = length_max
         env.goal_vertices = goal
 
     # Sanity check: verify that config is not entangled
@@ -157,7 +152,9 @@ for idx, [filename, definition] in list(enumerate(experiments)):
         entanglement_function = entanglement.linear_homotopy
     elif definition == "local_visibility_homotopy":
         entanglement_function = entanglement.local_visibility_homotopy
-    if entanglement_function(tether, env) is not True:
+    if definition == "none":
+        pass  # no need to evaluate the entanglement function
+    elif entanglement_function(tether, env) is not True:
         raise ValueError(
             f"Tether configuration is entangled w.r.t. definiton {definition}"
         )
@@ -172,8 +169,6 @@ for idx, [filename, definition] in list(enumerate(experiments)):
     # NOTE: planning on triang_R is performed only once as the simplicial complex
     # triang_R is the same independently from the entanglement definition, as the
     # definition is ignored when building them.
-    # TODO: perform planning also for definition-free case (only during 1st loop)
-
     # Find triangles with goal, robot, and anchor in base triangulation
     triang_goal = int(
         triang.triang_tree.query(
@@ -217,13 +212,24 @@ for idx, [filename, definition] in list(enumerate(experiments)):
     path_length_list: list[float] = []
     path_list: list[list[np.ndarray]] = []
     comp_time: list[float] = []
-    adj: dict[int, list[int]] = defaultdict(list)  # adjacency in ent-free dual graph
-    for a, b in triang.edges_dual_lift:
-        if (triang.entanglement_vertices_dual_lift[a] is True) and (
-            triang.entanglement_vertices_dual_lift[b] is True
-        ):
+
+    # Build adjacency dictionary (data structure used in graph search)
+    adj: dict[int, list[int]] = defaultdict(list)
+    if definition == "none":
+        # Build adjacency dictionary in lifted dual graph
+        for a, b in triang.edges_dual_lift:
             adj[a].append(b)
             adj[b].append(a)
+    else:
+        # Build adjacency dictionary in entanglement-free lifted dual graph
+        for a, b in triang.edges_dual_lift:
+            if (triang.entanglement_vertices_dual_lift[a] is True) and (
+                triang.entanglement_vertices_dual_lift[b] is True
+            ):
+                adj[a].append(b)
+                adj[b].append(a)
+
+    # Perform path planning operations
     for goal_lift in triang_goal_lift:
         t_init = time.process_time()
         stack = [(triang_robot_lift, [triang_robot_lift])]  # (node, path_to_node)
@@ -245,13 +251,10 @@ for idx, [filename, definition] in list(enumerate(experiments)):
             p_end=goal,
         )
         length = curves.measure_length(path)
-        if length > length_max:
-            raise ValueError(f"Tether is too long {length}>{length_max}")
         t_search = time.process_time() - t_init
         path_length_list.append(length)
         path_list.append(path)
         comp_time.append(t_search)
-    description = f"N_{definition}"
 
     # Print stats + write them to file
     if len(comp_time) > 0:
@@ -270,7 +273,7 @@ for idx, [filename, definition] in list(enumerate(experiments)):
         path_length_mean = np.inf
         path_length_std = np.inf
         path_length_max = np.inf
-    print(f"\nPath planning: {description}")
+    print(f"\nPath planning: (def: {definition})")
     print(
         f"Time stats: mean {comp_time_mean:.6f}, "
         f"std {comp_time_std:.6f}, "
@@ -284,7 +287,7 @@ for idx, [filename, definition] in list(enumerate(experiments)):
     for i, (l, t) in list(enumerate(zip(path_length_list, comp_time))):
         print(f"\t#{i}\t length: {l:.2f}, time: {t:.6f}")
     with open("results/path-planning.txt", "a", encoding="utf-8") as f:
-        f.write(f"\nPath planning: {description}\n")
+        f.write(f"\nPath planning: (def: {definition})\n")
         f.write(
             f"Time stats: mean {comp_time_mean:.6f}, "
             f"std {comp_time_std:.6f}, "
@@ -324,16 +327,14 @@ for idx, [filename, definition] in list(enumerate(experiments)):
     ax.plot(goal[0], goal[1], color="green", marker="o", markersize=2, zorder=10)
     for i, path in enumerate(path_list):
         ax.plot(path[:, 0], path[:, 1], color=colors[i % 10], zorder=8, linewidth=1)
-    fig.savefig(f"results/{env_name}-pp-{description}.png", dpi=1200, format="png")
+    fig.savefig(f"results/{env_name}-pp-{definition}.png", dpi=1200, format="png")
 
     # Perform path planning on h-augmented graphs
-    # NOTE: similarly to planning on simplicial complexes, planning on lenght-reachable
-    # h-augmented graph is performed only once
+
     # TODO: implement graph search
     #   - find lifted goal nodes
     #   - find lifted anchor
     #   - find lifted robot location (unique due to lifted anchor)
     #   - graph search from robot to goal (BFS, DFS, A*?)
     # TODO: print data
-    # TODO: generate and save plots
     # TODO: generate and save plots
