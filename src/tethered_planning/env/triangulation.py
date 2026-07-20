@@ -492,11 +492,10 @@ class Triangulation:
         self.parent_dual_lift[0] = -1  # root triangle has no parent
 
         # Mark first simplices as entanglement admissible if check_entanglement is True.
-        if check_entanglement is True:
-            for i in range(3):
-                self.entanglement_vertices_lift.append(True)  # for 3 vertices
-            self.entanglement_vertices_dual_lift.append(True)
-            self.entanglement_triangles_lift.append(True)
+        for i in range(3):
+            self.entanglement_vertices_lift.append(True)  # for 3 vertices
+        self.entanglement_vertices_dual_lift.append(True)
+        self.entanglement_triangles_lift.append(True)
 
         # If the test is passed, add root triangle to open queue
         # Elements in the open queue have the following elements:
@@ -734,14 +733,10 @@ class Triangulation:
                 self.triangles_lift.append(sorted(indexes))
 
                 # Mark simplices as entanglement admissible or not
-                if entanglement_admissible is True:
-                    self.entanglement_vertices_lift.append(True)
-                    self.entanglement_vertices_dual_lift.append(True)
-                    self.entanglement_triangles_lift.append(True)
-                else:
-                    self.entanglement_vertices_lift.append(False)
-                    self.entanglement_vertices_dual_lift.append(False)
-                    self.entanglement_triangles_lift.append(False)
+                self.entanglement_vertices_lift.append(entanglement_admissible)
+                triangle_ok = all(self.entanglement_vertices_lift[p] for p in indexes)
+                self.entanglement_vertices_dual_lift.append(triangle_ok)
+                self.entanglement_triangles_lift.append(triangle_ok)
 
             # Add current triangle to closed queue to avoid checking it again
             closed_queue.append((idx, sign))

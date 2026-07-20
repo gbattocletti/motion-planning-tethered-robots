@@ -132,24 +132,17 @@ def linear_homotopy(curve: np.ndarray | LineString, env: Env2D) -> bool:
         raise TypeError("curve must be a numpy array or a LineString.")
     n = len(points)
 
-    # anchor_idx = 0
-    # start_idx = 1
-    # end_idx = n - 1
     # Check if anchor point is first or last
     if np.allclose(points[0], env.anchor_point):
         anchor_idx = 0
-        start_idx = 1
-        end_idx = n - 1
     elif np.allclose(points[-1], env.anchor_point):
         anchor_idx = n - 1
-        start_idx = n - 2
-        end_idx = 0
     else:
         raise ValueError("curve must start or end at the anchor point.")
 
     # Iterate over the points to verify if any of the regions spanned by the curve
     # intersect with the obstacle region
-    for idx in range(start_idx, end_idx, 1 if start_idx < end_idx else -1):
+    for idx in range(n - 1):
         triangle = Polygon([points[idx], points[idx + 1], points[anchor_idx]])
         if shapely.intersection(triangle, env.obstacle_region).area > 0:
             # Check if intersection is only at the boundary, where it is acceptable
@@ -191,14 +184,31 @@ def local_visibility_homotopy(curve: np.ndarray | LineString, env: Env2D) -> boo
     # subsections of the curve match that of the underlying straight-line segment.
     for idx_1 in range(n - 2):
         for idx_2 in range(n - 1, idx_1 + 1, -1):
-            curve_1 = np.array(points[idx_1 : idx_2 + 1])
-            sign_1 = curves.compute_signature(curve_1, env, simplify=True)
-            curve_2 = np.array([points[idx_1], points[idx_2]])
-            if env.obstacle_region.intersects(LineString(curve_2)):
-                continue  # if straight line is not feasible, skip check
-            sign_2 = curves.compute_signature(curve_2, env, simplify=True)
+
+            # Compute curves, then evaluate if they are homotopic
+            curve_piece = np.array(points[idx_1 : idx_2 + 1])  # piece of curve
+            sign_piece = curves.compute_signature(curve_piece, env, simplify=True)
+            straight_line = np.array([points[idx_1], points[idx_2]])  # straight line
+
+            # Check if straight line is obstacle free (otherwise skip test)
+            straight_line_linestring = LineString(straight_line)
+            inter_region = shapely.intersection(
+                straight_line_linestring,
+                env.obstacle_region,
+            )
+            inter_boundary = shapely.intersection(
+                straight_line_linestring,
+                env.obstacle_region.boundary,
+            )
+            if not inter_region.equals(inter_boundary):
+                continue  # segment crosses obs. interior, points not mutually visible
 
             # Check entanglement state
-            if sign_1 != sign_2:
+            sign_straight_lline = curves.compute_signature(
+                straight_line,
+                env,
+                simplify=True,
+            )
+            if sign_piece != sign_straight_lline:
                 return False
     return True
