@@ -40,8 +40,8 @@ class TetherFEM2D:
         input_mode: str = "position",  # {"force", "position"}
         dt: float = 0.001,
         medium: str = "water",  # {"water", "air", "none"}
-        water_current: np.ndarray | None = None,
-        wind: np.ndarray | None = None,
+        water_current: np.ndarray = np.zeros(2),
+        wind: np.ndarray = np.zeros(2),
         # TODO
     ):
         """
@@ -156,7 +156,6 @@ class TetherFEM2D:
     def step(
         self,
         u: np.ndarray,
-        dt: float | None = None,
     ) -> None:
         """
         Advances one time step of the FEM dynamics.
@@ -165,7 +164,6 @@ class TetherFEM2D:
             u (np.ndarray): (2,) control input at the free end node:
                 - a force [Fx, Fy] if input_mode == "force",
                 - a target position [x, y] if input_mode == "position"
-            dt (float, optional): time step [s]
 
         Returns:
             None
@@ -185,17 +183,21 @@ class TetherFEM2D:
         # Numerical integration with semi-implicit Euler
         state_new = self.state.copy()
         state_new[:, 4:6] = acc
-        state_new[:, 2:4] = self.state[:, 2:4] + acc * dt
-        state_new[:, 0:2] = self.state[:, 0:2] + state_new[:, 2:4] * dt
+        state_new[:, 2:4] = self.state[:, 2:4] + acc * self.dt
+        state_new[:, 0:2] = self.state[:, 0:2] + state_new[:, 2:4] * self.dt
 
         # Position-controlled free endpoint: impose the commanded position and derive
         # consistent velocity and acceleration (note: input must be smooth to avoid
         # sudden forces, since force is computed at next time step)
+        # If pos control is used, cache endpoint pos and vel to restore them after the
+        # obstacle contact resolution.
         if self.input_mode == "position":
-            v_new = (u - self.state[-1, 0:2]) / dt
+            pos_endpoint_old = self.state[-1, 0:2].copy()
+            vel_endpoint_old = self.state[-1, 2:4].copy()
+            v_new = (u - pos_endpoint_old) / self.dt
             state_new[-1, 0:2] = u
             state_new[-1, 2:4] = v_new
-            state_new[-1, 4:6] = (v_new - self.state[-1, 2:4]) / dt
+            state_new[-1, 4:6] = (v_new - vel_endpoint_old) / self.dt
 
         # Obstacle contact: project penetrating nodes back to the boundary
         self._resolve_collisions()
@@ -203,7 +205,7 @@ class TetherFEM2D:
         # Enforce obstacle contact at free endpoint (position control can override it)
         if self.input_mode == "position":
             state_new[-1, 0:2] = u
-            state_new[-1, 2:4] = (u - self.state[-1, 0:2]) / dt
+            state_new[-1, 2:4] = (u - pos_endpoint_old) / self.dt
 
         # Enforce anchor point
         state_new[0, 0:2] = self.anchor
@@ -257,7 +259,9 @@ class TetherFEM2D:
         k = self.EI / self.l_el**3
 
         # Second difference (proportional to curvature) at interior nodes (n-2, 2)
-        curvature = self.state[:-2, :2] - 2.0 * self.state[1:-1:2] + self.state[2:, :2]
+        curvature = (
+            self.state[:-2, :2] - 2.0 * self.state[1:-1, :2] + self.state[2:, :2]
+        )
 
         # Restoring forces acting on the nodes
         # F = -grad of bending energy (EI/2L0^3) * sum |curv|^2
@@ -397,7 +401,7 @@ class TetherFEM2D:
         """
         eps = 1e-6
         poly: np.ndarray
-        for poly in self.env.obstacles_vertices:
+        for poly in self.env.obstacle_vertices:
             # cheap bounding-box rejection
             lo = poly.min(axis=0) - eps
             hi = poly.max(axis=0) + eps
