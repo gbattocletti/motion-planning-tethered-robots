@@ -200,7 +200,7 @@ class TetherFEM2D:
             state_new[-1, 4:6] = (v_new - vel_endpoint_old) / self.dt
 
         # Obstacle contact: project penetrating nodes back to the boundary
-        self._resolve_collisions()
+        state_new = self._resolve_collisions(state_new)
 
         # Enforce obstacle contact at free endpoint (position control can override it)
         if self.input_mode == "position":
@@ -389,7 +389,8 @@ class TetherFEM2D:
 
     def _resolve_collisions(
         self,
-    ):
+        state: np.ndarray,
+    ) -> np.ndarray:
         """
         Geometric contact handling, applied as a postporcessing step after the
         integration step. For every node that ended up inside an obstacle:
@@ -398,7 +399,21 @@ class TetherFEM2D:
             3. optionally scale down the tangential component (friction).
         Modifies pos and vel in place. Valid for time steps small enough
         that a node cannot tunnel across an obstacle in a single step.
+
+        Args:
+            state (np.ndarray): (n, 6) tether state [x, y, vx, vy, ax, ay] to compute
+                the obstacle collisions and resolution on.
+
+        Returns:
+            np.ndarray: (n, 6) corrected copy of the state, with penetrating nodes
+                projected onto the obstacle boundaries and their velocities adjusted.
+
+        Notes:
+            - The time steps must be small enough that a node cannot tunnel across an
+              obstacle in a single step.
+            - Node 0 (the anchor) is fixed.
         """
+        state = state.copy()  # avoid modifying the input
         eps = 1e-6
         poly: np.ndarray
         for poly in self.env.obstacle_vertices:
@@ -406,7 +421,7 @@ class TetherFEM2D:
             lo = poly.min(axis=0) - eps
             hi = poly.max(axis=0) + eps
             for i in range(1, self.n):  # node 0 is clamped
-                p = self.state[i, :2]
+                p = state[i, :2]
                 if np.any(p < lo) or np.any(p > hi):
                     continue
                 if not self._point_in_polygon(p, poly):
@@ -420,17 +435,19 @@ class TetherFEM2D:
                     n_hat /= max(np.linalg.norm(n_hat), 1e-12)
 
                 # 1. project node on obstacle boundary
-                self.state[i, :2] = q + eps * n_hat
+                state[i, :2] = q + eps * n_hat
 
                 # 2. cancel inward normal velocity
-                v_n = self.state[i, 2:4] @ n_hat
+                v_n = state[i, 2:4] @ n_hat
                 if v_n < 0.0:
-                    self.state[i, 2:4] -= v_n * n_hat
+                    state[i, 2:4] -= v_n * n_hat
 
                 # 3. add tangential friction
                 if self.obs_friction > 0.0:
-                    v_t = self.state[i, 2:4] - (self.state[i, 2:4] @ n_hat) * n_hat
-                    self.state[i, 2:4] -= self.obs_friction * v_t
+                    v_t = state[i, 2:4] - (state[i, 2:4] @ n_hat) * n_hat
+                    state[i, 2:4] -= self.obs_friction * v_t
+
+        return state
 
     def reaction_force_endpoint(self) -> np.ndarray:
         """Force required at the driven end to realize its current motion.
