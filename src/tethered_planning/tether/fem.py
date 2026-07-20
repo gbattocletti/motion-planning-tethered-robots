@@ -119,7 +119,9 @@ class TetherFEM2D:
         # Compute nodes properties due to medium
         self.medium: str = medium
         self.m_added: np.ndarray = np.zeros(self.n)  # vecrtor of nodal added masses
-        rho_forces: float = 0.0  # effective density
+        rho_forces: float  # effective density
+        self.rho: float  # density of medium
+        self.flow: np.ndarray  # flow in medium
         match self.medium:
             case "water":
                 # activates buoyancy, added mass
@@ -128,10 +130,16 @@ class TetherFEM2D:
                 self.m_added[0] *= 0.5
                 self.m_added[-1] *= 0.5
                 rho_forces = self.rho_water
+                self.rho = self.rho_water
+                self.flow = self.current
             case "air":
-                pass
+                rho_forces = 0.0
+                self.rho = self.rho_air
+                self.flow = self.wind
             case "none":
-                pass
+                rho_forces = 0.0
+                self.rho = 0.0
+                self.flow = np.array([0, 0])
             case _:
                 raise ValueError("medium must be 'water' or 'air' or 'none'.")
         self.m_eff = self.m_node + self.m_added  # effective mass (diagonal of M)
@@ -147,10 +155,62 @@ class TetherFEM2D:
 
     def step(
         self,
-        input: np.ndarray,
+        u: np.ndarray,
         dt: float | None = None,
     ) -> None:
-        pass  # TODO
+        """
+        Advances one time step of the FEM dynamics.
+
+        Args:
+            u (np.ndarray): (2,) control input at the free end node:
+                - a force [Fx, Fy] if input_mode == "force",
+                - a target position [x, y] if input_mode == "position"
+            dt (float, optional): time step [s]
+
+        Returns:
+            None
+        """
+        # Ensure correct dimension of control input
+        u = np.asarray(u, dtype=float)  # ensure correct data type
+        if u.shape != (2,):
+            raise ValueError(f"u must have shape (2,) (got {u.shape}).")
+
+        # Compute nodal forces and accelerations
+        F = self.forces(u)
+        acc = F / self.m_eff[:, None]
+
+        # Boundary condition at anchor point
+        acc[0] = 0.0
+
+        # Numerical integration with semi-implicit Euler
+        state_new = self.state.copy()
+        state_new[:, 4:6] = acc
+        state_new[:, 2:4] = self.state[:, 2:4] + acc * dt
+        state_new[:, 0:2] = self.state[:, 0:2] + state_new[:, 2:4] * dt
+
+        # Position-controlled free endpoint: impose the commanded position and derive
+        # consistent velocity and acceleration (note: input must be smooth to avoid
+        # sudden forces, since force is computed at next time step)
+        if self.input_mode == "position":
+            v_new = (u - self.state[-1, 0:2]) / dt
+            state_new[-1, 0:2] = u
+            state_new[-1, 2:4] = v_new
+            state_new[-1, 4:6] = (v_new - self.state[-1, 2:4]) / dt
+
+        # Obstacle contact: project penetrating nodes back to the boundary
+        self._resolve_collisions()
+
+        # Enforce obstacle contact at free endpoint (position control can override it)
+        if self.input_mode == "position":
+            state_new[-1, 0:2] = u
+            state_new[-1, 2:4] = (u - self.state[-1, 0:2]) / dt
+
+        # Enforce anchor point
+        state_new[0, 0:2] = self.anchor
+        state_new[0, 2:6] = 0.0
+
+        # Update the tether state
+        self.state = state_new
 
     def _axial_forces(self) -> np.ndarray:
         """
@@ -163,18 +223,18 @@ class TetherFEM2D:
         elements = self.state[1:, :2] - self.state[:-1, :2]  # (n-1, 2)
         l_elements = np.linalg.norm(elements, axis=1)
         l_elements = np.where(l_elements < 1e-12, 1e-12, l_elements)
-        tang = elements / l_elements[:, None]
+        t_elements = elements / l_elements[:, None]  # tangents to elements (axial vec)
 
         # Compute strain on each element
         strain = (l_elements - self.l_el) / self.l_el
         dvel = self.state[1:, 2:4] - self.state[:-1, 2:4]
-        strain_rate = np.einsum("ij,ij->i", dvel, tang) / self.l_el
+        strain_rate = np.einsum("ij,ij->i", dvel, t_elements) / self.l_el
 
         # Compute tension along elements
         tension = self.EA * strain + self.c_internal * strain_rate
         if self.no_compression:
             tension = np.maximum(tension, 0.0)  # cable cannot push
-        f_elem = tension[:, None] * tang  # force along elements due to tension
+        f_elem = tension[:, None] * t_elements  # force along elements due to tension
 
         # Compute resulting forces on the nodes
         f_nodes[:-1] += f_elem  # force on node i due to element i+1
@@ -208,62 +268,91 @@ class TetherFEM2D:
 
     # TODO from here
 
-    def _drag_forces(self, pos: np.ndarray, vel: np.ndarray) -> np.ndarray:
-        """Quadratic fluid drag (Morison-type), split normal/tangential."""
-        rho = self.rho_water if self.medium == "water" else self.rho_air
-        flow = self.current if self.medium == "water" else self.wind
-
-        # tangents at nodes (average of adjacent element tangents)
-        seg = pos[1:] - pos[:-1]
-        l = np.linalg.norm(seg, axis=1)
-        l = np.where(l < 1e-12, 1e-12, l)
-        t_el = seg / l[:, None]
-        t_node = np.zeros((self.n, 2))
-        t_node[0] = t_el[0]
-        t_node[-1] = t_el[-1]
-        t_node[1:-1] = t_el[:-1] + t_el[1:]
+    def _drag_forces(
+        self,
+    ) -> np.ndarray:
+        """
+        Quadratic fluid drag (Morison-type), split between normal and tangential force.
+        """
+        # Tangents at nodes
+        elements = self.state[1:, :2] - self.state[:-1, :2]
+        l_elements = np.linalg.norm(elements, axis=1)
+        l_elements = np.where(l_elements < 1e-12, 1e-12, l_elements)
+        t_elements = elements / l_elements[:, None]  # tangents to elements (axial vec)
+        t_node = np.zeros((self.n, 2))  # tangents to nodes (average between elements)
+        t_node[0] = t_elements[0]
+        t_node[-1] = t_elements[-1]
+        t_node[1:-1] = t_elements[:-1] + t_elements[1:]
         norms = np.linalg.norm(t_node, axis=1)
         t_node /= np.where(norms < 1e-12, 1.0, norms)[:, None]
 
-        v_rel = flow[None, :] - vel  # fluid velocity rel. to cable
-        v_t = np.einsum("ij,ij->i", v_rel, t_node)[:, None] * t_node
-        v_n = v_rel - v_t
+        # Fluid velocity w.r.t. the tether
+        v_rel = self.flow[None, :] - self.state[:, 2:4]
+        v_t = np.einsum("ij,ij->i", v_rel, t_node)[:, None] * t_node  # tangential
+        v_n = v_rel - v_t  # normal
 
-        # exposed length per node
-        Ln = np.full(self.n, self.L0)
+        # Exposed length per node
+        Ln = np.full(self.n, self.l_el)
         Ln[0] *= 0.5
         Ln[-1] *= 0.5
 
+        # Normal and tangential forces
         Fn = (
             0.5
-            * rho
-            * self.Cdn
-            * self.d
+            * self.rho
+            * self.Cd_normal
+            * self.diameter
             * Ln[:, None]
             * np.linalg.norm(v_n, axis=1)[:, None]
             * v_n
         )
         Ft = (
             0.5
-            * rho
-            * self.Cdt
+            * self.rho
+            * self.Cd_tangent
             * np.pi
-            * self.d
+            * self.diameter
             * Ln[:, None]
             * np.linalg.norm(v_t, axis=1)[:, None]
             * v_t
         )
         return Fn + Ft
 
+    def forces(self, u: np.ndarray) -> np.ndarray:
+        """
+        Total nodal force vector, shape (n, 2).
+
+        Collects internal (axial + bending), environmental (weight, buoyancy, drag),
+        and damping forces. In input_mode == "force" the control force u is added at the
+        last node; in "position" mode u is ignored here (the end node is driven
+        kinematically in step(), and the reaction force can be retrieved afterwards).
+        """
+        F: np.ndarray  # (2, n) nodal force
+        F = self._axial_forces()
+        F += self._bending_forces()
+        F += self._drag_forces()
+        F[:, 1] -= self.w_node  # net weight (down = -y)
+        F -= self.c_struct * self.state[:, 2:4]  # structural damping C * v
+        if self.input_mode == "force":
+            F[-1] += np.asarray(u, dtype=float)  # control force at free endpoint
+        return F
+
     @staticmethod
-    def _point_in_polygon(p: np.ndarray, poly: np.ndarray) -> bool:
-        """Ray-casting inside test for a simple polygon (any orientation)."""
-        x, y = p
+    def _point_in_polygon(
+        point: np.ndarray,
+        polygon: np.ndarray,
+    ) -> bool:
+        """
+        Efficient check to determine if a point is inside or outside a simple polygon.
+        The method is based on the ray-casting-inside-test.
+        """
+        # TODO: move to env class (env method taking into account only the point)
+        x, y = point
         inside = False
-        j = len(poly) - 1
-        for i in range(len(poly)):
-            xi, yi = poly[i]
-            xj, yj = poly[j]
+        j = len(polygon) - 1
+        for i in range(len(polygon)):
+            xi, yi = polygon[i]
+            xj, yj = polygon[j]
             if (yi > y) != (yj > y):
                 x_cross = (xj - xi) * (y - yi) / (yj - yi) + xi
                 if x < x_cross:
@@ -273,7 +362,11 @@ class TetherFEM2D:
 
     @staticmethod
     def _closest_point_on_boundary(p: np.ndarray, poly: np.ndarray):
-        """Nearest point on the polygon's boundary to p, and its distance."""
+        """
+        Nearest point to p on a polygon's boundary (projection of p on the boundary).
+        The method also returns the distance from p to the projected point.
+        """
+        # TODO: consider moving to env class
         best_q = None
         best_d2 = np.inf
         m = len(poly)
@@ -292,8 +385,6 @@ class TetherFEM2D:
 
     def _resolve_collisions(
         self,
-        pos: np.ndarray,
-        vel: np.ndarray,
     ):
         """
         Geometric contact handling, applied as a postporcessing step after the
@@ -305,12 +396,13 @@ class TetherFEM2D:
         that a node cannot tunnel across an obstacle in a single step.
         """
         eps = 1e-6
+        poly: np.ndarray
         for poly in self.env.obstacles_vertices:
             # cheap bounding-box rejection
             lo = poly.min(axis=0) - eps
             hi = poly.max(axis=0) + eps
             for i in range(1, self.n):  # node 0 is clamped
-                p = pos[i]
+                p = self.state[i, :2]
                 if np.any(p < lo) or np.any(p > hi):
                     continue
                 if not self._point_in_polygon(p, poly):
@@ -324,14 +416,25 @@ class TetherFEM2D:
                     n_hat /= max(np.linalg.norm(n_hat), 1e-12)
 
                 # 1. project node on obstacle boundary
-                pos[i] = q + eps * n_hat
+                self.state[i, :2] = q + eps * n_hat
 
                 # 2. cancel inward normal velocity
-                v_n = vel[i] @ n_hat
+                v_n = self.state[i, 2:4] @ n_hat
                 if v_n < 0.0:
-                    vel[i] -= v_n * n_hat
+                    self.state[i, 2:4] -= v_n * n_hat
 
                 # 3. add tangential friction
                 if self.obs_friction > 0.0:
-                    v_t = vel[i] - (vel[i] @ n_hat) * n_hat
-                    vel[i] -= self.obs_friction * v_t
+                    v_t = self.state[i, 2:4] - (self.state[i, 2:4] @ n_hat) * n_hat
+                    self.state[i, 2:4] -= self.obs_friction * v_t
+
+    def reaction_force_endpoint(self) -> np.ndarray:
+        """Force required at the driven end to realize its current motion.
+
+        Only meaningful in input_mode == 'position'. Uses Newton's law at the end node:
+            R = m_eff * a_end - F_model,
+        where F_model collects internal, environmental, and damping forces (no control
+        input).
+        """
+        F_model = self.forces(np.zeros(2))[-1]
+        return self.m_eff[-1] * self.state[-1, 4:6] - F_model
