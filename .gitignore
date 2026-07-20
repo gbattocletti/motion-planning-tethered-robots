@@ -2,6 +2,7 @@
 dev/
 doc/
 tests/results
+scripts/results
 scripts/results*
 results-paper-ifac
 results-paper-journal
