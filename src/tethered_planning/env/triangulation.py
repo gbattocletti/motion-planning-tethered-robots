@@ -417,7 +417,7 @@ class Triangulation:
                 if not isinstance(value, bool):
                     raise TypeError("reduce_conservativeness must be a boolean.")
                 if (
-                    reduce_conservativeness is True
+                    value is True
                     and check_distance is False
                     and check_entanglement is False
                 ):
@@ -836,7 +836,7 @@ class Triangulation:
             if key == "search_algorithm":
                 if not isinstance(value, str):
                     raise TypeError("search_algorithm must be a string.")
-                if search_algorithm not in [
+                if value not in [
                     "astar",
                     "dijkstra",
                     "bfs",
@@ -847,6 +847,7 @@ class Triangulation:
                         "search_algorithm must be one of the following: "
                         "{'astar', 'dijkstra', 'bfs', 'dfs', 'parent'}."
                     )
+                search_algorithm = value
                 if search_algorithm == "parent" and self.DEBUG:
                     print(
                         f"{CmdColors.WARNING}[Triang]{CmdColors.ENDC} Warning: the "
@@ -854,7 +855,6 @@ class Triangulation:
                         "the triangle where the anchor point lies. The point (p2, s2) "
                         "will be ignored."
                     )
-                search_algorithm = value
             elif key == "t1":
                 if not isinstance(value, int):
                     raise TypeError("t1 must be an integer or None.")
@@ -947,7 +947,7 @@ class Triangulation:
                     lift_idx_1,
                     lift_idx_2,
                 )
-            case ["astar", "dijkstra"]:
+            case "astar" | "dijkstra":
                 alpha_lift = graph_search.a_star_search(
                     self.vertices_dual_lift,
                     self.edges_dual_lift,
@@ -957,6 +957,8 @@ class Triangulation:
                     nodes_2d=self.vertices_dual,
                     use_heuristic=False,
                 )
+            case _:
+                raise ValueError(f"Unrecognized search_algorithm {search_algorithm}")
 
         # Project the representative path onto the 2D triangulation
         alpha: list[int] = [self.vertices_dual_lift[idx][0] for idx in alpha_lift]
@@ -1357,6 +1359,6 @@ class Triangulation:
             p = (p1 + p2) / 2
 
         if admissible_found:
-            return p
+            return p2
         else:
             return None
