@@ -25,6 +25,7 @@ dependencies = [
     "plotly",
     "kaleido",
     "networkx",
+    "tqdm",
 ]
 
 [project.optional-dependencies]

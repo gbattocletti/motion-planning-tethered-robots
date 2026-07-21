@@ -29,7 +29,7 @@ def plot_fem(
     env: env_2d.Env2D,
     tether_init: np.ndarray,
     tether_final: np.ndarray,
-    trajectory: np.ndarray,
+    trajectory: np.ndarray | None = None,
     tether_snapshots: list[np.ndarray] | None = None,
     cmap: list[str] | None = None,
     show_plot: bool = False,
@@ -63,7 +63,9 @@ def plot_fem(
     markersize_intermediate = 3
 
     # Select colormap
-    if cmap is None or len(cmap < len(tether_snapshots)):
+    if tether_snapshots is not None and (
+        cmap is None or len(cmap < len(tether_snapshots))
+    ):
         cmap_cont = mpl.colormaps["viridis"]
         cmap = cmap_cont(np.linspace(0, 1, len(tether_snapshots)))
 
@@ -86,7 +88,7 @@ def plot_fem(
         tether_init[:, 0],
         tether_init[:, 1],
         "o-",
-        color="tab:gray",
+        color="gray",
         linewidth=linewidth_initial_final,
         markersize=markersize_initial_final,
         zorder=6,
@@ -97,22 +99,22 @@ def plot_fem(
         tether_final[:, 0],
         tether_final[:, 1],
         "o-",
-        color="tab:black",
+        color="black",
         linewidth=linewidth_initial_final,
         markersize=markersize_initial_final,
         zorder=7,
     )
 
     # Plot trajectory
-    ax.plot(
-        trajectory[:, 0],
-        trajectory[:, 1],
-        "o-",
-        color="tab:red",
-        linewidth=linewidth_trajectory,
-        markersize=markersize_trajectory,
-        zorder=8,
-    )
+    if trajectory is not None:
+        ax.plot(
+            trajectory[:, 0],
+            trajectory[:, 1],
+            color="red",
+            linewidth=linewidth_trajectory,
+            markersize=markersize_trajectory,
+            zorder=8,
+        )
 
     # Plot intermediate tether configurations
     if tether_snapshots is not None:
@@ -154,10 +156,10 @@ def plot_fem(
     ax.plot(
         env.goal_vertices[0],
         env.goal_vertices[1],
-        marker=".",
-        markersize=20,
+        marker="o",
+        markersize=10,
         markerfacecolor=PlotColors.goal_color,
-        alpha=0.2,
+        alpha=0.3,
         zorder=4,
     )
 
