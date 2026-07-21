@@ -8,8 +8,6 @@ class TetherFEM2D:
 
     # Env parameters
     g: float = 9.81  # gravity acceleration
-    # CHECKME/TODO: how to deal with case of planar movement where g does not deform the
-    # tether shape? Add flag for this case?
 
     # Tether parameters
     diameter: float = 0.01  # diameter
@@ -17,7 +15,7 @@ class TetherFEM2D:
     area = np.pi * diameter**2 / 4.0  # cross-sectional area
     E: float = 5.0e8  # Young's modulus [Pa]
     EA = E * area  # axial stiffness
-    EI = 0.25  # bending rigidity [N m^2]
+    EI = 0.1  # bending rigidity [N m^2]
     c_internal: float = 5.0  # internal axial damping coeff [N s]
     c_struct: float = 0.05  # structural viscous damping (C matrix) [N s/m]
     no_compression: bool = True  # wether the tether is able to react to compression
@@ -42,6 +40,7 @@ class TetherFEM2D:
         medium: str = "water",  # {"water", "air", "none"}
         water_current: np.ndarray = np.zeros(2),
         wind: np.ndarray = np.zeros(2),
+        gravity: bool = False,
     ):
         """
         2D lumped-mass finite element model of a slack tether.
@@ -84,6 +83,7 @@ class TetherFEM2D:
             medium (str): the medium where the tether moves (water, air, none)
             water_current (np.ndarray): uniform water current field (if medium is water)
             wind (np.ndarray): uniform wind field (if medium is air)
+            gravity (bool): wether to consider gravity in the simulation
 
         Returns:
             None
@@ -108,6 +108,7 @@ class TetherFEM2D:
         self.dt: float = dt
         self.current: np.ndarray = water_current
         self.wind: np.ndarray = wind
+        self.gravity_enabled: bool = gravity
 
         # Compute nodes properties
         m_elem = self.rho_cable * self.area * self.l_el  # lumped mass of each node
@@ -334,7 +335,8 @@ class TetherFEM2D:
         F = self._axial_forces()
         F += self._bending_forces()
         F += self._drag_forces()
-        F[:, 1] -= self.w_node  # net weight (down = -y)
+        if self.gravity_enabled:
+            F[:, 1] -= self.w_node  # net weight (only if gravity is enabled)
         F -= self.c_struct * self.state[:, 2:4]  # structural damping C * v
         if self.input_mode == "force":
             F[-1] += np.asarray(u, dtype=float)  # control force at free endpoint
