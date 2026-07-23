@@ -372,7 +372,7 @@ class GridGraph:
                 f"{len(self.edges_lift)} edges."
             )
 
-    def compute_area(self) -> float:
+    def compute_area(self, entanglement_free: bool = False) -> float:
         """
         Computes the area covered by the homotopy-augmented graph.
 
@@ -383,7 +383,8 @@ class GridGraph:
         added in full.
 
         Args:
-            None
+            entanglement_free (bool, optional): wether to consider only entanglement
+                free nodes in the graph
 
         Returns:
             float: the area covered by the homotopy-augmented grap.
@@ -395,6 +396,11 @@ class GridGraph:
         # Iterate over edges and compute area
         for edge in self.edges_lift:
             v1_idx, v2_idx = edge
+            if entanglement_free is True and (
+                self.entanglement_vertices_lift[v1_idx] is False
+                or self.entanglement_vertices_lift[v2_idx] is False
+            ):
+                continue  # skip edge if nodes are not entanglement free
             v1 = self.vertices[self.vertices_lift[v1_idx][0]]
             v2 = self.vertices[self.vertices_lift[v2_idx][0]]
             edge = LineString([v1, v2])
