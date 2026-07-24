@@ -36,34 +36,90 @@ from tethered_planning.utils.settings import Settings
 
 # Script settings
 SELECT_TETHER_MANUALLY: bool = True
-env_name = "env_4"  # NOTE: currently only env_4 is supported in this script
-goal = np.array([1.0, 8.5])  # NOTE: change to select different goal
-goal = np.array([2.0, 6.5])
-length_max = 12  # current available options: {10, 12, 15}
+env_name = "env_5"  # NOTE: currently only env_4 is supported in this script
+length_max = 12.5  # current available options: {10, 12.5, 15}
+
+# goal = np.array([7.5, 7.5])  # NOTE: change to select different goal
+# goal = np.array([1.5, 4.5])
+goal = np.array([4.0, 2.0])
 
 # Select experiments
 experiments: list[list[str]] = []
-if env_name == "env_4" and length_max == 10:
-    experiments = [
-        ["results/entanglement_free_model/comparison-25.pkl", "none"],
-        ["results/entanglement_free_model/comparison-25.pkl", "convex_hull"],
-        ["results/entanglement_free_model/comparison-26.pkl", "linear_homotopy"],
-        ["results/entanglement_free_model/comparison-27.pkl", "local_visibility"],
-    ]
-elif env_name == "env_4" and length_max == 12:
-    experiments = [
-        ["results/entanglement_free_model/comparison-28.pkl", "none"],
-        ["results/entanglement_free_model/comparison-28.pkl", "convex_hull"],
-        ["results/entanglement_free_model/comparison-29.pkl", "linear_homotopy"],
-        ["results/entanglement_free_model/comparison-30.pkl", "local_visibility"],
-    ]
-elif env_name == "env_4" and length_max == 15:
-    experiments = [
-        ["results/entanglement_free_model/comparison-31.pkl", "none"],
-        ["results/entanglement_free_model/comparison-31.pkl", "convex_hull"],
-        ["results/entanglement_free_model/comparison-32.pkl", "linear_homotopy"],
-        ["results/entanglement_free_model/comparison-33.pkl", "local_visibility"],
-    ]
+match (env_name, length_max):
+    case ("env_3b", 10):
+        experiments = [
+            ["results/entanglement_free_model/comparison-19.pkl", "none"],
+            ["results/entanglement_free_model/comparison-19.pkl", "convex_hull"],
+            ["results/entanglement_free_model/comparison-21.pkl", "local_visibility"],
+        ]
+    case ("env_3b", 12.5):
+        experiments = [
+            ["results/entanglement_free_model/comparison-22.pkl", "none"],
+            ["results/entanglement_free_model/comparison-22.pkl", "convex_hull"],
+            ["results/entanglement_free_model/comparison-24.pkl", "local_visibility"],
+        ]
+    case ("env_3b", 15.0):
+        experiments = [
+            ["results/entanglement_free_model/comparison-25.pkl", "none"],
+            ["results/entanglement_free_model/comparison-25.pkl", "convex_hull"],
+            ["results/entanglement_free_model/comparison-27.pkl", "local_visibility"],
+        ]
+    case ("env_3", 10):
+        experiments = [
+            ["results/entanglement_free_model/comparison-28.pkl", "none"],
+            ["results/entanglement_free_model/comparison-28.pkl", "convex_hull"],
+            ["results/entanglement_free_model/comparison-30.pkl", "local_visibility"],
+        ]
+    case ("env_3", 12.5):
+        experiments = [
+            ["results/entanglement_free_model/comparison-31.pkl", "none"],
+            ["results/entanglement_free_model/comparison-31.pkl", "convex_hull"],
+            ["results/entanglement_free_model/comparison-33.pkl", "local_visibility"],
+        ]
+    case ("env_3", 15.0):
+        experiments = [
+            ["results/entanglement_free_model/comparison-34.pkl", "none"],
+            ["results/entanglement_free_model/comparison-34.pkl", "convex_hull"],
+            ["results/entanglement_free_model/comparison-36.pkl", "local_visibility"],
+        ]
+    case ("env_4", 10):
+        experiments = [
+            ["results/entanglement_free_model/comparison-37.pkl", "none"],
+            ["results/entanglement_free_model/comparison-37.pkl", "convex_hull"],
+            ["results/entanglement_free_model/comparison-39.pkl", "local_visibility"],
+        ]
+    case ("env_4", 12.5):
+        experiments = [
+            ["results/entanglement_free_model/comparison-40.pkl", "none"],
+            ["results/entanglement_free_model/comparison-40.pkl", "convex_hull"],
+            ["results/entanglement_free_model/comparison-42.pkl", "local_visibility"],
+        ]
+    case ("env_4", 15.0):
+        experiments = [
+            ["results/entanglement_free_model/comparison-43.pkl", "none"],
+            ["results/entanglement_free_model/comparison-43.pkl", "convex_hull"],
+            ["results/entanglement_free_model/comparison-45.pkl", "local_visibility"],
+        ]
+    case ("env_5", 10):
+        experiments = [
+            ["results/entanglement_free_model/comparison-46.pkl", "none"],
+            ["results/entanglement_free_model/comparison-46.pkl", "convex_hull"],
+            ["results/entanglement_free_model/comparison-48.pkl", "local_visibility"],
+        ]
+    case ("env_5", 12.5):
+        experiments = [
+            ["results/entanglement_free_model/comparison-49.pkl", "none"],
+            ["results/entanglement_free_model/comparison-49.pkl", "convex_hull"],
+            ["results/entanglement_free_model/comparison-51.pkl", "local_visibility"],
+        ]
+    case ("env_5", 15.0):
+        experiments = [
+            ["results/entanglement_free_model/comparison-52.pkl", "none"],
+            ["results/entanglement_free_model/comparison-52.pkl", "convex_hull"],
+            ["results/entanglement_free_model/comparison-54.pkl", "local_visibility"],
+        ]
+    case _:
+        raise ValueError("Invalid combination of env and tether length")
 
 # Move to script directory
 abspath = os.path.abspath(__file__)
@@ -115,7 +171,8 @@ for filename, definition in experiments:
             tether = curves.generate_curve(
                 env,
                 init_point=env.anchor_point,
-                check_self_intersection=True,
+                check_self_intersection=False,
+                max_points=50,
                 show_goal=True,
                 show_robot_anchor_labels=False,
                 show_legend=False,
@@ -125,13 +182,7 @@ for filename, definition in experiments:
         else:
             tether = np.array(
                 [
-                    [4.5, 3.5],
-                    [4.11379658, 4.0020141],
-                    [3.26787513, 4.33769721],
-                    [2.5427996, 4.36455186],
-                    [2.40852635, 4.78079893],
-                    [2.18026183, 5.19704599],
-                    [2.13997986, 5.5327291],
+                    [3.0, 7.0],
                 ]
             )
         signature = curves.compute_signature(tether, env, simplify=True)
@@ -154,14 +205,13 @@ for filename, definition in experiments:
         entanglement_function = entanglement.convex_hull
     elif definition == "linear_homotopy":
         entanglement_function = entanglement.linear_homotopy
-    elif definition == "local_visibility_homotopy":
+    elif definition == "local_visibility":
         entanglement_function = entanglement.local_visibility_homotopy
     if definition == "none":
         pass  # no need to evaluate the entanglement function
     elif entanglement_function(tether, env) is not True:
-        raise ValueError(
-            f"Tether configuration is entangled w.r.t. definiton {definition}"
-        )
+        print(f"Tether configuration is entangled w.r.t. definiton {definition}")
+        continue  # skip iter
 
     # Load data
     # NOTE: the _entanglement data contain both R and N data structures
@@ -320,8 +370,8 @@ for filename, definition in experiments:
     ax: plt.Axes
     fig, ax = plot.plot_env(
         env,
-        show_tether=True,
-        show_robot=True,
+        show_tether=False,
+        show_robot=False,
         show_anchor=True,
         show_goal=True,
         show_legend=False,

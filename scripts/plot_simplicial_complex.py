@@ -50,7 +50,6 @@ triang.set_max_dist(11.0)
 triang.set_max_triangles(1000)
 triang.set_entanglement_definition("local_visibility_homotopy")
 triang.lift_triangulation(check_entanglement=True)
-# triang.entanglement_triangles_lift[21] = False  # HACK bugfix triangulation
 
 # Visualization specifications
 cmap = CustomColors.layers_cmap[::-1] + CustomColors.layers_cmap[1:]
