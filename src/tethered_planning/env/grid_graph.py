@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from collections.abc import Callable
 
 import numpy as np
@@ -372,7 +373,7 @@ class GridGraph:
                 f"{len(self.edges_lift)} edges."
             )
 
-    def compute_area(self, entanglement_free: bool = False) -> float:
+    def compute_area_approx(self, entanglement_free: bool = False) -> float:
         """
         Computes the area covered by the homotopy-augmented graph.
 
@@ -421,3 +422,44 @@ class GridGraph:
                 area += a_square  # no intersections with obstacles, add full area
 
         return area
+
+    def compute_area(self, entanglement_free: bool = False) -> float:
+        """
+        Compute the area covered by the homotopy-augmented graph.
+
+        Args:
+            entanglement_free: if True, only consider vertices flagged True in
+                entanglement_vertices_lift.
+
+        Returns:
+            float: the covered area.
+        """
+        # Mask nodes based on entanglement state
+        if entanglement_free:
+            allowed = np.asarray(self.entanglement_vertices_lift, dtype=bool)
+        else:
+            allowed = np.ones(len(self.vertices_lift), dtype=bool)
+
+        # Directional adjacency in the lifted graph
+        nbr = defaultdict(dict)
+        for u, v in self.edges_lift:
+            if not (allowed[u] and allowed[v]):
+                continue
+            p = self.vertices[self.vertices_lift[u][0]]
+            q = self.vertices[self.vertices_lift[v][0]]
+            dx, dy = np.round((q - p) / np.array([self.res_x, self.res_y])).astype(int)
+            nbr[u][(dx, dy)] = v
+            nbr[v][(-dx, -dy)] = u
+
+        # Count the cells whose four bounding edges close a 4-cycle in the lift
+        n_cells = 0
+        for u in nbr:  # u = lower-left corner of the cell
+            right = nbr[u].get((1, 0))
+            up = nbr[u].get((0, 1))
+            if right is None or up is None:
+                continue
+            top_right = nbr[right].get((0, 1))
+            if top_right is not None and top_right == nbr[up].get((1, 0)):
+                n_cells += 1
+
+        return n_cells * self.res_x * self.res_y

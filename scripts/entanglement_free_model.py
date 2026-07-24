@@ -27,51 +27,60 @@ from tethered_planning.utils.settings import Settings
 # - def: entanglement_definition: str, definition of entanglement to use to determine
 #      the entanglement of the curves in the graphs.
 eval_cases = [
-    ("env_1.yaml", 1, 10.0, "convex_hull"),
-    ("env_1.yaml", 1, 10.0, "linear_homotopy"),
-    ("env_1.yaml", 1, 10.0, "local_visibility_homotopy"),
-    ("env_1.yaml", 1, 12.5, "convex_hull"),
-    ("env_1.yaml", 1, 12.5, "linear_homotopy"),
-    ("env_1.yaml", 1, 12.5, "local_visibility_homotopy"),
-    ("env_1.yaml", 1, 15.0, "convex_hull"),
-    ("env_1.yaml", 1, 15.0, "linear_homotopy"),
-    ("env_1.yaml", 1, 15.0, "local_visibility_homotopy"),
-    ("env_2.yaml", 2, 10.0, "convex_hull"),
-    ("env_2.yaml", 2, 10.0, "linear_homotopy"),
-    ("env_2.yaml", 2, 10.0, "local_visibility_homotopy"),
-    ("env_2.yaml", 2, 12.5, "convex_hull"),
-    ("env_2.yaml", 2, 12.5, "linear_homotopy"),
-    ("env_2.yaml", 2, 12.5, "local_visibility_homotopy"),
-    ("env_2.yaml", 2, 15.0, "convex_hull"),
-    ("env_2.yaml", 2, 15.0, "linear_homotopy"),
-    ("env_2.yaml", 2, 15.0, "local_visibility_homotopy"),
-    ("env_3.yaml", 6, 10.0, "convex_hull"),
-    ("env_3.yaml", 6, 10.0, "linear_homotopy"),
-    ("env_3.yaml", 6, 10.0, "local_visibility_homotopy"),
-    ("env_3.yaml", 6, 12.5, "convex_hull"),
-    ("env_3.yaml", 6, 12.5, "linear_homotopy"),
-    ("env_3.yaml", 6, 12.5, "local_visibility_homotopy"),
-    ("env_3.yaml", 6, 15.0, "convex_hull"),
-    ("env_3.yaml", 6, 15.0, "linear_homotopy"),
-    ("env_3.yaml", 6, 15.0, "local_visibility_homotopy"),
-    ("env_4.yaml", 8, 10.0, "convex_hull"),
-    ("env_4.yaml", 8, 10.0, "linear_homotopy"),
-    ("env_4.yaml", 8, 10.0, "local_visibility_homotopy"),
-    ("env_4.yaml", 8, 12.5, "convex_hull"),
-    ("env_4.yaml", 8, 12.5, "linear_homotopy"),
-    ("env_4.yaml", 8, 12.5, "local_visibility_homotopy"),
-    ("env_4.yaml", 8, 15.0, "convex_hull"),
-    ("env_4.yaml", 8, 15.0, "linear_homotopy"),
-    ("env_4.yaml", 8, 15.0, "local_visibility_homotopy"),
-    ("env_5.yaml", 10, 10.0, "convex_hull"),
-    ("env_5.yaml", 10, 10.0, "linear_homotopy"),
-    ("env_5.yaml", 10, 10.0, "local_visibility_homotopy"),
-    ("env_5.yaml", 10, 12.5, "convex_hull"),
-    ("env_5.yaml", 10, 12.5, "linear_homotopy"),
-    ("env_5.yaml", 10, 12.5, "local_visibility_homotopy"),
-    ("env_5.yaml", 10, 15.0, "convex_hull"),
-    ("env_5.yaml", 10, 15.0, "linear_homotopy"),
-    ("env_5.yaml", 10, 15.0, "local_visibility_homotopy"),
+    # ("env_1.yaml", 1, 10.0, "convex_hull"),
+    # ("env_1.yaml", 1, 10.0, "linear_homotopy"),
+    # ("env_1.yaml", 1, 10.0, "local_visibility_homotopy"),
+    # ("env_1.yaml", 1, 12.5, "convex_hull"),
+    # ("env_1.yaml", 1, 12.5, "linear_homotopy"),
+    # ("env_1.yaml", 1, 12.5, "local_visibility_homotopy"),
+    # ("env_1.yaml", 1, 15.0, "convex_hull"),
+    # ("env_1.yaml", 1, 15.0, "linear_homotopy"),
+    # ("env_1.yaml", 1, 15.0, "local_visibility_homotopy"),
+    # ("env_2.yaml", 2, 10.0, "convex_hull"),
+    # ("env_2.yaml", 2, 10.0, "linear_homotopy"),
+    # ("env_2.yaml", 2, 10.0, "local_visibility_homotopy"),
+    # ("env_2.yaml", 2, 12.5, "convex_hull"),
+    # ("env_2.yaml", 2, 12.5, "linear_homotopy"),
+    # ("env_2.yaml", 2, 12.5, "local_visibility_homotopy"),
+    # ("env_2.yaml", 2, 15.0, "convex_hull"),
+    # ("env_2.yaml", 2, 15.0, "linear_homotopy"),
+    # ("env_2.yaml", 2, 15.0, "local_visibility_homotopy"),
+    # ("env_3.yaml", 6, 10.0, "convex_hull"),
+    # ("env_3.yaml", 6, 10.0, "linear_homotopy"),
+    # ("env_3.yaml", 6, 10.0, "local_visibility_homotopy"),
+    # ("env_3.yaml", 6, 12.5, "convex_hull"),
+    # ("env_3.yaml", 6, 12.5, "linear_homotopy"),
+    # ("env_3.yaml", 6, 12.5, "local_visibility_homotopy"),
+    # ("env_3.yaml", 6, 15.0, "convex_hull"),
+    # ("env_3.yaml", 6, 15.0, "linear_homotopy"),
+    # ("env_3.yaml", 6, 15.0, "local_visibility_homotopy"),
+    ("env_3b.yaml", 6, 10.0, "convex_hull"),
+    ("env_3b.yaml", 6, 10.0, "linear_homotopy"),
+    ("env_3b.yaml", 6, 10.0, "local_visibility_homotopy"),
+    ("env_3b.yaml", 6, 12.5, "convex_hull"),
+    ("env_3b.yaml", 6, 12.5, "linear_homotopy"),
+    ("env_3b.yaml", 6, 12.5, "local_visibility_homotopy"),
+    ("env_3b.yaml", 6, 15.0, "convex_hull"),
+    ("env_3b.yaml", 6, 15.0, "linear_homotopy"),
+    ("env_3b.yaml", 6, 15.0, "local_visibility_homotopy"),
+    # ("env_4.yaml", 8, 10.0, "convex_hull"),
+    # ("env_4.yaml", 8, 10.0, "linear_homotopy"),
+    # ("env_4.yaml", 8, 10.0, "local_visibility_homotopy"),
+    # ("env_4.yaml", 8, 12.5, "convex_hull"),
+    # ("env_4.yaml", 8, 12.5, "linear_homotopy"),
+    # ("env_4.yaml", 8, 12.5, "local_visibility_homotopy"),
+    # ("env_4.yaml", 8, 15.0, "convex_hull"),
+    # ("env_4.yaml", 8, 15.0, "linear_homotopy"),
+    # ("env_4.yaml", 8, 15.0, "local_visibility_homotopy"),
+    # ("env_5.yaml", 10, 10.0, "convex_hull"),
+    # ("env_5.yaml", 10, 10.0, "linear_homotopy"),
+    # ("env_5.yaml", 10, 10.0, "local_visibility_homotopy"),
+    # ("env_5.yaml", 10, 12.5, "convex_hull"),
+    # ("env_5.yaml", 10, 12.5, "linear_homotopy"),
+    # ("env_5.yaml", 10, 12.5, "local_visibility_homotopy"),
+    # ("env_5.yaml", 10, 15.0, "convex_hull"),
+    # ("env_5.yaml", 10, 15.0, "linear_homotopy"),
+    # ("env_5.yaml", 10, 15.0, "local_visibility_homotopy"),
 ]
 
 # Move to script directory
@@ -290,16 +299,15 @@ for idx, case in enumerate(eval_cases):
         / n_runs
     )
 
-    # Compute entanglement-admissible node ratio in homotopy augmented graph
-    n_reachable: int = len(graph_1_ent.vertices_lift)
-    n_entanglement_admissible: int = sum(graph_1_ent.entanglement_vertices_lift)
-    area_ratio_hag = n_entanglement_admissible / n_reachable * 100
-
     # Store results in table
-    results_table[idx, 15] = n_entanglement_admissible  # nodes h augmented graph
+    results_table[idx, 15] = sum(
+        graph_1_ent.entanglement_vertices_lift
+    )  # nodes h augmented graph
     results_table[idx, 16] = t_1_ent  # time homotopy augmented graph
-    results_table[idx, 17] = graph_1_ent.compute_area()  # area of h augmented graph
-    results_table[idx, 18] = area_ratio_hag  # entanglement-admissible node ratio
+    results_table[idx, 17] = graph_1_ent.compute_area(entanglement_free=True)
+    results_table[idx, 18] = (
+        graph_1_ent.compute_area(entanglement_free=True) / graph_1.compute_area() * 100
+    )  # entanglement-admissible node ratio
 
     ####################################################################################
     # Homotopy augmented graph with medium resolution
@@ -357,16 +365,15 @@ for idx, case in enumerate(eval_cases):
         / n_runs
     )
 
-    # Compute entanglement-admissible node ratio in homotopy augmented graph
-    n_reachable: int = len(graph_2_ent.vertices_lift)
-    n_entanglement_admissible: int = sum(graph_2_ent.entanglement_vertices_lift)
-    area_ratio_hag = n_entanglement_admissible / n_reachable * 100
-
     # Store results in table
-    results_table[idx, 22] = n_entanglement_admissible  # nodes h-augmented graph
+    results_table[idx, 22] = sum(
+        graph_2_ent.entanglement_vertices_lift
+    )  # nodes h-augmented graph
     results_table[idx, 23] = t_2_ent  # time homotopy augmented graph
-    results_table[idx, 24] = graph_2_ent.compute_area()  # approx area
-    results_table[idx, 25] = area_ratio_hag  # entanglement-admissible node ratio
+    results_table[idx, 24] = graph_2_ent.compute_area(entanglement_free=True)
+    results_table[idx, 25] = (
+        graph_2_ent.compute_area(entanglement_free=True) / graph_2.compute_area() * 100
+    )  # entanglement-admissible node ratio
 
     ####################################################################################
     # Save iteration rdesults in pickle file for later analysis
