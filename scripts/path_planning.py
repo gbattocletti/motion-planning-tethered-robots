@@ -36,12 +36,13 @@ from tethered_planning.utils.settings import Settings
 
 # Script settings
 SELECT_TETHER_MANUALLY: bool = True
-env_name = "env_5"  # NOTE: currently only env_4 is supported in this script
+env_name = "env_4"  # NOTE: currently only env_4 is supported in this script
 length_max = 12.5  # current available options: {10, 12.5, 15}
 
 # goal = np.array([7.5, 7.5])  # NOTE: change to select different goal
 # goal = np.array([1.5, 4.5])
-goal = np.array([4.0, 2.0])
+# goal = np.array([4.0, 2.0])
+goal = np.array([2.6, 6.5])
 
 # Select experiments
 experiments: list[list[str]] = []
@@ -370,8 +371,8 @@ for filename, definition in experiments:
     ax: plt.Axes
     fig, ax = plot.plot_env(
         env,
-        show_tether=False,
-        show_robot=False,
+        show_tether=True,
+        show_robot=True,
         show_anchor=True,
         show_goal=True,
         show_legend=False,
