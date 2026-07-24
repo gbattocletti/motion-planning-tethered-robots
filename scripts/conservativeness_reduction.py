@@ -27,22 +27,22 @@ from tethered_planning.utils.settings import Settings
 # - l: float, tether length
 eval_cases = [
     ("env_1.yaml", 10.0),
-    ("env_1.yaml", 12.0),
+    ("env_1.yaml", 12.5),
     ("env_1.yaml", 15.0),
     ("env_2.yaml", 10.0),
-    ("env_2.yaml", 12.0),
+    ("env_2.yaml", 12.5),
     ("env_2.yaml", 15.0),
     ("env_3b.yaml", 10.0),
-    ("env_3b.yaml", 12.0),
+    ("env_3b.yaml", 12.5),
     ("env_3b.yaml", 15.0),
     ("env_3.yaml", 10.0),
-    ("env_3.yaml", 12.0),
+    ("env_3.yaml", 12.5),
     ("env_3.yaml", 15.0),
     ("env_4.yaml", 10.0),
-    ("env_4.yaml", 12.0),
+    ("env_4.yaml", 12.5),
     ("env_4.yaml", 15.0),
     ("env_5.yaml", 10.0),
-    ("env_5.yaml", 12.0),
+    ("env_5.yaml", 12.5),
     ("env_5.yaml", 15.0),
 ]
 
@@ -101,7 +101,7 @@ for idx, case in enumerate(eval_cases):
     triang.INFO = True  # Enable info
     triang.DEBUG = False
     triang.triangulate()
-    triang.max_lifted_triangles = 100_000
+    triang.max_lifted_triangles = 1_000_000
     triang.set_max_dist(l)
     triang.lift_triangulation(reduce_conservativeness=True)
 
@@ -143,7 +143,7 @@ for idx, case in enumerate(eval_cases):
     graph_1.INFO = True  # Enable info
     graph_1.DEBUG = False  # Disable verbose debug prints
     graph_1.set_max_dist(l)
-    graph_1.n_max = 1_000_000
+    graph_1.n_max = 5_000_000
     graph_1.set_grid_resolution(0.5, 0.5)
     graph_1.build_homotopy_augmented_graph()
 
@@ -163,7 +163,7 @@ for idx, case in enumerate(eval_cases):
     graph_2.INFO = True  # Enable info
     graph_2.DEBUG = False  # Disable verbose debug prints
     graph_2.set_max_dist(l)
-    graph_2.n_max = 1_000_000
+    graph_2.n_max = 5_000_000
     graph_2.set_grid_resolution(0.25, 0.25)
     graph_2.build_homotopy_augmented_graph()
 

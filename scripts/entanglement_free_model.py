@@ -27,24 +27,24 @@ from tethered_planning.utils.settings import Settings
 # - def: entanglement_definition: str, definition of entanglement to use to determine
 #      the entanglement of the curves in the graphs.
 eval_cases = [
-    # ("env_1.yaml", 1, 10.0, "convex_hull"),  # 1
-    # ("env_1.yaml", 1, 10.0, "linear_homotopy"),
-    # ("env_1.yaml", 1, 10.0, "local_visibility_homotopy"),
-    # ("env_1.yaml", 1, 12.5, "convex_hull"),  # 4
-    # ("env_1.yaml", 1, 12.5, "linear_homotopy"),
-    # ("env_1.yaml", 1, 12.5, "local_visibility_homotopy"),
-    # ("env_1.yaml", 1, 15.0, "convex_hull"),  # 7
-    # ("env_1.yaml", 1, 15.0, "linear_homotopy"),
-    # ("env_1.yaml", 1, 15.0, "local_visibility_homotopy"),
-    # ("env_2.yaml", 2, 10.0, "convex_hull"),   # 10
-    # ("env_2.yaml", 2, 10.0, "linear_homotopy"),
-    # ("env_2.yaml", 2, 10.0, "local_visibility_homotopy"),
-    # ("env_2.yaml", 2, 12.5, "convex_hull"),  # 13
-    # ("env_2.yaml", 2, 12.5, "linear_homotopy"),
-    # ("env_2.yaml", 2, 12.5, "local_visibility_homotopy"),
-    # ("env_2.yaml", 2, 15.0, "convex_hull"),  # 16
-    # ("env_2.yaml", 2, 15.0, "linear_homotopy"),
-    # ("env_2.yaml", 2, 15.0, "local_visibility_homotopy"),
+    ("env_1.yaml", 1, 10.0, "convex_hull"),  # 1
+    ("env_1.yaml", 1, 10.0, "linear_homotopy"),
+    ("env_1.yaml", 1, 10.0, "local_visibility_homotopy"),
+    ("env_1.yaml", 1, 12.5, "convex_hull"),  # 4
+    ("env_1.yaml", 1, 12.5, "linear_homotopy"),
+    ("env_1.yaml", 1, 12.5, "local_visibility_homotopy"),
+    ("env_1.yaml", 1, 15.0, "convex_hull"),  # 7
+    ("env_1.yaml", 1, 15.0, "linear_homotopy"),
+    ("env_1.yaml", 1, 15.0, "local_visibility_homotopy"),
+    ("env_2.yaml", 2, 10.0, "convex_hull"),  # 10
+    ("env_2.yaml", 2, 10.0, "linear_homotopy"),
+    ("env_2.yaml", 2, 10.0, "local_visibility_homotopy"),
+    ("env_2.yaml", 2, 12.5, "convex_hull"),  # 13
+    ("env_2.yaml", 2, 12.5, "linear_homotopy"),
+    ("env_2.yaml", 2, 12.5, "local_visibility_homotopy"),
+    ("env_2.yaml", 2, 15.0, "convex_hull"),  # 16
+    ("env_2.yaml", 2, 15.0, "linear_homotopy"),
+    ("env_2.yaml", 2, 15.0, "local_visibility_homotopy"),
     ("env_3b.yaml", 6, 10.0, "convex_hull"),  # 19
     ("env_3b.yaml", 6, 10.0, "linear_homotopy"),
     ("env_3b.yaml", 6, 10.0, "local_visibility_homotopy"),
@@ -54,33 +54,33 @@ eval_cases = [
     ("env_3b.yaml", 6, 15.0, "convex_hull"),  # 25
     ("env_3b.yaml", 6, 15.0, "linear_homotopy"),
     ("env_3b.yaml", 6, 15.0, "local_visibility_homotopy"),
-    # ("env_3.yaml", 6, 10.0, "convex_hull"),  # 28
-    # ("env_3.yaml", 6, 10.0, "linear_homotopy"),
-    # ("env_3.yaml", 6, 10.0, "local_visibility_homotopy"),
-    # ("env_3.yaml", 6, 12.5, "convex_hull"),  # 31
-    # ("env_3.yaml", 6, 12.5, "linear_homotopy"),
-    # ("env_3.yaml", 6, 12.5, "local_visibility_homotopy"),
-    # ("env_3.yaml", 6, 15.0, "convex_hull"),  # 34
-    # ("env_3.yaml", 6, 15.0, "linear_homotopy"),
-    # ("env_3.yaml", 6, 15.0, "local_visibility_homotopy"),
-    # ("env_4.yaml", 8, 10.0, "convex_hull"),  # 37
-    # ("env_4.yaml", 8, 10.0, "linear_homotopy"),
-    # ("env_4.yaml", 8, 10.0, "local_visibility_homotopy"),
-    # ("env_4.yaml", 8, 12.5, "convex_hull"),  # 40
-    # ("env_4.yaml", 8, 12.5, "linear_homotopy"),
-    # ("env_4.yaml", 8, 12.5, "local_visibility_homotopy"),
-    # ("env_4.yaml", 8, 15.0, "convex_hull"),  # 43
-    # ("env_4.yaml", 8, 15.0, "linear_homotopy"),
-    # ("env_4.yaml", 8, 15.0, "local_visibility_homotopy"),
-    # ("env_5.yaml", 10, 10.0, "convex_hull"),  # 46
-    # ("env_5.yaml", 10, 10.0, "linear_homotopy"),
-    # ("env_5.yaml", 10, 10.0, "local_visibility_homotopy"),
-    # ("env_5.yaml", 10, 12.5, "convex_hull"),  # 49
-    # ("env_5.yaml", 10, 12.5, "linear_homotopy"),
-    # ("env_5.yaml", 10, 12.5, "local_visibility_homotopy"),
-    # ("env_5.yaml", 10, 15.0, "convex_hull"),  # 52
-    # ("env_5.yaml", 10, 15.0, "linear_homotopy"),
-    # ("env_5.yaml", 10, 15.0, "local_visibility_homotopy"),
+    ("env_3.yaml", 6, 10.0, "convex_hull"),  # 28
+    ("env_3.yaml", 6, 10.0, "linear_homotopy"),
+    ("env_3.yaml", 6, 10.0, "local_visibility_homotopy"),
+    ("env_3.yaml", 6, 12.5, "convex_hull"),  # 31
+    ("env_3.yaml", 6, 12.5, "linear_homotopy"),
+    ("env_3.yaml", 6, 12.5, "local_visibility_homotopy"),
+    ("env_3.yaml", 6, 15.0, "convex_hull"),  # 34
+    ("env_3.yaml", 6, 15.0, "linear_homotopy"),
+    ("env_3.yaml", 6, 15.0, "local_visibility_homotopy"),
+    ("env_4.yaml", 8, 10.0, "convex_hull"),  # 37
+    ("env_4.yaml", 8, 10.0, "linear_homotopy"),
+    ("env_4.yaml", 8, 10.0, "local_visibility_homotopy"),
+    ("env_4.yaml", 8, 12.5, "convex_hull"),  # 40
+    ("env_4.yaml", 8, 12.5, "linear_homotopy"),
+    ("env_4.yaml", 8, 12.5, "local_visibility_homotopy"),
+    ("env_4.yaml", 8, 15.0, "convex_hull"),  # 43
+    ("env_4.yaml", 8, 15.0, "linear_homotopy"),
+    ("env_4.yaml", 8, 15.0, "local_visibility_homotopy"),
+    ("env_5.yaml", 10, 10.0, "convex_hull"),  # 46
+    ("env_5.yaml", 10, 10.0, "linear_homotopy"),
+    ("env_5.yaml", 10, 10.0, "local_visibility_homotopy"),
+    ("env_5.yaml", 10, 12.5, "convex_hull"),  # 49
+    ("env_5.yaml", 10, 12.5, "linear_homotopy"),
+    ("env_5.yaml", 10, 12.5, "local_visibility_homotopy"),
+    ("env_5.yaml", 10, 15.0, "convex_hull"),  # 52
+    ("env_5.yaml", 10, 15.0, "linear_homotopy"),
+    ("env_5.yaml", 10, 15.0, "local_visibility_homotopy"),
 ]
 
 # Move to script directory
