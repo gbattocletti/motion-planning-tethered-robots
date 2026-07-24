@@ -2,8 +2,8 @@
 dev/
 doc/
 tests/results
-scripts/results
-scripts/results*
+scripts/results/*
+!scripts/results/.gitkeep
 results-paper-ifac
 results-paper-journal
 
