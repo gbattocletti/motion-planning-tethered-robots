@@ -36,13 +36,13 @@ from tethered_planning.utils.settings import Settings
 
 # Script settings
 SELECT_TETHER_MANUALLY: bool = True
-env_name = "env_4"  # NOTE: currently only env_4 is supported in this script
-length_max = 12.5  # current available options: {10, 12.5, 15}
+env_name = "env_3"  # NOTE: currently only env_4 is supported in this script
+length_max = 10.0  # current available options: {10, 12.5, 15}
 
 # goal = np.array([7.5, 7.5])  # NOTE: change to select different goal
 # goal = np.array([1.5, 4.5])
 # goal = np.array([4.0, 2.0])
-goal = np.array([2.6, 6.5])
+goal = np.array([9, 4])
 
 # Select experiments
 experiments: list[list[str]] = []
@@ -220,6 +220,56 @@ for filename, definition in experiments:
     graph: GridGraph = data["graph_2_entanglement"]
     triang: Triangulation
     graph: GridGraph
+
+    # Plot env
+    fig: plt.Figure
+    ax: plt.Axes
+    fig, ax = plot.plot_env(
+        env,
+        show_tether=False,
+        show_robot=False,
+        show_anchor=True,
+        show_goal=True,
+        show_legend=False,
+        show_generators=False,
+        show_curves_labels=False,
+        show_robot_anchor_labels=False,
+        show_generators_labels=False,
+        show_obstacles_labels=False,
+        show_axes_labels=False,
+        figsize=[4, 4],
+    )
+    ax.set_xlabel("")
+    ax.set_ylabel("")
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
+    ax.plot(goal[0], goal[1], color="green", marker="o", markersize=2, zorder=10)
+    fig.savefig(f"results/{env_name}-pp-empty.png", dpi=1200, format="png")
+
+    # Plot env
+    fig: plt.Figure
+    ax: plt.Axes
+    fig, ax = plot.plot_env(
+        env,
+        show_tether=True,
+        show_robot=True,
+        show_anchor=True,
+        show_goal=True,
+        show_legend=False,
+        show_generators=False,
+        show_curves_labels=False,
+        show_robot_anchor_labels=False,
+        show_generators_labels=False,
+        show_obstacles_labels=False,
+        show_axes_labels=False,
+        figsize=[4, 4],
+    )
+    ax.set_xlabel("")
+    ax.set_ylabel("")
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
+    ax.plot(goal[0], goal[1], color="green", marker="o", markersize=2, zorder=10)
+    fig.savefig(f"results/{env_name}-pp-init.png", dpi=1200, format="png")
 
     ####################################################################################
     # Perform path planning on simplicial complex model
