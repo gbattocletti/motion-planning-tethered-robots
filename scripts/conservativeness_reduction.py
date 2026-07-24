@@ -41,6 +41,9 @@ eval_cases = [
     ("env_4.yaml", 10.0),
     ("env_4.yaml", 12.0),
     ("env_4.yaml", 15.0),
+    ("env_5.yaml", 10.0),
+    ("env_5.yaml", 12.0),
+    ("env_5.yaml", 15.0),
 ]
 
 # Move to script directory

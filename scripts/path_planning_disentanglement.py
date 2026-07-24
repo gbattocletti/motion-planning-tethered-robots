@@ -19,14 +19,73 @@ from tethered_planning.utils import curves, plot, plot_triangulation
 from tethered_planning.utils.settings import Settings
 
 # Script settings
-env_name = "env_4"
-length = 15.0
-experiments = [
-    ["results/entanglement_free_model/comparison-34.pkl", "convex_hull"],
-    # ["results/entanglement_free_model/comparison-35.pkl", "linear_homotopy"],
-    # ["results/entanglement_free_model/comparison-36.pkl", "local_visibility"],
-]
-SELECT_TETHER_MANUALLY: bool = False
+env_name = "env_5"
+length = 12.5
+
+match (env_name, length):
+    case ("env_3b", 10.0):
+        experiments = [
+            ["results/entanglement_free_model/comparison-19.pkl", "convex_hull"],
+            ["results/entanglement_free_model/comparison-21.pkl", "local_visibility"],
+        ]
+    case ("env_3b", 12.5):
+        experiments = [
+            ["results/entanglement_free_model/comparison-22.pkl", "convex_hull"],
+            ["results/entanglement_free_model/comparison-24.pkl", "local_visibility"],
+        ]
+    case ("env_3b", 15.0):
+        experiments = [
+            ["results/entanglement_free_model/comparison-25.pkl", "convex_hull"],
+            ["results/entanglement_free_model/comparison-27.pkl", "local_visibility"],
+        ]
+    case ("env_3", 10.0):
+        experiments = [
+            ["results/entanglement_free_model/comparison-28.pkl", "convex_hull"],
+            ["results/entanglement_free_model/comparison-30.pkl", "local_visibility"],
+        ]
+    case ("env_3", 12.5):
+        experiments = [
+            ["results/entanglement_free_model/comparison-31.pkl", "convex_hull"],
+            ["results/entanglement_free_model/comparison-33.pkl", "local_visibility"],
+        ]
+    case ("env_3", 15.0):
+        experiments = [
+            ["results/entanglement_free_model/comparison-34.pkl", "convex_hull"],
+            ["results/entanglement_free_model/comparison-36.pkl", "local_visibility"],
+        ]
+    case ("env_4", 10.0):
+        experiments = [
+            ["results/entanglement_free_model/comparison-37.pkl", "convex_hull"],
+            ["results/entanglement_free_model/comparison-39.pkl", "local_visibility"],
+        ]
+    case ("env_4", 12.5):
+        experiments = [
+            ["results/entanglement_free_model/comparison-40.pkl", "convex_hull"],
+            ["results/entanglement_free_model/comparison-42.pkl", "local_visibility"],
+        ]
+    case ("env_4", 15.0):
+        experiments = [
+            ["results/entanglement_free_model/comparison-43.pkl", "convex_hull"],
+            ["results/entanglement_free_model/comparison-45.pkl", "local_visibility"],
+        ]
+    case ("env_5", 10.0):
+        experiments = [
+            ["results/entanglement_free_model/comparison-46.pkl", "convex_hull"],
+            ["results/entanglement_free_model/comparison-48.pkl", "local_visibility"],
+        ]
+    case ("env_5", 12.5):
+        experiments = [
+            ["results/entanglement_free_model/comparison-49.pkl", "convex_hull"],
+            ["results/entanglement_free_model/comparison-51.pkl", "local_visibility"],
+        ]
+    case ("env_5", 15.0):
+        experiments = [
+            ["results/entanglement_free_model/comparison-52.pkl", "convex_hull"],
+            ["results/entanglement_free_model/comparison-54.pkl", "local_visibility"],
+        ]
+    case _:
+        raise ValueError("Invalid combination of env and tether length.")
+SELECT_TETHER_MANUALLY: bool = True
 
 # Move to script directory
 abspath = os.path.abspath(__file__)
@@ -47,7 +106,6 @@ ax_bfs: plt.Axes
 colors = [
     "#006C74",
     "#720000",
-    "#755000",
 ]
 
 # Iterate over entanglement definitions
@@ -70,7 +128,8 @@ for idx, [filename, definition] in list(enumerate(experiments)):
             tether = curves.generate_curve(
                 env,
                 init_point=env.anchor_point,
-                check_self_intersection=True,
+                check_self_intersection=False,
+                max_points=50,
                 show_goal=False,
                 output_type="numpy",
             )
@@ -79,21 +138,25 @@ for idx, [filename, definition] in list(enumerate(experiments)):
             tether = np.array(
                 [
                     [4.5, 3.5],
-                    [4.22121517, 4.06915072],
-                    [4.38234307, 4.75394428],
-                    [4.36891574, 5.7475663],
-                    [4.1272239, 6.31151393],
-                    [3.4155757, 6.53977845],
-                    [2.67707284, 6.13695871],
-                    [2.435381, 5.30446459],
-                    [2.42195368, 4.49882511],
-                    [1.69687815, 4.49882511],
-                    [0.83752937, 4.75394428],
-                    [0.6361195, 5.5864384],
-                    [0.94494797, 6.25780463],
-                    [0.75696542, 7.03658946],
-                    [0.71668345, 7.84222894],
-                    [0.93152064, 8.32561262],
+                    [4.46290702, 3.9483048],
+                    [4.48976166, 4.83450822],
+                    [4.46290702, 5.65357503],
+                    [4.40919772, 6.11010406],
+                    [4.22121517, 6.43235985],
+                    [3.60355824, 6.47264183],
+                    [2.85162806, 6.33836858],
+                    [2.71735482, 5.92212152],
+                    [2.58308157, 5.25075529],
+                    [2.39509903, 4.83450822],
+                    [1.69687815, 4.63309836],
+                    [1.17321249, 4.68680765],
+                    [0.75696542, 4.86136287],
+                    [0.70325613, 5.17019134],
+                    [0.77039275, 5.73413897],
+                    [0.77039275, 6.15038604],
+                    [0.904666, 6.48606915],
+                    [0.78382007, 6.83517959],
+                    [0.77039275, 7.19771735],
                 ]
             )
         if curves.measure_length(tether) > length:
@@ -119,9 +182,10 @@ for idx, [filename, definition] in list(enumerate(experiments)):
             show_generators=False,
             show_curves_labels=False,
             show_generators_labels=False,
+            show_robot_anchor_labels=False,
             show_obstacles_labels=True,
             show_axes_labels=False,
-            figsize=[8, 8],
+            figsize=[6, 6],
         )
         ax_dfs.set_xlabel("")
         ax_dfs.set_ylabel("")
@@ -138,9 +202,10 @@ for idx, [filename, definition] in list(enumerate(experiments)):
             show_generators=False,
             show_curves_labels=False,
             show_generators_labels=False,
+            show_robot_anchor_labels=False,
             show_obstacles_labels=True,
             show_axes_labels=False,
-            figsize=[8, 8],
+            figsize=[6, 6],
         )
         ax_bfs.set_xlabel("")
         ax_bfs.set_ylabel("")

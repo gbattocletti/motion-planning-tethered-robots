@@ -39,7 +39,7 @@ fig, _ = plot.plot_env(
     show_generators=True,
     show_generators_labels=True,
     show_obstacles_labels=True,
-    figsize=[15, 15],
+    figsize=[4, 4],
 )
 fig.savefig(f"results/{env_name}.png", dpi=900, format="png", bbox_inches="tight")
 
@@ -47,10 +47,10 @@ fig.savefig(f"results/{env_name}.png", dpi=900, format="png", bbox_inches="tight
 triang = Triangulation(env)
 triang.triangulate()
 triang.set_max_dist(11.0)
-triang.set_max_triangles(200)
-triang.set_entanglement_definition("convex_hull")
+triang.set_max_triangles(1000)
+triang.set_entanglement_definition("local_visibility_homotopy")
 triang.lift_triangulation(check_entanglement=True)
-triang.entanglement_triangles_lift[21] = False  # HACK bugfix triangulation
+# triang.entanglement_triangles_lift[21] = False  # HACK bugfix triangulation
 
 # Visualization specifications
 cmap = CustomColors.layers_cmap[::-1] + CustomColors.layers_cmap[1:]
@@ -59,18 +59,15 @@ print(f"Signatures (#{len(signatures)}): {signatures}.")
 
 # Custom signatures order for plotting simplicial complex model of env_3b
 order = [
-    [2, 3, -2],
-    [2, 3, 3],
-    [2, 3],
-    [2, 2],
-    [2, -3, -2],
-    [2, -3],
-    [2],
-    [],
-    [-1],
     [4],
     [4, 3],
-    [-2],
+    [-1],
+    [],
+    [2],
+    [2, -3],
+    [2, -3, -2],
+    [2, 3],
+    [2, 3, -2],
 ]
 order = order[::-1]  # flip list (cosmetic only)
 
@@ -90,12 +87,6 @@ fig, ax = plot_triangulation.plot_3d(
 )
 ax.set_proj_type("ortho")
 ax.set_box_aspect((1, 1, 0.7))
-ax.set_xlabel("")
-ax.set_ylabel("")
-ax.set_zlabel("")
-ax.set_xticklabels([])
-ax.set_yticklabels([])
-ax.set_zticklabels([])
 
 # Pyplot plot - length-reachable simplicial complex R
 fig_R = plot_triangulation.plot_3d_plotly(
@@ -137,5 +128,5 @@ fig_N.write_image(
 # Show plots
 if show_figures is True:
     plt.show()
-    fig_R.show()
-    fig_N.show()
+    # fig_R.show()
+    # fig_N.show()
