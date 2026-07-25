@@ -19,8 +19,9 @@ from tethered_planning.utils import curves, plot, plot_triangulation
 from tethered_planning.utils.settings import Settings
 
 # Script settings
+SELECT_TETHER_MANUALLY: bool = True
 env_name = "env_5"
-length = 12.5
+length = 15.0
 
 match (env_name, length):
     case ("env_3b", 10.0):
@@ -85,7 +86,6 @@ match (env_name, length):
         ]
     case _:
         raise ValueError("Invalid combination of env and tether length.")
-SELECT_TETHER_MANUALLY: bool = True
 
 # Move to script directory
 abspath = os.path.abspath(__file__)
@@ -137,26 +137,33 @@ for idx, [filename, definition] in list(enumerate(experiments)):
         else:
             tether = np.array(
                 [
-                    [4.5, 3.5],
-                    [4.46290702, 3.9483048],
-                    [4.48976166, 4.83450822],
-                    [4.46290702, 5.65357503],
-                    [4.40919772, 6.11010406],
-                    [4.22121517, 6.43235985],
-                    [3.60355824, 6.47264183],
-                    [2.85162806, 6.33836858],
-                    [2.71735482, 5.92212152],
-                    [2.58308157, 5.25075529],
-                    [2.39509903, 4.83450822],
-                    [1.69687815, 4.63309836],
-                    [1.17321249, 4.68680765],
-                    [0.75696542, 4.86136287],
-                    [0.70325613, 5.17019134],
-                    [0.77039275, 5.73413897],
-                    [0.77039275, 6.15038604],
-                    [0.904666, 6.48606915],
-                    [0.78382007, 6.83517959],
-                    [0.77039275, 7.19771735],
+                    [5.0, 4.5],
+                    [4.78516281, 4.80765358],
+                    [4.54347096, 5.10305472],
+                    [4.1809332, 5.35817388],
+                    [3.57670359, 5.49244713],
+                    [3.18731118, 5.50587445],
+                    [2.66364552, 5.35817388],
+                    [2.19368916, 5.39845586],
+                    [1.37462236, 5.45216516],
+                    [0.89123867, 5.61329305],
+                    [0.54212823, 5.94897617],
+                    [0.46156428, 6.52635112],
+                    [0.62269218, 7.06344411],
+                    [0.93152064, 7.4394092],
+                    [1.36119503, 7.68110104],
+                    [2.05941591, 7.80194696],
+                    [2.69050017, 7.66767372],
+                    [3.46928499, 7.66767372],
+                    [4.16750587, 7.61396442],
+                    [5.21483719, 7.64081907],
+                    [5.64451158, 7.88251091],
+                    [6.10104062, 8.11077543],
+                    [6.55756965, 8.40617657],
+                    [7.20208124, 8.50016784],
+                    [7.63175562, 8.35246727],
+                    [8.07485733, 8.0973481],
+                    [8.16884861, 7.78851964],
                 ]
             )
         if curves.measure_length(tether) > length:
@@ -183,9 +190,9 @@ for idx, [filename, definition] in list(enumerate(experiments)):
             show_curves_labels=False,
             show_generators_labels=False,
             show_robot_anchor_labels=False,
-            show_obstacles_labels=True,
+            show_obstacles_labels=False,
             show_axes_labels=False,
-            figsize=[6, 6],
+            figsize=[4, 4],
         )
         ax_dfs.set_xlabel("")
         ax_dfs.set_ylabel("")
@@ -203,9 +210,9 @@ for idx, [filename, definition] in list(enumerate(experiments)):
             show_curves_labels=False,
             show_generators_labels=False,
             show_robot_anchor_labels=False,
-            show_obstacles_labels=True,
+            show_obstacles_labels=False,
             show_axes_labels=False,
-            figsize=[6, 6],
+            figsize=[4, 4],
         )
         ax_bfs.set_xlabel("")
         ax_bfs.set_ylabel("")
