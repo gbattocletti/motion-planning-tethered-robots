@@ -26,6 +26,7 @@ dependencies = [
     "kaleido",
     "networkx",
     "tqdm",
+    "scipy",
 ]
 
 [project.optional-dependencies]
