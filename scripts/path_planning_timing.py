@@ -120,7 +120,7 @@ with open("results/path-planning-timing.csv", "w", encoding="utf-8") as f:
 
     # Iterate over goals
     n_experiments: int = 0
-    while n_experiments <= n_experiments_tot:
+    while n_experiments < n_experiments_tot:
 
         # Sample goal
         goal: np.ndarray = np.random.uniform(low=0.0, high=10.0, size=(1, 2))[0]
@@ -426,14 +426,14 @@ data_csv = np.loadtxt(
 n_rows, n_cols = data_csv.shape
 print()
 print(
-    f"time sc: {np.mean([data_csv[i][1] for i in n_rows])} "
-    f"+ {np.std([data_csv[i][1] for i in n_rows])}"
+    f"time sc: {np.mean([data_csv[i][1] for i in range(n_rows)]):.4f} "
+    f"+ {np.std([data_csv[i][1] for i in range(n_rows)]):.4f}"
 )
 print(
-    f"time hag_50: {np.mean([data_csv[i][8] for i in n_rows])} "
-    f"+ {np.std([data_csv[i][8] for i in n_rows])}"
+    f"time hag_50: {np.mean([data_csv[i][8] for i in range(n_rows)]):.4f} "
+    f"+ {np.std([data_csv[i][8] for i in range(n_rows)]):.4f}"
 )
 print(
-    f"time hag_25: {np.mean([data_csv[i][15] for i in n_rows])}"
-    f"{np.std([data_csv[i][15] for i in n_rows])}"
+    f"time hag_25: {np.mean([data_csv[i][15] for i in range(n_rows)]):.4f}"
+    f"{np.std([data_csv[i][15] for i in range(n_rows)]):.4f}"
 )
