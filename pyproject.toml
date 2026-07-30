@@ -27,6 +27,7 @@ dependencies = [
     "networkx",
     "tqdm",
     "scipy",
+    "casadi",
 ]
 
 [project.optional-dependencies]
