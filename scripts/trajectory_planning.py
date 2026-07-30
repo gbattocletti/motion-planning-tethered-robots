@@ -20,7 +20,7 @@ from tethered_planning.utils.settings import Settings
 env_name = "env_5"
 length_max = 15.0
 goal = np.array([7, 1])
-n_nodes = 30  # nodes in FEM model
+n_nodes = 40  # nodes in FEM model
 resampling: str = "linear"  # {linear, spline}
 manually_select_tether: bool = False
 manually_select_path: bool = True
@@ -83,28 +83,6 @@ env.goal_vertices = goal
 ########################################################################################
 # Initialize tether ####################################################################
 ########################################################################################
-
-# Initialize plot to show tethers
-fig, ax = plot.plot_env(
-    env,
-    show_tether=False,
-    show_robot=True,
-    show_anchor=True,
-    show_goal=False,
-    show_legend=False,
-    show_generators=False,
-    show_curves_labels=False,
-    show_robot_anchor_labels=False,
-    show_generators_labels=False,
-    show_obstacles_labels=False,
-    show_axes_labels=False,
-    figsize=[8, 8],
-)
-ax.set_xlabel("")
-ax.set_ylabel("")
-ax.set_xticklabels([])
-ax.set_yticklabels([])
-ax.plot(goal[0], goal[1], color="green", marker="o", markersize=2, zorder=10)
 
 # Define tether curve
 tether: np.ndarray
@@ -184,8 +162,28 @@ length_curve = curves.measure_length(tether)
 if length_curve > length_max:
     raise ValueError(f"Tether is too long {length_curve}>{length_max}")
 signature = curves.compute_signature(tether, env, simplify=True)
-print("\nTether input:")
-print(tether)
+
+# Initialize plot to show tethers
+fig, ax = plot.plot_env(
+    env,
+    show_tether=False,
+    show_robot=False,
+    show_anchor=False,
+    show_goal=False,
+    show_legend=False,
+    show_generators=False,
+    show_curves_labels=False,
+    show_robot_anchor_labels=False,
+    show_generators_labels=False,
+    show_obstacles_labels=False,
+    show_axes_labels=False,
+    figsize=[8, 8],
+)
+ax.set_xlabel("")
+ax.set_ylabel("")
+ax.set_xticklabels([])
+ax.set_yticklabels([])
+ax.plot(goal[0], goal[1], color="green", marker="o", markersize=2, zorder=10)
 ax.plot(
     tether[:, 0],
     tether[:, 1],
@@ -207,9 +205,7 @@ if resampling == "linear":
 elif resampling == "spline":
     spline, _ = splprep(tether.T, s=0)  # parametric spline through points
     tether_new = np.array(splev(np.linspace(0, 1, n_nodes), spline)).T
-tether = tether_new
-print("\nTether resampled:")
-print(tether)
+tether = tether_new  # resampled tether
 ax.plot(
     tether[:, 0],
     tether[:, 1],
@@ -226,7 +222,7 @@ tether_fem = TetherFEM2D(
     n_nodes=n_nodes,
     state=tether,
     input_mode="position",
-    dt=1e-4,  # dt
+    dt=5e-4,  # dt
     medium="water",  # should match setting used in real simulation
     water_current=np.array([0.0, 0.0]),
     gravity=False,  # should match setting used in real simulation
@@ -235,12 +231,13 @@ tether_fem = TetherFEM2D(
 # Simulate tether with no endpoint motion
 # NOTE: this step is optional and can be performed to remove all internal forces from
 # the tether by letting the simulation run and the tether come at a rest .
-t_preprocessing: float = 3.0
+print("[Running preprocessing simulation]")
+t_preprocessing: float = 10.0
 for k in tqdm(range(int(t_preprocessing / tether_fem.dt))):
-    tether_fem.step(np.array([0, 0]))
+    tether_fem.step(tether[-1])  # fixed endpoint
 ax.plot(
-    tether_fem.state[:2, 0],
-    tether_fem.state[:2, 1],
+    tether_fem.state[:, 0],
+    tether_fem.state[:, 1],
     "-o",
     color="#004E58",
     linewidth=1,
@@ -263,7 +260,7 @@ env.robot_initial_pos = tether[-1]
 ########################################################################################
 
 # Define time vector
-t_end: float = 60.0
+t_end: float = 15.0
 n_steps: int = int(t_end / tether_fem.dt)
 k_plot: list[int] = [0, n_steps - 1]  # TODO
 k_snapshots: list[int] = [0]  # TODO
@@ -303,6 +300,7 @@ state_mat = np.zeros([n_steps + 1, n_nodes, 6])  # tether state
 state_mat[0] = tether_fem.state.copy()
 
 # Run simulation
+print("[Running main simulation]")
 for k in tqdm(range(n_steps)):
 
     # Simulate FEM time step
