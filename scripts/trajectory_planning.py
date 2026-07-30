@@ -24,10 +24,9 @@ length_max = 15.0
 goal = np.array([7.5, 1.0])
 n_nodes = 40  # nodes in FEM model
 resampling: str = "linear"  # {linear, spline}
-manually_select_tether: bool = False
-run_tether_preprocessing: bool = False
+manually_select_tether: bool = True
+run_tether_preprocessing: bool = True
 path_selection_method: str = "path_planning"  # {manual, prespecified, path_planning}
-path_id: int = 1  # {1, 2, 3} to track prespecified paths
 t_end: float = 15.0  # simulation tiime
 
 ########################################################################################
@@ -101,6 +100,7 @@ if manually_select_tether is True:
         show_legend=False,
         output_type="numpy",
     )
+    print(tether)
 else:
     tether = np.array(
         [
@@ -238,10 +238,11 @@ tether_fem = TetherFEM2D(
 # This step serves to relax internal forces in tether and reach an initial equilibrium.
 if run_tether_preprocessing is True:
     print("[Running preprocessing simulation]")
-    t_preprocessing: float = 10.0
+    t_preprocessing: float = 5.0
     for k in tqdm(range(int(t_preprocessing / tether_fem.dt))):
         tether_fem.step(tether[-1])  # fixed endpoint
 else:
+    # Manually copy + paste preprocessed tether here to skip numerical preprocessing
     tether_fem.state[:, :2] = np.array(
         [
             [3.0, 7.0],
@@ -421,23 +422,19 @@ if path_selection_method == "manual":
     )
     traj = path  # TODO: apply traj optimization
 elif path_selection_method == "prespecified":
-    # select path among prespecified options and use it as constant speed trajectory
-    match path_id:
-        case 1:
-            path = np.array(
-                [
-                    [6.97381672, 7.31856328],
-                    [5.96676737, 7.18429003],
-                    [5.53709298, 6.28465928],
-                    [5.7653575, 4.84793555],
-                    [6.34273246, 3.66633098],
-                    [6.81268882, 2.18932528],
-                    [7.47062773, 0.98086606],
-                    [7.50000000, 1.00000000],
-                ]
-            )
-        case _:
-            raise ValueError("Invalid path id")
+    # prespecified path
+    path = np.array(
+        [
+            [6.97381672, 7.31856328],
+            [5.96676737, 7.18429003],
+            [5.53709298, 6.28465928],
+            [5.7653575, 4.84793555],
+            [6.34273246, 3.66633098],
+            [6.81268882, 2.18932528],
+            [7.47062773, 0.98086606],
+            [7.50000000, 1.00000000],
+        ]
+    )
     traj = path  # TODO: apply traj optimization
 elif path_selection_method == "path_planning":
     # perform path planning on simplicial complex model
@@ -571,7 +568,7 @@ for k in tqdm(range(n_steps)):
             figsize=np.array([5, 5]),
         )
         fig.savefig(
-            f"results/trajectory_planning/path-{path_id}-step-{k}.png",
+            f"results/trajectory_planning/step-{k}.png",
             dpi=1200,
             format="png",
             bbox_inches="tight",
@@ -589,7 +586,7 @@ fig, ax = plot_fem.plot_fem(
     figsize=np.array([5, 5]),
 )
 fig.savefig(
-    f"results/trajectory_planning/path-{path_id}-step-{k}.png",
+    f"results/trajectory_planning/step-{k}.png",
     dpi=1200,
     format="png",
     bbox_inches="tight",

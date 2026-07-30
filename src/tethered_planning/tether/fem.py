@@ -1,4 +1,6 @@
 import numpy as np
+import shapely
+from shapely import LineString
 
 from tethered_planning.env import env_2d
 from tethered_planning.utils import curves
@@ -201,6 +203,7 @@ class TetherFEM2D:
 
         # Obstacle contact: project penetrating nodes back to the boundary
         state_new = self._resolve_collisions_nodes(state_new)
+        state_new = self._resolve_segment_collisions(state_new)
 
         # Enforce obstacle contact at free endpoint (position control can override it)
         if self.input_mode == "position":
@@ -449,6 +452,128 @@ class TetherFEM2D:
                     v_t = state[i, 2:4] - (state[i, 2:4] @ n_hat) * n_hat
                     state[i, 2:4] -= self.obs_friction * v_t
 
+        return state
+
+    def _resolve_segment_collisions(self, state: np.ndarray) -> np.ndarray:
+        """
+        Element-level contact handling, applied after the node-level resolution.
+
+        Node contact keeps every node outside the obstacles, but the straight element
+        joining two nodes can still cross a polygon (typically across a convex corner,
+        or through a thin obstacle). Since a crossing element changes the homotopy class
+        of the tether, those crossings are resolved here: for every element that
+        intersects the interior of the obstacle region,
+            1. take the midpoint of its deepest portion inside the obstacle,
+            2. compute the shortest way out (nearest boundary point and depth),
+            3. translate the element by that vector, distributing the displacement over
+               its two nodes with barycentric weights, so that the offending point is
+               displaced exactly by the required depth,
+            4. cancel the inward normal velocity of the displaced nodes (and apply
+               tangential friction, as in the node-level resolution).
+        Resolving one element can perturb its neighbours, so the procedure is repeated
+        until no element crosses an obstacle, up to n_contact_sweeps times.
+
+        The anchor node is never displaced; in position control mode the driven endpoint
+        is not displaced either, since its position is imposed by the control input.
+
+        Args:
+            state (np.ndarray): (n, 6) tether state [x, y, vx, vy, ax, ay] to correct.
+                The input array is not modified.
+
+        Returns:
+            np.ndarray: (n, 6) corrected copy of the state, in which no element crosses
+                the interior of the obstacle region.
+        """
+
+        # Method parameters
+        eps = 1e-6
+        n_contact_sweeps: int = 20
+
+        # Nodes whose position cannot be corrected
+        fixed = {0, self.n - 1} if self.input_mode == "position" else {0}
+
+        # Run edge check
+        state = state.copy()  # do not modify the input
+        for _ in range(n_contact_sweeps):
+            corrected = False
+            for i in range(self.n - 1):
+                a = state[i, :2]
+                b = state[i + 1, :2]
+
+                # Elements only touching the obstacle boundary are valid: the node-level
+                # resolution leaves nodes lying on it, so boundary overlap is allowed
+                if self.env.is_valid_edge(a, b, allow_boundary_overlap=True):
+                    continue
+
+                # Portion of the element inside the obstacle region (longest one, in
+                # case the element crosses more than a single obstacle)
+                inside = shapely.intersection(
+                    LineString([a, b]), self.env.obstacle_region
+                )
+                if inside.is_empty or inside.length <= eps:
+                    continue
+                if inside.geom_type != "LineString":
+                    inside = max(inside.geoms, key=lambda geom: geom.length)
+                mid = np.asarray(inside.interpolate(0.5, normalized=True).coords[0])
+
+                # Obstacle containing the midpoint, and shortest way out of it
+                for poly in self.env.obstacle_vertices:
+                    if self._point_in_polygon(mid, poly):
+                        break
+                else:
+                    continue  # midpoint on a boundary: nothing to correct
+                q, depth = self._closest_point_on_boundary(mid, poly)
+                if depth < eps:
+                    continue
+                normal = (q - mid) / depth  # outward direction
+                shift = (depth + eps) * normal
+
+                # Barycentric weights, normalized so that the midpoint is displaced by
+                # exactly `shift` (fixed nodes get zero weight)
+                l_element = np.linalg.norm(b - a)
+
+                # Skip degenerate elements (coincident nodes)
+                if l_element < eps:
+                    continue
+
+                t = float(np.clip(np.linalg.norm(mid - a) / l_element, 0.0, 1.0))
+                w_a = 0.0 if i in fixed else (1.0 - t)
+                w_b = 0.0 if i + 1 in fixed else t
+                den = (1.0 - t) * w_a + t * w_b
+                if den < eps:
+                    continue  # both nodes fixed: the crossing cannot be resolved
+                d_a = (w_a / den) * shift
+                d_b = (w_b / den) * shift
+
+                # Clamp the correction: when the crossing is close to a fixed node the
+                # exact correction diverges as 1/t (the element pivots about that node),
+                # which injects a displacement orders of magnitude larger than the
+                # penetration depth. Under-correcting is safe: the residual penetration
+                # is removed by the following sweeps.
+                max_disp = 0.25 * self.l_el
+                d_max = max(np.linalg.norm(d_a), np.linalg.norm(d_b))
+                if d_max > max_disp:
+                    d_a *= max_disp / d_max
+                    d_b *= max_disp / d_max
+
+                # 1. displace the element out of the obstacle
+                state[i, :2] += d_a
+                state[i + 1, :2] += d_b
+
+                # 2. cancel inward normal velocity, 3. add tangential friction
+                for j, w in ((i, np.linalg.norm(d_a)), (i + 1, np.linalg.norm(d_b))):
+                    if w == 0.0:
+                        continue
+                    v_n = state[j, 2:4] @ normal
+                    if v_n < 0.0:
+                        state[j, 2:4] -= v_n * normal
+                    if self.obs_friction > 0.0:
+                        v_t = state[j, 2:4] - (state[j, 2:4] @ normal) * normal
+                        state[j, 2:4] -= self.obs_friction * v_t
+                corrected = True
+
+            if not corrected:
+                break
         return state
 
     def reaction_force_endpoint(self) -> np.ndarray:
