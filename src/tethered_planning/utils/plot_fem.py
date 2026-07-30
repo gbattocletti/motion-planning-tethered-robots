@@ -59,12 +59,11 @@ def plot_fem(
         tether_final = tether_init
 
     # Plotting settings
-    linewidth_trajectory = 1.3
-    markersize_trajectory = 3
-    linewidth_initial_final = 1.3
-    linewidth_intermediate = 1.1
-    markersize_initial_final = 4
-    markersize_intermediate = 3
+    linewidth_trajectory = 1.1
+    linewidth_initial_final = 1.0
+    linewidth_intermediate = 0.9
+    markersize_initial_final = 1
+    markersize_intermediate = 0.75
 
     # Select colormap
     if tether_snapshots is not None and (
@@ -84,6 +83,7 @@ def plot_fem(
         show_generators_labels=False,
         show_robot_anchor_labels=False,
         show_axes_labels=False,
+        show_obstacles_labels=False,
         figsize=figsize,
     )
 
@@ -92,7 +92,7 @@ def plot_fem(
         tether_init[:, 0],
         tether_init[:, 1],
         "o-",
-        color="gray",
+        color="#3A3A3A",
         linewidth=linewidth_initial_final,
         markersize=markersize_initial_final,
         zorder=6,
@@ -103,7 +103,7 @@ def plot_fem(
         tether_final[:, 0],
         tether_final[:, 1],
         "o-",
-        color="black",
+        color="#000000",
         linewidth=linewidth_initial_final,
         markersize=markersize_initial_final,
         zorder=7,
@@ -114,11 +114,28 @@ def plot_fem(
         ax.plot(
             trajectory[:, 0],
             trajectory[:, 1],
-            color="red",
+            color="#0086DF",
             linewidth=linewidth_trajectory,
-            markersize=markersize_trajectory,
             zorder=8,
         )
+
+    # Plot robot (initial and final)
+    ax.plot(
+        tether_init[-1, 0],
+        tether_init[-1, 1],
+        "o",
+        color="#0086DF",
+        markersize=2,
+        zorder=10,
+    )
+    ax.plot(
+        tether_final[-1, 0],
+        tether_final[-1, 1],
+        "D",
+        color="#0086DF",
+        markersize=2,
+        zorder=10,
+    )
 
     # Plot intermediate tether configurations
     if tether_snapshots is not None:
@@ -153,7 +170,7 @@ def plot_fem(
         markersize=2,
         markerfacecolor=PlotColors.goal_color,
         alpha=1,
-        markeredgecolor=PlotColors.goal_edge_color,
+        markeredgecolor=PlotColors.goal_color,
         markeredgewidth=1,
         zorder=9,
     )
@@ -164,14 +181,16 @@ def plot_fem(
         markersize=10,
         markerfacecolor=PlotColors.goal_color,
         alpha=0.3,
+        markeredgecolor=PlotColors.goal_color,
+        markeredgewidth=1,
         zorder=4,
     )
 
     # Set aspect ratio, axes limits, and labels
     # CHECKME: may be redundant since it is already covered in plot_env
     ax.set_aspect("equal", "box")
-    # ax.set_xlim([0, env.size[0]])
-    # ax.set_ylim([0, env.size[1]])
+    ax.set_xlim([0, env.size[0]])
+    ax.set_ylim([0, env.size[1]])
     ax.grid(True, which="major", linestyle=":", color="gray", linewidth=0.5, zorder=1)
     ax.grid(True, which="minor", linestyle=":", color="gray", linewidth=0.3, zorder=1)
     ax.minorticks_on()

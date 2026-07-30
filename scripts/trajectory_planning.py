@@ -238,15 +238,6 @@ if run_preprocessing is True:
     t_preprocessing: float = 10.0
     for k in tqdm(range(int(t_preprocessing / tether_fem.dt))):
         tether_fem.step(tether[-1])  # fixed endpoint
-    ax.plot(
-        tether_fem.state[:, 0],
-        tether_fem.state[:, 1],
-        "-o",
-        color="#000000",
-        linewidth=1,
-        markersize=1.5,
-        zorder=8,
-    )
 else:
     tether_fem.state[:, :2] = np.array(
         [
@@ -295,8 +286,60 @@ else:
     tether_fem.state[:, 2:] = np.zeros([n_nodes, 4])
 
 # Save plot with tether preprocessing
+ax.plot(
+    tether_fem.state[:, 0],
+    tether_fem.state[:, 1],
+    "-o",
+    color="#000000",
+    linewidth=1,
+    markersize=1.5,
+    zorder=8,
+)
 fig.savefig(
-    "results/trajectory_planning/tether-preprocessing.png", dpi=1200, format="png"
+    "results/trajectory_planning/initial-preprocessing.png",
+    dpi=1200,
+    format="png",
+    bbox_inches="tight",
+)
+plt.close(fig)
+
+# Plot and save initial conditions
+fig, ax = plot.plot_env(
+    env,
+    show_tether=False,
+    show_robot=False,
+    show_anchor=False,
+    show_goal=False,
+    show_legend=False,
+    show_generators=False,
+    show_curves_labels=False,
+    show_robot_anchor_labels=False,
+    show_generators_labels=False,
+    show_obstacles_labels=False,
+    show_axes_labels=False,
+    figsize=[5, 5],
+)
+ax.set_xlabel("")
+ax.set_ylabel("")
+ax.set_xticklabels([])
+ax.set_yticklabels([])
+ax.plot(goal[0], goal[1], color="green", marker="o", markersize=3, zorder=10)
+ax.plot(tether[-1, 0], tether[-1, 1], color="red", marker="o", markersize=3, zorder=10)
+ax.plot(anchor[0], anchor[1], color="blue", marker="o", markersize=3, zorder=10)
+ax.plot(
+    tether[:, 0],
+    tether[:, 1],
+    "-o",
+    color="#000000",
+    linewidth=1,
+    markersize=1.5,
+    zorder=8,
+)
+fig.savefig(
+    "results/trajectory_planning/initial-conditions.png",
+    dpi=1200,
+    format="png",
+    bbox_inches="tight",
 )
 plt.close(fig)
 
@@ -333,7 +376,10 @@ ax.plot(
     zorder=8,
 )
 fig.savefig(
-    "results/trajectory_planning/initial-conditions.png", dpi=1200, format="png"
+    "results/trajectory_planning/initial-conditions-fem.png",
+    dpi=1200,
+    format="png",
+    bbox_inches="tight",
 )
 plt.close(fig)
 
@@ -356,7 +402,7 @@ t_end: float = 15.0
 n_steps: int = int(t_end / tether_fem.dt)
 
 # Initialize data structures for plots and tether snapshots
-n_plots: int = 4
+n_plots: int = 10
 k_step_plot: float = n_steps / (n_plots - 1)
 k_plot: list[int] = [int(round(i * k_step_plot)) for i in range(n_plots)]
 n_snapshots: int = 20
@@ -429,10 +475,32 @@ for k in tqdm(range(n_steps)):
             env=env,
             tether_init=state_mat[0, :, :2],
             tether_final=state_mat[k, :, :2] if k > 0 else None,
-            trajectory=np.column_stack(path[:k, :]) if k > 0 else None,
+            trajectory=path[:k, :] if k > 0 else None,
             tether_snapshots=snapshots,
             show_plot=False,
             figsize=np.array([5, 5]),
         )
-        fig.savefig(f"results/trajectory_planning/step_{k}.png", dpi=1200, format="png")
+        fig.savefig(
+            f"results/trajectory_planning/step_{k}.png",
+            dpi=1200,
+            format="png",
+            bbox_inches="tight",
+        )
         plt.close(fig)
+
+fig, ax = plot_fem.plot_fem(
+    env=env,
+    tether_init=state_mat[0, :, :2],
+    tether_final=state_mat[-1, :, :2],
+    trajectory=path[:, :],
+    tether_snapshots=snapshots,
+    show_plot=False,
+    figsize=np.array([5, 5]),
+)
+fig.savefig(
+    f"results/trajectory_planning/step_{n_steps}.png",
+    dpi=1200,
+    format="png",
+    bbox_inches="tight",
+)
+plt.close(fig)
