@@ -419,7 +419,7 @@ def plot_env(env: Env2D, **kwargs) -> tuple[plt.Figure, plt.Axes]:
 
     # Plot the goal region
     if show_goal:
-        if not env.goal_region.is_empty:
+        if not env.goal_region.is_empty and env.goal_region is not None:
             plot_polygon(
                 env.goal_region,
                 ax=ax,
@@ -430,6 +430,21 @@ def plot_env(env: Env2D, **kwargs) -> tuple[plt.Figure, plt.Axes]:
                 add_points=False,
                 zorder=2,
             )
+        elif env.goal_vertices is not None:
+            ax.plot(
+                env.goal_vertices[0],
+                env.goal_vertices[1],
+                marker="o",
+                markersize=2,
+                markerfacecolor=PlotColors.goal_color,
+                alpha=1,
+                markeredgecolor=PlotColors.goal_edge_color,
+                markeredgewidth=1,
+                zorder=9,
+                label="Goal",
+                linestyle="None",
+            )
+
         goal_handle = Patch(color=PlotColors.goal_color, label="Goal")
         if show_robot_anchor_labels is True:
             ax.text(

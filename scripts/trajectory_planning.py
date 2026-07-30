@@ -5,6 +5,7 @@ Perform trajectory planning and execution.
 import os
 import pickle
 
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import splev, splprep
 from shapely import LineString
@@ -19,12 +20,12 @@ from tethered_planning.utils.settings import Settings
 # Script settings
 env_name = "env_5"
 length_max = 15.0
-goal = np.array([7, 1])
+goal = np.array([7.5, 1.0])
 n_nodes = 40  # nodes in FEM model
 resampling: str = "linear"  # {linear, spline}
 manually_select_tether: bool = False
-manually_select_path: bool = True
-tether_at_equilibrium: bool = True
+manually_select_path: bool = False
+run_preprocessing: bool = False
 
 ########################################################################################
 # Load data ############################################################################
@@ -177,20 +178,22 @@ fig, ax = plot.plot_env(
     show_generators_labels=False,
     show_obstacles_labels=False,
     show_axes_labels=False,
-    figsize=[8, 8],
+    figsize=[5, 5],
 )
 ax.set_xlabel("")
 ax.set_ylabel("")
 ax.set_xticklabels([])
 ax.set_yticklabels([])
-ax.plot(goal[0], goal[1], color="green", marker="o", markersize=2, zorder=10)
+ax.plot(goal[0], goal[1], color="green", marker="o", markersize=3, zorder=10)
+ax.plot(tether[-1, 0], tether[-1, 1], color="red", marker="o", markersize=3, zorder=10)
+ax.plot(anchor[0], anchor[1], color="blue", marker="o", markersize=3, zorder=10)
 ax.plot(
     tether[:, 0],
     tether[:, 1],
     "-o",
-    color="#004381",
+    color="#00818A",
     linewidth=1,
-    markersize=2,
+    markersize=1.5,
     zorder=8,
 )
 
@@ -210,9 +213,9 @@ ax.plot(
     tether[:, 0],
     tether[:, 1],
     "-o",
-    color="#690000",
+    color="#003274",
     linewidth=1,
-    markersize=2,
+    markersize=1.5,
     zorder=8,
 )
 
@@ -229,26 +232,110 @@ tether_fem = TetherFEM2D(
 )
 
 # Simulate tether with no endpoint motion
-# NOTE: this step is optional and can be performed to remove all internal forces from
-# the tether by letting the simulation run and the tether come at a rest .
-print("[Running preprocessing simulation]")
-t_preprocessing: float = 10.0
-for k in tqdm(range(int(t_preprocessing / tether_fem.dt))):
-    tether_fem.step(tether[-1])  # fixed endpoint
+# This step serves to relax internal forces in tether and reach an initial equilibrium.
+if run_preprocessing is True:
+    print("[Running preprocessing simulation]")
+    t_preprocessing: float = 10.0
+    for k in tqdm(range(int(t_preprocessing / tether_fem.dt))):
+        tether_fem.step(tether[-1])  # fixed endpoint
+    ax.plot(
+        tether_fem.state[:, 0],
+        tether_fem.state[:, 1],
+        "-o",
+        color="#000000",
+        linewidth=1,
+        markersize=1.5,
+        zorder=8,
+    )
+else:
+    tether_fem.state[:, :2] = np.array(
+        [
+            [3.0, 7.0],
+            [2.65878581, 6.9266135],
+            [2.30977623, 6.92839616],
+            [1.99549386, 7.0801655],
+            [1.84047946, 7.39285463],
+            [1.94311465, 7.72642644],
+            [2.22594507, 7.93091259],
+            [2.56805339, 7.99999969],
+            [2.9170702, 7.999999],
+            [3.26530764, 7.97668273],
+            [3.61212372, 7.93754649],
+            [3.95782714, 7.88956534],
+            [4.30320924, 7.83932334],
+            [4.64917522, 7.79327345],
+            [4.99640723, 7.75801792],
+            [5.34498333, 7.740477],
+            [5.69391921, 7.74800486],
+            [6.04058329, 7.78846286],
+            [6.3799594, 7.86992805],
+            [6.703833, 7.999999],
+            [7.000001, 8.18465579],
+            [7.28121703, 8.39136731],
+            [7.5841701, 8.56466109],
+            [7.92505148, 8.6395556],
+            [8.26249475, 8.55045403],
+            [8.49640988, 8.29143668],
+            [8.5586657, 7.94802446],
+            [8.47490878, 7.60921059],
+            [8.31259873, 7.30023299],
+            [8.13463011, 7.000001],
+            [7.999999, 6.67799546],
+            [7.95467586, 6.33193517],
+            [7.87931231, 5.99115512],
+            [7.66366457, 5.71674474],
+            [7.31635552, 5.68245051],
+            [7.0711712, 5.93081977],
+            [7.000001, 6.27249804],
+            [7.000001, 6.62151407],
+            [7.000001, 6.97053042],
+            [6.97381672, 7.31856328],
+        ]
+    )
+    tether_fem.state[:, 2:] = np.zeros([n_nodes, 4])
+
+# Save plot with tether preprocessing
+fig.savefig(
+    "results/trajectory_planning/tether-preprocessing.png", dpi=1200, format="png"
+)
+plt.close(fig)
+
+# Plot and save initial conditions
+fig, ax = plot.plot_env(
+    env,
+    show_tether=False,
+    show_robot=False,
+    show_anchor=False,
+    show_goal=False,
+    show_legend=False,
+    show_generators=False,
+    show_curves_labels=False,
+    show_robot_anchor_labels=False,
+    show_generators_labels=False,
+    show_obstacles_labels=False,
+    show_axes_labels=False,
+    figsize=[5, 5],
+)
+ax.set_xlabel("")
+ax.set_ylabel("")
+ax.set_xticklabels([])
+ax.set_yticklabels([])
+ax.plot(goal[0], goal[1], color="green", marker="o", markersize=3, zorder=10)
+ax.plot(tether[-1, 0], tether[-1, 1], color="red", marker="o", markersize=3, zorder=10)
+ax.plot(anchor[0], anchor[1], color="blue", marker="o", markersize=3, zorder=10)
 ax.plot(
     tether_fem.state[:, 0],
     tether_fem.state[:, 1],
     "-o",
-    color="#004E58",
+    color="#000000",
     linewidth=1,
-    markersize=2,
+    markersize=1.5,
     zorder=8,
 )
-
-# Save plot with tethers
 fig.savefig(
-    "results/trajectory_planning/tether-preprocessing.png", dpi=1200, format="png"
+    "results/trajectory_planning/initial-conditions.png", dpi=1200, format="png"
 )
+plt.close(fig)
 
 # Update env object
 env.tether_state = tether
@@ -259,11 +346,22 @@ env.robot_initial_pos = tether[-1]
 # Plan + execute trajectory ############################################################
 ########################################################################################
 
+# Update FEM environmental conditions
+tether_fem.current = np.array([0.0, 0.0])
+tether_fem.wind = np.array([0.0, 0.0])
+tether_fem.gravity_enabled = False
+
 # Define time vector
 t_end: float = 15.0
 n_steps: int = int(t_end / tether_fem.dt)
-k_plot: list[int] = [0, n_steps - 1]  # TODO
-k_snapshots: list[int] = [0]  # TODO
+
+# Initialize data structures for plots and tether snapshots
+n_plots: int = 4
+k_step_plot: float = n_steps / (n_plots - 1)
+k_plot: list[int] = [int(round(i * k_step_plot)) for i in range(n_plots)]
+n_snapshots: int = 20
+k_step_snapshots: float = n_steps / (n_snapshots - 1)
+k_snapshots: list[int] = [int(round(i * k_step_snapshots)) for i in range(n_snapshots)]
 snapshots: list[np.ndarray] = []
 
 # Motion profile
@@ -275,12 +373,26 @@ if manually_select_path is True:
         check_self_intersection=True,
         max_points=50,
         show_goal=True,
+        show_tether=True,
+        show_robot=True,
+        show_anchor=True,
         show_robot_anchor_labels=False,
         show_legend=False,
         output_type="numpy",
     )
 else:
-    path = np.array([[]])  # TODO
+    path = np.array(
+        [
+            [6.97381672, 7.31856328],
+            [5.96676737, 7.18429003],
+            [5.53709298, 6.28465928],
+            [5.7653575, 4.84793555],
+            [6.34273246, 3.66633098],
+            [6.81268882, 2.18932528],
+            [7.47062773, 0.98086606],
+            [7.50000000, 1.00000000],
+        ]
+    )
 
 # Resample path
 if resampling == "linear":
@@ -289,7 +401,7 @@ if resampling == "linear":
     path_spacing_new = np.linspace(0, path_spacing[-1], n_steps)
     path_new = np.empty((n_steps, path.shape[1]))
     for d in range(path.shape[1]):
-        path_new[:, d] = np.interp(path_spacing_new, path_new, path[:, d])
+        path_new[:, d] = np.interp(path_spacing_new, path_spacing, path[:, d])
 elif resampling == "spline":
     spline, _ = splprep(path.T, s=0)  # parametric spline through points
     path_new = np.array(splev(np.linspace(0, 1, n_steps), spline)).T
@@ -304,8 +416,7 @@ print("[Running main simulation]")
 for k in tqdm(range(n_steps)):
 
     # Simulate FEM time step
-    tether_fem.step(np.array([0, 0]))  # no motion of endpoint # TEMP
-    # tether_fem.step(path[k, :])
+    tether_fem.step(path[k, :])
     state_mat[k + 1, :, :] = tether_fem.state.copy()
 
     # Collect snapshots for plots
@@ -317,10 +428,11 @@ for k in tqdm(range(n_steps)):
         fig, ax = plot_fem.plot_fem(
             env=env,
             tether_init=state_mat[0, :, :2],
-            tether_final=state_mat[k, :, :2],
-            trajectory=np.column_stack(path[:k, :]),
+            tether_final=state_mat[k, :, :2] if k > 0 else None,
+            trajectory=np.column_stack(path[:k, :]) if k > 0 else None,
             tether_snapshots=snapshots,
-            show_plot=True,
-            figsize=np.array([4.2, 4.2]),
+            show_plot=False,
+            figsize=np.array([5, 5]),
         )
         fig.savefig(f"results/trajectory_planning/step_{k}.png", dpi=1200, format="png")
+        plt.close(fig)

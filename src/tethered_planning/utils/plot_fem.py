@@ -28,7 +28,7 @@ mpl.rcParams.update(
 def plot_fem(
     env: env_2d.Env2D,
     tether_init: np.ndarray,
-    tether_final: np.ndarray,
+    tether_final: np.ndarray | None = None,
     trajectory: np.ndarray | None = None,
     tether_snapshots: list[np.ndarray] | None = None,
     cmap: list[str] | None = None,
@@ -54,6 +54,10 @@ def plot_fem(
     Returns:
         (plt.Figure, plt.Axes): Figure and Axes objects
     """
+    # Validate inputs
+    if tether_final is None:
+        tether_final = tether_init
+
     # Plotting settings
     linewidth_trajectory = 1.3
     markersize_trajectory = 3
@@ -166,8 +170,8 @@ def plot_fem(
     # Set aspect ratio, axes limits, and labels
     # CHECKME: may be redundant since it is already covered in plot_env
     ax.set_aspect("equal", "box")
-    ax.set_xlim([0, env.size[0]])
-    ax.set_ylim([0, env.size[1]])
+    # ax.set_xlim([0, env.size[0]])
+    # ax.set_ylim([0, env.size[1]])
     ax.grid(True, which="major", linestyle=":", color="gray", linewidth=0.5, zorder=1)
     ax.grid(True, which="minor", linestyle=":", color="gray", linewidth=0.3, zorder=1)
     ax.minorticks_on()
