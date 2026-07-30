@@ -40,7 +40,7 @@ class TrajParams:
     obstacle_clearance: float = 0.05  # corridor shrink at obstacle walls [m]
     weight_tracking: float = 1.0  # stay close to the geodesic reference
     weight_input: float = 0.2  # input effort
-    weight_smoothness: float = 1.0  # penalize input changes
+    weight_smoothness: float = 5.0  # penalize input changes
 
 
 def find_corridor(
@@ -163,7 +163,7 @@ def solve_nlp(
     start: np.ndarray,
     goal: np.ndarray,
     params: TrajParams,
-    max_outer_iterations: int = 10,
+    max_outer_iterations: int = 20,
     verbose: bool = True,
 ) -> dict:
     """

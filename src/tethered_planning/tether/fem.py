@@ -17,7 +17,7 @@ class TetherFEM2D:
     area = np.pi * diameter**2 / 4.0  # cross-sectional area
     E: float = 5.0e8  # Young's modulus [Pa]
     EA = E * area  # axial stiffness
-    EI = 0.25  # bending rigidity [N m^2]
+    EI = 0.01  # bending rigidity [N m^2]
     c_internal: float = 5.0  # internal axial damping coeff [N s]
     c_struct: float = 0.05  # structural viscous damping (C matrix) [N s/m]
     no_compression: bool = False  # wether the tether is able to react to compression
@@ -203,7 +203,7 @@ class TetherFEM2D:
 
         # Obstacle contact: project penetrating nodes back to the boundary
         state_new = self._resolve_collisions_nodes(state_new)
-        state_new = self._resolve_segment_collisions(state_new)
+        # state_new = self._resolve_segment_collisions(state_new)  # TEMP disable
 
         # Enforce obstacle contact at free endpoint (position control can override it)
         if self.input_mode == "position":

@@ -4,6 +4,7 @@ Perform trajectory planning and execution.
 
 import os
 import pickle
+import time
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -19,13 +20,13 @@ from tethered_planning.utils import curves, plot, plot_fem
 from tethered_planning.utils.settings import Settings
 
 # Script settings
-env_name = "env_5"
+env_name = "env_4"
 length_max = 15.0
-goal = np.array([7.5, 1.0])
-n_nodes = 40  # nodes in FEM model
+goal = np.array([7.0, 7.0])
+n_nodes = 30  # nodes in FEM model
 resampling: str = "linear"  # {linear, spline}
-manually_select_tether: bool = True
-run_tether_preprocessing: bool = True
+manually_select_tether: bool = False
+run_tether_preprocessing: bool = False
 path_selection_method: str = "path_planning"  # {manual, prespecified, path_planning}
 t_end: float = 15.0  # simulation tiime
 
@@ -104,62 +105,34 @@ if manually_select_tether is True:
 else:
     tether = np.array(
         [
-            [3.0, 7.0],
-            [2.85162806, 6.74118832],
-            [2.74420947, 6.70090634],
-            [2.4890903, 6.6740517],
-            [2.16683451, 6.82175227],
-            [2.13997986, 6.92917086],
-            [2.20711648, 7.21114468],
-            [2.27425311, 7.35884525],
-            [2.40852635, 7.57368244],
-            [2.65021819, 7.73481034],
-            [3.01275596, 7.89593823],
-            [3.22759315, 7.96307486],
-            [3.44243035, 8.00335683],
-            [3.65726754, 8.03021148],
-            [4.08694193, 7.92279288],
-            [4.19436052, 7.80194696],
-            [4.46290702, 7.69452837],
-            [4.71802618, 7.60053709],
-            [4.90600873, 7.54682779],
-            [5.06713662, 7.50654582],
-            [5.34911044, 7.46626385],
-            [5.63108426, 7.46626385],
-            [5.8727761, 7.46626385],
-            [6.10104062, 7.50654582],
-            [6.32930514, 7.50654582],
-            [6.6381336, 7.58710977],
-            [7.04095334, 7.68110104],
-            [7.22893588, 7.78851964],
-            [7.34978181, 7.88251091],
-            [7.47062773, 8.03021148],
-            [7.64518295, 8.17791205],
-            [8.06143001, 8.258476],
-            [8.35683115, 8.27190332],
-            [8.85364216, 7.90936556],
-            [8.85364216, 7.76166499],
-            [8.85364216, 7.56025512],
-            [8.66565962, 7.3856999],
-            [8.35683115, 7.3319906],
-            [8.12856663, 7.26485398],
-            [8.02114804, 7.17086271],
-            [7.90030211, 6.96945284],
-            [7.84659282, 6.60691507],
-            [7.83316549, 6.24437731],
-            [7.83316549, 6.04296744],
-            [7.83316549, 5.81470292],
-            [7.83316549, 5.73413897],
-            [7.72574689, 5.65357503],
-            [7.564619, 5.70728432],
-            [7.34978181, 5.86841222],
-            [7.32292716, 6.01611279],
-            [7.32292716, 6.29808661],
-            [7.4034911, 6.83517959],
-            [7.39006378, 6.92917086],
-            [7.20208124, 7.21114468],
-            [7.09466264, 7.30513595],
-            [6.97381672, 7.31856328],
+            [4.5, 3.5],
+            [4.59718026, 3.34407519],
+            [4.73145351, 3.0755287],
+            [4.71802618, 2.83383686],
+            [4.69117153, 2.40416247],
+            [4.47633434, 2.26988922],
+            [3.99295065, 2.10876133],
+            [3.64384021, 2.18932528],
+            [3.49613964, 2.63242699],
+            [3.48271232, 3.03524673],
+            [3.61698557, 3.39778449],
+            [3.68412219, 3.74689493],
+            [3.45585767, 4.12286002],
+            [3.22759315, 4.40483384],
+            [2.86505539, 4.52567976],
+            [2.69050017, 4.47197046],
+            [2.34138973, 4.24370594],
+            [2.00570661, 4.25713327],
+            [1.83115139, 4.43168849],
+            [1.92514267, 4.64652568],
+            [2.34138973, 4.83450822],
+            [2.52937227, 5.15676401],
+            [2.5427996, 5.31789191],
+            [2.51594495, 5.50587445],
+            [2.44880832, 5.76099362],
+            [2.40852635, 5.93554884],
+            [2.435381, 6.28465928],
+            [2.60993622, 6.6203424],
         ]
     )
 length_curve = curves.measure_length(tether)
@@ -188,8 +161,8 @@ ax.set_ylabel("")
 ax.set_xticklabels([])
 ax.set_yticklabels([])
 ax.plot(goal[0], goal[1], color="green", marker="o", markersize=3, zorder=10)
-ax.plot(tether[-1, 0], tether[-1, 1], color="red", marker="o", markersize=3, zorder=10)
-ax.plot(anchor[0], anchor[1], color="blue", marker="o", markersize=3, zorder=10)
+ax.plot(tether[-1, 0], tether[-1, 1], color="blue", marker="o", markersize=3, zorder=10)
+ax.plot(anchor[0], anchor[1], color="red", marker="o", markersize=3, zorder=10)
 ax.plot(
     tether[:, 0],
     tether[:, 1],
@@ -241,50 +214,41 @@ if run_tether_preprocessing is True:
     t_preprocessing: float = 5.0
     for k in tqdm(range(int(t_preprocessing / tether_fem.dt))):
         tether_fem.step(tether[-1])  # fixed endpoint
+    print(tether_fem.state[:, :2])
 else:
     # Manually copy + paste preprocessed tether here to skip numerical preprocessing
     tether_fem.state[:, :2] = np.array(
         [
-            [3.0, 7.0],
-            [2.65878581, 6.9266135],
-            [2.30977623, 6.92839616],
-            [1.99549386, 7.0801655],
-            [1.84047946, 7.39285463],
-            [1.94311465, 7.72642644],
-            [2.22594507, 7.93091259],
-            [2.56805339, 7.99999969],
-            [2.9170702, 7.999999],
-            [3.26530764, 7.97668273],
-            [3.61212372, 7.93754649],
-            [3.95782714, 7.88956534],
-            [4.30320924, 7.83932334],
-            [4.64917522, 7.79327345],
-            [4.99640723, 7.75801792],
-            [5.34498333, 7.740477],
-            [5.69391921, 7.74800486],
-            [6.04058329, 7.78846286],
-            [6.3799594, 7.86992805],
-            [6.703833, 7.999999],
-            [7.000001, 8.18465579],
-            [7.28121703, 8.39136731],
-            [7.5841701, 8.56466109],
-            [7.92505148, 8.6395556],
-            [8.26249475, 8.55045403],
-            [8.49640988, 8.29143668],
-            [8.5586657, 7.94802446],
-            [8.47490878, 7.60921059],
-            [8.31259873, 7.30023299],
-            [8.13463011, 7.000001],
-            [7.999999, 6.67799546],
-            [7.95467586, 6.33193517],
-            [7.87931231, 5.99115512],
-            [7.66366457, 5.71674474],
-            [7.31635552, 5.68245051],
-            [7.0711712, 5.93081977],
-            [7.000001, 6.27249804],
-            [7.000001, 6.62151407],
-            [7.000001, 6.97053042],
-            [6.97381672, 7.31856328],
+            [4.5, 3.5],
+            [4.63966853, 3.23866551],
+            [4.74479477, 2.961625],
+            [4.77925643, 2.66732012],
+            [4.71179729, 2.37878552],
+            [4.53415796, 2.14162099],
+            [4.27387598, 2.00000074],
+            [3.9798227, 1.96345734],
+            [3.7015133, 2.0651766],
+            [3.51013359, 2.29139921],
+            [3.44693, 2.58089558],
+            [3.49745266, 2.87287228],
+            [3.61522614, 3.14477746],
+            [3.7486513, 3.40935394],
+            [3.84169376, 3.69068298],
+            [3.82697647, 3.98663271],
+            [3.66081585, 4.23197616],
+            [3.388655, 4.34915665],
+            [3.09234297, 4.35060484],
+            [2.79890144, 4.30943395],
+            [2.50260389, 4.30616631],
+            [2.22723176, 4.41558747],
+            [2.0551887, 4.65684236],
+            [2.03919597, 4.95272585],
+            [2.13515804, 5.23307242],
+            [2.275084, 5.49426908],
+            [2.41000597, 5.75808536],
+            [2.51141371, 6.03650846],
+            [2.57317789, 6.32631554],
+            [2.60993622, 6.6203424],
         ]
     )
     tether_fem.state[:, 2:] = np.zeros([n_nodes, 4])
@@ -328,8 +292,8 @@ ax.set_ylabel("")
 ax.set_xticklabels([])
 ax.set_yticklabels([])
 ax.plot(goal[0], goal[1], color="green", marker="o", markersize=3, zorder=10)
-ax.plot(tether[-1, 0], tether[-1, 1], color="red", marker="o", markersize=3, zorder=10)
-ax.plot(anchor[0], anchor[1], color="blue", marker="o", markersize=3, zorder=10)
+ax.plot(tether[-1, 0], tether[-1, 1], color="blue", marker="o", markersize=3, zorder=10)
+ax.plot(anchor[0], anchor[1], color="red", marker="o", markersize=3, zorder=10)
 ax.plot(
     tether[:, 0],
     tether[:, 1],
@@ -368,8 +332,8 @@ ax.set_ylabel("")
 ax.set_xticklabels([])
 ax.set_yticklabels([])
 ax.plot(goal[0], goal[1], color="green", marker="o", markersize=3, zorder=10)
-ax.plot(tether[-1, 0], tether[-1, 1], color="red", marker="o", markersize=3, zorder=10)
-ax.plot(anchor[0], anchor[1], color="blue", marker="o", markersize=3, zorder=10)
+ax.plot(tether[-1, 0], tether[-1, 1], color="blue", marker="o", markersize=3, zorder=10)
+ax.plot(anchor[0], anchor[1], color="red", marker="o", markersize=3, zorder=10)
 ax.plot(
     tether_fem.state[:, 0],
     tether_fem.state[:, 1],
@@ -423,18 +387,7 @@ if path_selection_method == "manual":
     traj = path  # TODO: apply traj optimization
 elif path_selection_method == "prespecified":
     # prespecified path
-    path = np.array(
-        [
-            [6.97381672, 7.31856328],
-            [5.96676737, 7.18429003],
-            [5.53709298, 6.28465928],
-            [5.7653575, 4.84793555],
-            [6.34273246, 3.66633098],
-            [6.81268882, 2.18932528],
-            [7.47062773, 0.98086606],
-            [7.50000000, 1.00000000],
-        ]
-    )
+    path = np.array([])
     traj = path  # TODO: apply traj optimization
 elif path_selection_method == "path_planning":
     # perform path planning on simplicial complex model
@@ -476,14 +429,14 @@ elif path_selection_method == "path_planning":
                 use_heuristic=False,
             )
         )
-    path = paths_lift[0]  # TODO: allow selection of different indexes
+    path = paths_lift[3]
 
     # trajectory optimization
     params = traj_nlp.TrajParams(
-        n_steps=40,
-        dt=0.25,
+        n_steps=200,
+        dt=0.5,
         control_mode="force",
-        max_speed=1.2,
+        max_speed=2.0,
         max_acceleration=1.5,
         obstacle_clearance=0.05,
     )
@@ -495,11 +448,9 @@ elif path_selection_method == "path_planning":
         params.obstacle_clearance,
     )
     geodesic_length = np.sum(np.linalg.norm(np.diff(geodesic, axis=0), axis=1))
-    print(
-        f"corridor: {len(corridor_triangles)} triangles, "
-        f"geodesic length {geodesic_length:.2f} m"
-    )
 
+    # Compute trajectory
+    t_init = time.process_time()
     solution = traj_nlp.solve_nlp(
         edge_normals,
         edge_offsets,
@@ -508,11 +459,63 @@ elif path_selection_method == "path_planning":
         goal,
         params,
     )
+    t_traj = time.process_time() - t_init
+    print(f"[Trajectory optimization completed in {t_traj:.4f}s]")
+
+    # Extract solution
     positions = solution["positions"]
     velocities = solution["velocities"]
     inputs = solution["inputs"]
     triangle_of_knot = solution["triangle_of_knot"]
-    traj = positions  # TEMP
+    traj = positions  # NOTE: position control for simulation
+
+# Plot and save trajectory
+fig, ax = plot.plot_env(
+    env,
+    show_tether=False,
+    show_robot=False,
+    show_anchor=False,
+    show_goal=False,
+    show_legend=False,
+    show_generators=False,
+    show_curves_labels=False,
+    show_robot_anchor_labels=False,
+    show_generators_labels=False,
+    show_obstacles_labels=False,
+    show_axes_labels=False,
+    figsize=[5, 5],
+)
+ax.set_xlabel("")
+ax.set_ylabel("")
+ax.set_xticklabels([])
+ax.set_yticklabels([])
+ax.plot(goal[0], goal[1], color="green", marker="o", markersize=3, zorder=10)
+ax.plot(tether[-1, 0], tether[-1, 1], color="blue", marker="o", markersize=3, zorder=10)
+ax.plot(anchor[0], anchor[1], color="red", marker="o", markersize=3, zorder=10)
+ax.plot(
+    tether_fem.state[:, 0],
+    tether_fem.state[:, 1],
+    "-o",
+    color="#000000",
+    linewidth=1,
+    markersize=1.5,
+    zorder=8,
+)
+ax.plot(
+    traj[:, 0],
+    traj[:, 1],
+    "-",
+    color="#006CD1",
+    linewidth=1.2,
+    zorder=9,
+)
+fig.savefig(
+    "results/trajectory_planning/trajectory.png",
+    dpi=1200,
+    format="png",
+    bbox_inches="tight",
+)
+plt.close(fig)
 
 ########################################################################################
 # Simulation ###########################################################################
@@ -591,5 +594,4 @@ fig.savefig(
     format="png",
     bbox_inches="tight",
 )
-plt.close(fig)
 plt.close(fig)
