@@ -22,8 +22,8 @@ from tethered_planning.utils.settings import Settings
 
 # Script settings
 SELECT_TETHER_MANUALLY: bool = True
-env_name = "env_5"
-length_max = 15.0  # available options: {10, 12.5, 15}
+env_name = "env_4"
+length_max = 12.5  # available options: {10, 12.5, 15}
 n_experiments_tot: int = 20
 
 ########################################################################################
@@ -437,16 +437,18 @@ data_csv = np.loadtxt(
 )  # Load full csv data
 n_rows, n_cols = data_csv.shape
 print()
-arr_sc = [data_csv[i][1] for i in range(n_rows)]
+arr = [data_csv[i][1] for i in range(n_rows)]
 print(
-    f"time sc: {np.nanmean(np.where(np.isinf(arr_sc), np.nan, arr_sc)):.4f} "
-    f"+ {np.nanstd(np.where(np.isinf(arr_sc), np.nan, arr_sc)):.4f}"
+    f"time sc: {np.nanmean(np.where(np.isinf(arr), np.nan, arr)):.4f} "
+    f"+ {np.nanstd(np.where(np.isinf(arr), np.nan, arr)):.4f}"
 )
+arr = [data_csv[i][8] for i in range(n_rows)]
 print(
-    f"time hag_50: {np.nanmean([data_csv[i][8] for i in range(n_rows)]):.4f} "
-    f"+ {np.nanstd([data_csv[i][8] for i in range(n_rows)]):.4f}"
+    f"time hag_50: {np.nanmean(np.where(np.isinf(arr), np.nan, arr)):.4f} "
+    f"+ {np.nanstd(np.where(np.isinf(arr), np.nan, arr)):.4f}"
 )
+arr = [data_csv[i][15] for i in range(n_rows)]
 print(
-    f"time hag_25: {np.nanmean([data_csv[i][15] for i in range(n_rows)]):.4f}"
-    f"{np.nanstd([data_csv[i][15] for i in range(n_rows)]):.4f}"
+    f"time hag_25: {np.nanmean(np.where(np.isinf(arr), np.nan, arr)):.4f} "
+    f"+ {np.nanstd(np.where(np.isinf(arr), np.nan, arr)):.4f}"
 )

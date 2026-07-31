@@ -425,15 +425,18 @@ data_csv = np.loadtxt(
 )  # Load full csv data
 n_rows, n_cols = data_csv.shape
 print()
+arr = [data_csv[i][1] for i in range(n_rows)]
 print(
-    f"time sc: {np.mean([data_csv[i][1] for i in range(n_rows)]):.4f} "
-    f"+ {np.std([data_csv[i][1] for i in range(n_rows)]):.4f}"
+    f"time sc: {np.nanmean(np.where(np.isinf(arr), np.nan, arr)):.4f} "
+    f"+ {np.nanstd(np.where(np.isinf(arr), np.nan, arr)):.4f}"
 )
+arr = [data_csv[i][8] for i in range(n_rows)]
 print(
-    f"time hag_50: {np.mean([data_csv[i][8] for i in range(n_rows)]):.4f} "
-    f"+ {np.std([data_csv[i][8] for i in range(n_rows)]):.4f}"
+    f"time hag_50: {np.nanmean(np.where(np.isinf(arr), np.nan, arr)):.4f} "
+    f"+ {np.nanstd(np.where(np.isinf(arr), np.nan, arr)):.4f}"
 )
+arr = [data_csv[i][15] for i in range(n_rows)]
 print(
-    f"time hag_25: {np.mean([data_csv[i][15] for i in range(n_rows)]):.4f}"
-    f"{np.std([data_csv[i][15] for i in range(n_rows)]):.4f}"
+    f"time hag_25: {np.nanmean(np.where(np.isinf(arr), np.nan, arr)):.4f} "
+    f"+ {np.nanstd(np.where(np.isinf(arr), np.nan, arr)):.4f}"
 )
