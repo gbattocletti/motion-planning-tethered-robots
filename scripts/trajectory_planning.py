@@ -28,7 +28,7 @@ resampling: str = "linear"  # {linear, spline}
 manually_select_tether: bool = False
 run_tether_preprocessing: bool = False
 path_selection_method: str = "path_planning"  # {manual, prespecified, path_planning}
-t_end: float = 15.0  # simulation tiime
+t_end: float = 15.0  # simulation time
 
 ########################################################################################
 # Load data ############################################################################
@@ -361,8 +361,7 @@ env.robot_initial_pos = tether[-1]
 ########################################################################################
 
 # Update FEM environmental conditions
-tether_fem.current = np.array([0.0, 0.0])
-tether_fem.wind = np.array([0.0, 0.0])
+tether_fem.flow = np.array([0.0, 0.0])
 tether_fem.gravity_enabled = False
 n_steps: int = int(t_end / tether_fem.dt)  # number of simulation steps
 
