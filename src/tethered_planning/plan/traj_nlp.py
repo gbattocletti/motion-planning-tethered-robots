@@ -68,7 +68,7 @@ class TrajParams:
     max_force_slew: float = 8.0  # [N/s] per axis, force mode only
     obstacle_clearance: float = 0.05  # corridor shrink at obstacle walls [m]
     weight_tracking: float = 1.0  # stay close to the geodesic reference
-    weight_input: float = 0.2  # input effort
+    weight_input: float = 2.0  # input effort
     weight_smoothness: float = 1.0  # penalize input changes
 
 
@@ -186,8 +186,8 @@ def assign_triangles(
         violation = np.max(edge_normals @ point - edge_offsets, axis=1)
         violation = violation[current_triangle:]
         current_triangle += int(
-            np.argmax(violation <= 1e-9)
-            if violation.min() <= 1e-9
+            np.argmax(violation <= 1e-6)
+            if violation.min() <= 1e-6
             else np.argmin(violation)
         )
         triangle_of_point[point_index] = current_triangle
@@ -633,12 +633,12 @@ def solve_minlp(
         + [True] * (n_triangles * (n_steps + 1))
         + [False] * (DIM * (n_steps + 1) if params.control_mode == "force" else 0)
     )
-    plugin_options: dict = {"discrete": is_discrete}
+    plugin_options: dict = {"discrete": is_discrete, "record_time": True}
     solver_defaults: dict = {}
     if solver == "gurobi":
         solver_defaults = {
-            "OutputFlag": 0,
-            "LogToConsole": 0,
+            "OutputFlag": 1,
+            "LogToConsole": 1,
         }
     elif solver == "bonmin":
         plugin_options["print_time"] = False
@@ -650,19 +650,26 @@ def solve_minlp(
         # mip_method is pinned to it rather than left to Knitro's automatic choice
         plugin_options["print_time"] = False
         solver_defaults = {
-            "outlev": 0,
+            "outlev": 1,
             "mip_method": 1,
-            "mip_terminate": True,
-            "ftol": 1e-6,
-            "ftol_iters": 3,
+            "mip_terminate": 0,
+            "ms_enable": 1,
+            "numthreads": 16,
+            "ms_numthreads": 16,
+            "ms_maxsolves": 4,
+            "mip_numthreads": 16,
         }
     opti.solver(solver, plugin_options, {**solver_defaults, **(solver_options or {})})
     try:
         opti_solution = opti.solve()
+        stats = opti_solution.stats()
+        solve_time = stats["t_wall_total"]
     except RuntimeError as e:
         if "KN_RC_MIP_TERM_FEAS" in str(e):
             print("Knitro found a feasible but not necessarily optimal solution.")
             opti_solution = opti.debug
+            stats = opti_solution.stats()  # CHECKME
+            solve_time = stats["t_wall_total"]
         else:
             # Handle other types of failures
             print(f"Solver failed with error: {e}")
@@ -683,4 +690,5 @@ def solve_minlp(
             np.array(opti_solution.value(knot_in_triangle)), axis=0
         ),
         cost=float(opti_solution.value(opti.f)),
+        solve_time=solve_time,
     )
