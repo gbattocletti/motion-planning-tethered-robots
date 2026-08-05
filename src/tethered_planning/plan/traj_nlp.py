@@ -95,8 +95,10 @@ def corridor(
         geodesic (n_points, 2): shortest path of the class, used as the tracking
             reference.
         edge_normals (n_triangles, 3, 2) and edge_offsets (n_triangles, 3):
-            outward half-spaces, so that a point lies in triangle t iff
-                edge_normals[t] @ point <= edge_offsets[t].
+            outward half-spaces with UNIT normals, so that a point lies in
+            triangle t iff edge_normals[t] @ point <= edge_offsets[t], and
+            edge_normals[t] @ point - edge_offsets[t] is the signed distance to
+            each edge in metres.
 
     The clearance is applied only to boundary edges of the triangulation (those
     belonging to a single triangle, i.e. obstacle or workspace walls). Shrinking
@@ -128,6 +130,13 @@ def corridor(
     edge_normals = np.where(
         normal_points_inward[..., None], -edge_normals, edge_normals
     )
+    # normalize: a rotated edge vector has the edge's length, so raw rows differ in
+    # scale by the ratio of edge lengths in the triangulation (easily 100x around
+    # slivers at obstacle corners), which is poor conditioning for the solver. With
+    # unit normals every row is a signed distance in metres, so rows are
+    # commensurate, the clearance below is exactly a distance, and the violations
+    # compared in assign_triangles are comparable across triangles.
+    edge_normals /= np.linalg.norm(edge_normals, axis=-1, keepdims=True)
     edge_offsets = np.sum(edge_normals * edge_start, axis=-1)
 
     # A boundary edge of the triangulated free space belongs to exactly one
@@ -157,9 +166,7 @@ def corridor(
             for triangle in range(len(corridor_vertex_ids))
         ]
     )
-    edge_offsets -= (
-        obstacle_clearance * np.linalg.norm(edge_normals, axis=-1) * edge_is_boundary
-    )
+    edge_offsets -= obstacle_clearance * edge_is_boundary
     return corridor_triangles, geodesic, edge_normals, edge_offsets
 
 
@@ -337,6 +344,9 @@ def solve_nlp(
         solver_defaults = {"print_level": 0, "sb": "yes"}
     elif solver == "gurobi":
         solver_defaults = {"OutputFlag": int(verbose)}
+    elif solver == "knitro":
+        plugin_options["print_time"] = False
+        solver_defaults = {"outlev": int(verbose)}
     opti.solver(solver, plugin_options, {**solver_defaults, **(solver_options or {})})
 
     for iteration in range(max_outer_iterations):
@@ -450,9 +460,17 @@ def solve_minlp(
             Accepting a small optimality gap is the cheapest speedup available:
             {'MIPGap': 0.01} for gurobi, {'mip_opt_gap_rel': 0.01} for knitro,
             {'allowable_fraction_gap': 0.01} for bonmin. Also useful for gurobi:
-            'TimeLimit' (seconds, essential when sweeping many homotopy classes)
-            and 'MIPFocus' (1 finds feasible solutions sooner, 3 closes the bound
-            faster, which suits a warm-started run).
+            'TimeLimit' (seconds, essential when sweeping many homotopy classes),
+            'Threads', and 'MIPFocus' (1 finds feasible solutions sooner, 3
+            closes the bound faster, which suits a warm-started run). For knitro:
+            'numthreads' and 'mip_numthreads' (branch-and-bound threads; needs
+            mip_method=1, which is set by default here), 'maxtime_real', and
+            'mip_terminate' (1 stops at the first integer feasible point).
+
+    Note that a big-M formulation has a weak relaxation, so branch-and-bound
+    usually finds the optimal incumbent quickly and then spends most of its time
+    proving optimality. If that proof is not what you need, cap it with a gap
+    ('MIPGap' / 'mip_opt_gap_rel'), a time limit, or mip_terminate=1.
 
     With the binaries fixed this is a QP, so this is an MIQP: branch-and-bound
     gets valid bounds from its relaxations and every node solve is a QP.
@@ -618,12 +636,37 @@ def solve_minlp(
     plugin_options: dict = {"discrete": is_discrete}
     solver_defaults: dict = {}
     if solver == "gurobi":
-        solver_defaults = {"OutputFlag": int(verbose)}
+        solver_defaults = {
+            "OutputFlag": 0,
+            "LogToConsole": 0,
+        }
     elif solver == "bonmin":
         plugin_options["print_time"] = False
-        solver_defaults = {"print_level": 0}
+        solver_defaults = {
+            "print_level": 0,
+        }
+    elif solver == "knitro":
+        # mip_numthreads only takes effect with the branch-and-bound method, so
+        # mip_method is pinned to it rather than left to Knitro's automatic choice
+        plugin_options["print_time"] = False
+        solver_defaults = {
+            "outlev": 0,
+            "mip_method": 1,
+            "mip_terminate": True,
+            "ftol": 1e-6,
+            "ftol_iters": 3,
+        }
     opti.solver(solver, plugin_options, {**solver_defaults, **(solver_options or {})})
-    opti_solution = opti.solve()
+    try:
+        opti_solution = opti.solve()
+    except RuntimeError as e:
+        if "KN_RC_MIP_TERM_FEAS" in str(e):
+            print("Knitro found a feasible but not necessarily optimal solution.")
+            opti_solution = opti.debug
+        else:
+            # Handle other types of failures
+            print(f"Solver failed with error: {e}")
+            raise
 
     optimal_positions = np.array(opti_solution.value(positions)).T
     optimal_inputs = np.array(opti_solution.value(inputs)).T

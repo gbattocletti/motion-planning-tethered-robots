@@ -21,6 +21,10 @@ env_name = "env_5"
 length_max = 15.0
 goal = np.array([7.0, 1.0])
 manually_select_tether: bool = False
+run_qp_gurobi: bool = True
+run_nlp_ipopt: bool = True
+run_miqp_gurobi: bool = True
+run_minlp_knitro: bool = True
 
 ########################################################################################
 # Load data ############################################################################
@@ -215,12 +219,12 @@ path = paths_lift[0]
 ########################################################################################
 
 params = traj_nlp.TrajParams(
-    n_steps=100,
+    n_steps=30,
     dt=0.5,
     control_mode="force",
     max_speed=2.0,
-    max_acceleration=1.5,
-    obstacle_clearance=0.05,
+    max_acceleration=1,
+    obstacle_clearance=0.2,
 )
 corridor_triangles, geodesic, edge_normals, edge_offsets = traj_nlp.corridor(
     triang,
@@ -230,295 +234,325 @@ corridor_triangles, geodesic, edge_normals, edge_offsets = traj_nlp.corridor(
     params.obstacle_clearance,
 )
 
-########################################################################################
-# Trajectory optimization QP ###########################################################
-########################################################################################
+with open(
+    "results/trajectory_planning_comparison/log.txt", "wb", encoding="utf-8"
+) as f:
+    f.write(f"env: {env_name}\n")
+    f.write(f"length_max: {length_max}\n")
+    f.write(f"goal: {goal}\n")
+    f.write(f"robot: {env.robot_initial_pos}\n")
+    f.write(f"tether: {tether}\n")
 
-t_init = time.process_time()
-solution = traj_nlp.solve_nlp(
-    edge_normals,
-    edge_offsets,
-    geodesic,
-    env.robot_initial_pos,
-    goal,
-    params,
-    solver="gurobi",
-    verbose=False,
-)
-t_traj = time.process_time() - t_init
-print(f"QP (gurobi):\t t: {t_traj:.4f}s, cost: {solution['cost']:.4f}")
+    # Trajectory optimization QP #######################################################
+    if run_qp_gurobi is True:
+        t_init = time.process_time()
+        solution = traj_nlp.solve_nlp(
+            edge_normals,
+            edge_offsets,
+            geodesic,
+            env.robot_initial_pos,
+            goal,
+            params,
+            solver="gurobi",
+            verbose=False,
+        )
+        t_traj = time.process_time() - t_init
+        print(f"QP (gurobi):\t t: {t_traj:.4f}s, cost: {solution['cost']:.8f}")
+        f.write(f"QP (gurobi):\t t: {t_traj:.4f}s, cost: {solution['cost']:.8f}\n")
 
-# Extract solution
-positions = solution["positions"]
-velocities = solution["velocities"]
-inputs = solution["inputs"]
-triangle_of_knot = solution["triangle_of_knot"]
+        # Extract solution
+        positions = solution["positions"]
+        velocities = solution["velocities"]
+        inputs = solution["inputs"]
+        triangle_of_knot = solution["triangle_of_knot"]
 
-# Plot and save trajectory
-fig, ax = plot.plot_env(
-    env,
-    show_tether=False,
-    show_robot=False,
-    show_anchor=False,
-    show_goal=False,
-    show_legend=False,
-    show_generators=False,
-    show_curves_labels=False,
-    show_robot_anchor_labels=False,
-    show_generators_labels=False,
-    show_obstacles_labels=False,
-    show_axes_labels=False,
-    figsize=[10, 10],
-)
-ax.set_xlabel("")
-ax.set_ylabel("")
-ax.set_xticklabels([])
-ax.set_yticklabels([])
-ax.plot(goal[0], goal[1], color="green", marker="o", markersize=3, zorder=10)
-ax.plot(tether[-1, 0], tether[-1, 1], color="blue", marker="o", markersize=3, zorder=10)
-ax.plot(anchor[0], anchor[1], color="red", marker="o", markersize=3, zorder=10)
-ax.plot(
-    tether[:, 0],
-    tether[:, 1],
-    "-",
-    color="#000000",
-    linewidth=1,
-    zorder=8,
-)
-ax.plot(
-    positions[:, 0],
-    positions[:, 1],
-    "-o",
-    color="#006CD1",
-    linewidth=1.2,
-    markersize=1.5,
-    zorder=9,
-)
-fig.savefig(
-    "results/trajectory_planning_comparison/trajectory_qp.png",
-    dpi=1200,
-    format="png",
-    bbox_inches="tight",
-)
-plt.close(fig)
+        # Plot and save trajectory
+        fig, ax = plot.plot_env(
+            env,
+            show_tether=False,
+            show_robot=False,
+            show_anchor=False,
+            show_goal=False,
+            show_legend=False,
+            show_generators=False,
+            show_curves_labels=False,
+            show_robot_anchor_labels=False,
+            show_generators_labels=False,
+            show_obstacles_labels=False,
+            show_axes_labels=False,
+            figsize=[10, 10],
+        )
+        ax.set_xlabel("")
+        ax.set_ylabel("")
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        ax.plot(goal[0], goal[1], color="green", marker="o", markersize=3, zorder=10)
+        ax.plot(
+            tether[-1, 0],
+            tether[-1, 1],
+            color="blue",
+            marker="o",
+            markersize=3,
+            zorder=10,
+        )
+        ax.plot(anchor[0], anchor[1], color="red", marker="o", markersize=3, zorder=10)
+        ax.plot(
+            tether[:, 0],
+            tether[:, 1],
+            "-",
+            color="#000000",
+            linewidth=1,
+            zorder=8,
+        )
+        ax.plot(
+            positions[:, 0],
+            positions[:, 1],
+            "-o",
+            color="#006CD1",
+            linewidth=1.2,
+            markersize=1.5,
+            zorder=9,
+        )
+        fig.savefig(
+            "results/trajectory_planning_comparison/trajectory_qp.png",
+            dpi=1200,
+            format="png",
+            bbox_inches="tight",
+        )
+        plt.close(fig)
 
+    # Trajectory optimization NLP ######################################################
+    if run_nlp_ipopt is True:
+        t_init = time.process_time()
+        solution = traj_nlp.solve_nlp(
+            edge_normals,
+            edge_offsets,
+            geodesic,
+            env.robot_initial_pos,
+            goal,
+            params,
+            solver="ipopt",
+            verbose=False,
+        )
+        t_traj = time.process_time() - t_init
+        print(f"NLP (ipopt):\t t: {t_traj:.4f}s, cost: {solution['cost']:.8f}")
+        f.write(f"NLP (ipopt):\t t: {t_traj:.4f}s, cost: {solution['cost']:.8f}\n")
 
-########################################################################################
-# Trajectory optimization NLP ##########################################################
-########################################################################################
+        # Extract solution
+        positions = solution["positions"]
+        velocities = solution["velocities"]
+        inputs = solution["inputs"]
+        triangle_of_knot = solution["triangle_of_knot"]
 
-t_init = time.process_time()
-solution = traj_nlp.solve_nlp(
-    edge_normals,
-    edge_offsets,
-    geodesic,
-    env.robot_initial_pos,
-    goal,
-    params,
-    solver="ipopt",
-    verbose=False,
-)
-t_traj = time.process_time() - t_init
-print(f"NLP (ipopt):\t t: {t_traj:.4f}s, cost: {solution['cost']:.4f}")
+        # Plot and save trajectory
+        fig, ax = plot.plot_env(
+            env,
+            show_tether=False,
+            show_robot=False,
+            show_anchor=False,
+            show_goal=False,
+            show_legend=False,
+            show_generators=False,
+            show_curves_labels=False,
+            show_robot_anchor_labels=False,
+            show_generators_labels=False,
+            show_obstacles_labels=False,
+            show_axes_labels=False,
+            figsize=[10, 10],
+        )
+        ax.set_xlabel("")
+        ax.set_ylabel("")
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        ax.plot(goal[0], goal[1], color="green", marker="o", markersize=3, zorder=10)
+        ax.plot(
+            tether[-1, 0],
+            tether[-1, 1],
+            color="blue",
+            marker="o",
+            markersize=3,
+            zorder=10,
+        )
+        ax.plot(anchor[0], anchor[1], color="red", marker="o", markersize=3, zorder=10)
+        ax.plot(
+            tether[:, 0],
+            tether[:, 1],
+            "-",
+            color="#000000",
+            linewidth=1,
+            zorder=8,
+        )
+        ax.plot(
+            positions[:, 0],
+            positions[:, 1],
+            "-o",
+            color="#006CD1",
+            linewidth=1.2,
+            markersize=1.5,
+            zorder=9,
+        )
+        fig.savefig(
+            "results/trajectory_planning_comparison/trajectory_nlp.png",
+            dpi=1200,
+            format="png",
+            bbox_inches="tight",
+        )
+        plt.close(fig)
 
-# Extract solution
-positions = solution["positions"]
-velocities = solution["velocities"]
-inputs = solution["inputs"]
-triangle_of_knot = solution["triangle_of_knot"]
+    # Trajectory optimization MIQP #####################################################
+    if run_miqp_gurobi is True:
+        t_init = time.process_time()
+        solution = traj_nlp.solve_minlp(
+            edge_normals,
+            edge_offsets,
+            geodesic,
+            env.robot_initial_pos,
+            goal,
+            params,
+            solver="gurobi",
+            verbose=False,
+        )
+        t_traj = time.process_time() - t_init
+        print(f"MIQP (gurobi):\t t: {t_traj:.4f}s, cost: {solution['cost']:.8f}")
+        f.write(f"MIQP (gurobi):\t t: {t_traj:.4f}s, cost: {solution['cost']:.8f}\n")
 
-# Plot and save trajectory
-fig, ax = plot.plot_env(
-    env,
-    show_tether=False,
-    show_robot=False,
-    show_anchor=False,
-    show_goal=False,
-    show_legend=False,
-    show_generators=False,
-    show_curves_labels=False,
-    show_robot_anchor_labels=False,
-    show_generators_labels=False,
-    show_obstacles_labels=False,
-    show_axes_labels=False,
-    figsize=[10, 10],
-)
-ax.set_xlabel("")
-ax.set_ylabel("")
-ax.set_xticklabels([])
-ax.set_yticklabels([])
-ax.plot(goal[0], goal[1], color="green", marker="o", markersize=3, zorder=10)
-ax.plot(tether[-1, 0], tether[-1, 1], color="blue", marker="o", markersize=3, zorder=10)
-ax.plot(anchor[0], anchor[1], color="red", marker="o", markersize=3, zorder=10)
-ax.plot(
-    tether[:, 0],
-    tether[:, 1],
-    "-",
-    color="#000000",
-    linewidth=1,
-    zorder=8,
-)
-ax.plot(
-    positions[:, 0],
-    positions[:, 1],
-    "-o",
-    color="#006CD1",
-    linewidth=1.2,
-    markersize=1.5,
-    zorder=9,
-)
-fig.savefig(
-    "results/trajectory_planning_comparison/trajectory_nlp.png",
-    dpi=1200,
-    format="png",
-    bbox_inches="tight",
-)
-plt.close(fig)
+        # Extract solution
+        positions = solution["positions"]
+        velocities = solution["velocities"]
+        inputs = solution["inputs"]
+        triangle_of_knot = solution["triangle_of_knot"]
 
+        # Plot and save trajectory
+        fig, ax = plot.plot_env(
+            env,
+            show_tether=False,
+            show_robot=False,
+            show_anchor=False,
+            show_goal=False,
+            show_legend=False,
+            show_generators=False,
+            show_curves_labels=False,
+            show_robot_anchor_labels=False,
+            show_generators_labels=False,
+            show_obstacles_labels=False,
+            show_axes_labels=False,
+            figsize=[10, 10],
+        )
+        ax.set_xlabel("")
+        ax.set_ylabel("")
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        ax.plot(goal[0], goal[1], color="green", marker="o", markersize=3, zorder=10)
+        ax.plot(
+            tether[-1, 0],
+            tether[-1, 1],
+            color="blue",
+            marker="o",
+            markersize=3,
+            zorder=10,
+        )
+        ax.plot(anchor[0], anchor[1], color="red", marker="o", markersize=3, zorder=10)
+        ax.plot(
+            tether[:, 0],
+            tether[:, 1],
+            "-",
+            color="#000000",
+            linewidth=1,
+            zorder=8,
+        )
+        ax.plot(
+            positions[:, 0],
+            positions[:, 1],
+            "-o",
+            color="#006CD1",
+            linewidth=1.2,
+            markersize=1.5,
+            zorder=9,
+        )
+        fig.savefig(
+            "results/trajectory_planning_comparison/trajectory_miqp.png",
+            dpi=1200,
+            format="png",
+            bbox_inches="tight",
+        )
+        plt.close(fig)
 
-########################################################################################
-# Trajectory optimization MIQP #########################################################
-########################################################################################
+    # Trajectory optimization MINLP ####################################################
+    if run_minlp_knitro is True:
+        t_init = time.process_time()
+        solution = traj_nlp.solve_minlp(
+            edge_normals,
+            edge_offsets,
+            geodesic,
+            env.robot_initial_pos,
+            goal,
+            params,
+            solver="knitro",
+            verbose=False,
+            solver_options={"numthreads": 8, "mip_numthreads": 8},
+        )
+        t_traj = time.process_time() - t_init
+        print(f"MINLP (knitro):\t t: {t_traj:.4f}s, cost: {solution['cost']:.8f}")
+        f.write(f"MINLP (knitro):\t t: {t_traj:.4f}s, cost: {solution['cost']:.8f}\n")
 
-# Compute trajectory
-t_init = time.process_time()
-solution = traj_nlp.solve_minlp(
-    edge_normals,
-    edge_offsets,
-    geodesic,
-    env.robot_initial_pos,
-    goal,
-    params,
-    solver="gurobi",
-    verbose=False,
-)
-t_traj = time.process_time() - t_init
-print(f"MIQP (gurobi):\t t: {t_traj:.4f}s, cost: {solution['cost']:.4f}")
+        # Extract solution
+        positions = solution["positions"]
+        velocities = solution["velocities"]
+        inputs = solution["inputs"]
+        triangle_of_knot = solution["triangle_of_knot"]
 
-# Extract solution
-positions = solution["positions"]
-velocities = solution["velocities"]
-inputs = solution["inputs"]
-triangle_of_knot = solution["triangle_of_knot"]
-
-# Plot and save trajectory
-fig, ax = plot.plot_env(
-    env,
-    show_tether=False,
-    show_robot=False,
-    show_anchor=False,
-    show_goal=False,
-    show_legend=False,
-    show_generators=False,
-    show_curves_labels=False,
-    show_robot_anchor_labels=False,
-    show_generators_labels=False,
-    show_obstacles_labels=False,
-    show_axes_labels=False,
-    figsize=[10, 10],
-)
-ax.set_xlabel("")
-ax.set_ylabel("")
-ax.set_xticklabels([])
-ax.set_yticklabels([])
-ax.plot(goal[0], goal[1], color="green", marker="o", markersize=3, zorder=10)
-ax.plot(tether[-1, 0], tether[-1, 1], color="blue", marker="o", markersize=3, zorder=10)
-ax.plot(anchor[0], anchor[1], color="red", marker="o", markersize=3, zorder=10)
-ax.plot(
-    tether[:, 0],
-    tether[:, 1],
-    "-",
-    color="#000000",
-    linewidth=1,
-    zorder=8,
-)
-ax.plot(
-    positions[:, 0],
-    positions[:, 1],
-    "-o",
-    color="#006CD1",
-    linewidth=1.2,
-    markersize=1.5,
-    zorder=9,
-)
-fig.savefig(
-    "results/trajectory_planning_comparison/trajectory_miqp.png",
-    dpi=1200,
-    format="png",
-    bbox_inches="tight",
-)
-plt.close(fig)
-
-########################################################################################
-# Trajectory optimization MINLP ########################################################
-########################################################################################
-
-# Compute trajectory
-t_init = time.process_time()
-solution = traj_nlp.solve_minlp(
-    edge_normals,
-    edge_offsets,
-    geodesic,
-    env.robot_initial_pos,
-    goal,
-    params,
-    solver="knitro",
-    verbose=False,
-    solver_options={"numthreads": 8, "mip_numthreads": 8},
-)
-t_traj = time.process_time() - t_init
-print(f"MINLP (knitro):\t t: {t_traj:.4f}s, cost: {solution['cost']:.4f}")
-
-# Extract solution
-positions = solution["positions"]
-velocities = solution["velocities"]
-inputs = solution["inputs"]
-triangle_of_knot = solution["triangle_of_knot"]
-
-# Plot and save trajectory
-fig, ax = plot.plot_env(
-    env,
-    show_tether=False,
-    show_robot=False,
-    show_anchor=False,
-    show_goal=False,
-    show_legend=False,
-    show_generators=False,
-    show_curves_labels=False,
-    show_robot_anchor_labels=False,
-    show_generators_labels=False,
-    show_obstacles_labels=False,
-    show_axes_labels=False,
-    figsize=[10, 10],
-)
-ax.set_xlabel("")
-ax.set_ylabel("")
-ax.set_xticklabels([])
-ax.set_yticklabels([])
-ax.plot(goal[0], goal[1], color="green", marker="o", markersize=3, zorder=10)
-ax.plot(tether[-1, 0], tether[-1, 1], color="blue", marker="o", markersize=3, zorder=10)
-ax.plot(anchor[0], anchor[1], color="red", marker="o", markersize=3, zorder=10)
-ax.plot(
-    tether[:, 0],
-    tether[:, 1],
-    "-",
-    color="#000000",
-    linewidth=1,
-    zorder=8,
-)
-ax.plot(
-    positions[:, 0],
-    positions[:, 1],
-    "-o",
-    color="#006CD1",
-    linewidth=1.2,
-    markersize=1.5,
-    zorder=9,
-)
-fig.savefig(
-    "results/trajectory_planning_comparison/trajectory_minlp.png",
-    dpi=1200,
-    format="png",
-    bbox_inches="tight",
-)
-plt.close(fig)
+        # Plot and save trajectory
+        fig, ax = plot.plot_env(
+            env,
+            show_tether=False,
+            show_robot=False,
+            show_anchor=False,
+            show_goal=False,
+            show_legend=False,
+            show_generators=False,
+            show_curves_labels=False,
+            show_robot_anchor_labels=False,
+            show_generators_labels=False,
+            show_obstacles_labels=False,
+            show_axes_labels=False,
+            figsize=[10, 10],
+        )
+        ax.set_xlabel("")
+        ax.set_ylabel("")
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        ax.plot(goal[0], goal[1], color="green", marker="o", markersize=3, zorder=10)
+        ax.plot(
+            tether[-1, 0],
+            tether[-1, 1],
+            color="blue",
+            marker="o",
+            markersize=3,
+            zorder=10,
+        )
+        ax.plot(anchor[0], anchor[1], color="red", marker="o", markersize=3, zorder=10)
+        ax.plot(
+            tether[:, 0],
+            tether[:, 1],
+            "-",
+            color="#000000",
+            linewidth=1,
+            zorder=8,
+        )
+        ax.plot(
+            positions[:, 0],
+            positions[:, 1],
+            "-o",
+            color="#006CD1",
+            linewidth=1.2,
+            markersize=1.5,
+            zorder=9,
+        )
+        fig.savefig(
+            "results/trajectory_planning_comparison/trajectory_minlp.png",
+            dpi=1200,
+            format="png",
+            bbox_inches="tight",
+        )
+        plt.close(fig)
+f.close()
