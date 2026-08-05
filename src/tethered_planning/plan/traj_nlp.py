@@ -62,7 +62,7 @@ class TrajParams:
     n_steps: int = 40  # number of control intervals
     dt: float = 0.25  # duration of one control interval [s]
     control_mode: str = "position"  # {'position', 'force'}
-    robot_mass: float = 1.0  # [kg], force mode only
+    robot_mass: float = 2.0  # [kg], force mode only
     max_speed: float = 1.2  # [m/s], per axis
     max_acceleration: float = 1.5  # [m/s^2], per axis
     max_force_slew: float = 8.0  # [N/s] per axis, force mode only

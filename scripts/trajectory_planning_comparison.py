@@ -2,6 +2,7 @@
 Perform trajectory planning and execution.
 """
 
+import datetime
 import os
 import pickle
 import time
@@ -16,10 +17,19 @@ from tethered_planning.plan import graph_search, traj_nlp
 from tethered_planning.utils import curves, plot
 from tethered_planning.utils.settings import Settings
 
-# Script settings
+# Scenario settings
 env_name = "env_5"
 length_max = 15.0
 goal = np.array([7.0, 1.0])
+
+# Trajectory optimization parameters
+n_steps = 30  # most likely one to need updating to get feasible solution
+dt = 0.5
+max_speed = 2.0
+max_acceleration = 1.0
+obstacle_clearance = 0.2
+
+# Toggle which trajectory optimization methods to run
 manually_select_tether: bool = False
 run_qp_gurobi: bool = True
 run_nlp_ipopt: bool = True
@@ -219,12 +229,12 @@ path = paths_lift[0]
 ########################################################################################
 
 params = traj_nlp.TrajParams(
-    n_steps=30,
-    dt=0.5,
+    n_steps=n_steps,
+    dt=dt,
     control_mode="force",
-    max_speed=2.0,
-    max_acceleration=1,
-    obstacle_clearance=0.2,
+    max_speed=max_speed,
+    max_acceleration=max_acceleration,
+    obstacle_clearance=obstacle_clearance,
 )
 corridor_triangles, geodesic, edge_normals, edge_offsets = traj_nlp.corridor(
     triang,
@@ -234,14 +244,22 @@ corridor_triangles, geodesic, edge_normals, edge_offsets = traj_nlp.corridor(
     params.obstacle_clearance,
 )
 
-with open(
-    "results/trajectory_planning_comparison/log.txt", "wb", encoding="utf-8"
-) as f:
+with open("results/trajectory_planning_comparison/log.txt", "w", encoding="utf-8") as f:
+    f.write("Trajectory planning comparison\n")
+    f.write(f"[{datetime.datetime.now()}]\n")
     f.write(f"env: {env_name}\n")
     f.write(f"length_max: {length_max}\n")
     f.write(f"goal: {goal}\n")
     f.write(f"robot: {env.robot_initial_pos}\n")
     f.write(f"tether: {tether}\n")
+    f.write("\nparameters:\n")
+    f.write(f"\tn_steps: {n_steps}\n")
+    f.write(f"\tdt: {dt}\n")
+    f.write(f"\tmax_speed: {max_speed}\n")
+    f.write(f"\tmax_acceleration: {max_acceleration}\n")
+    f.write(f"\tobstacle_clearance: {obstacle_clearance}\n\n")
+
+    str_csv = ""
 
     # Trajectory optimization QP #######################################################
     if run_qp_gurobi is True:
@@ -259,6 +277,7 @@ with open(
         t_traj = time.process_time() - t_init
         print(f"QP (gurobi):\t t: {t_traj:.4f}s, cost: {solution['cost']:.8f}")
         f.write(f"QP (gurobi):\t t: {t_traj:.4f}s, cost: {solution['cost']:.8f}\n")
+        str_csv += f"{t_traj:.4f}, {solution['cost']:.8f}, "
 
         # Extract solution
         positions = solution["positions"]
@@ -320,6 +339,8 @@ with open(
             bbox_inches="tight",
         )
         plt.close(fig)
+    else:
+        str_csv += "N/A, N/A, "
 
     # Trajectory optimization NLP ######################################################
     if run_nlp_ipopt is True:
@@ -337,6 +358,7 @@ with open(
         t_traj = time.process_time() - t_init
         print(f"NLP (ipopt):\t t: {t_traj:.4f}s, cost: {solution['cost']:.8f}")
         f.write(f"NLP (ipopt):\t t: {t_traj:.4f}s, cost: {solution['cost']:.8f}\n")
+        str_csv += f"{t_traj:.4f}, {solution['cost']:.8f}, "
 
         # Extract solution
         positions = solution["positions"]
@@ -398,6 +420,8 @@ with open(
             bbox_inches="tight",
         )
         plt.close(fig)
+    else:
+        str_csv += "N/A, N/A, "
 
     # Trajectory optimization MIQP #####################################################
     if run_miqp_gurobi is True:
@@ -415,6 +439,7 @@ with open(
         t_traj = time.process_time() - t_init
         print(f"MIQP (gurobi):\t t: {t_traj:.4f}s, cost: {solution['cost']:.8f}")
         f.write(f"MIQP (gurobi):\t t: {t_traj:.4f}s, cost: {solution['cost']:.8f}\n")
+        str_csv += f"{t_traj:.4f}, {solution['cost']:.8f}, "
 
         # Extract solution
         positions = solution["positions"]
@@ -476,6 +501,8 @@ with open(
             bbox_inches="tight",
         )
         plt.close(fig)
+    else:
+        str_csv += "N/A, N/A, "
 
     # Trajectory optimization MINLP ####################################################
     if run_minlp_knitro is True:
@@ -494,6 +521,7 @@ with open(
         t_traj = time.process_time() - t_init
         print(f"MINLP (knitro):\t t: {t_traj:.4f}s, cost: {solution['cost']:.8f}")
         f.write(f"MINLP (knitro):\t t: {t_traj:.4f}s, cost: {solution['cost']:.8f}\n")
+        str_csv += f"{t_traj:.4f}, {solution['cost']:.8f}, "
 
         # Extract solution
         positions = solution["positions"]
@@ -555,4 +583,10 @@ with open(
             bbox_inches="tight",
         )
         plt.close(fig)
+    else:
+        str_csv += "N/A, N/A, "
+
+    f.write("\n")
+    f.write(str_csv + "\n")
+
 f.close()
