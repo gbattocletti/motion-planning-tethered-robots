@@ -44,6 +44,7 @@ mpl.rcParams.update(
 def get_unique_signatures(
     triangulation: Triangulation,
     order: list[list[int]] | None = None,
+    verbose: bool = False,
 ) -> list[list[int]]:
     """
     Find all unique signatures in the triangulation and return them as a sorted list.
@@ -54,6 +55,7 @@ def get_unique_signatures(
         order (list[list[int]] | None, optional): custom order in which to
             return the unique signatures. Its length must match the number of unique
             signatures in the triangulation. Default is None.
+        verbose (bool, optional): whether to print verbose output. Default is False.
 
     Returns:
         list[list[int]]: List of unique signatures, each represented as a list of ints
@@ -85,11 +87,10 @@ def get_unique_signatures(
                 f"{n_sign} in the triangulation. Only the signatures in order will be "
                 "plotted."
             )
-        for sign in order:
-            if sign not in unique_sign_list:
-                raise ValueError(
-                    f"The signature {sign} is not present in unique_sign_list."
-                )
+        if verbose is True:
+            for sign in order:
+                if sign not in unique_sign_list:
+                    print(f"The signature {sign} is not present in unique_sign_list.")
         unique_sign_list = order  # override the signature order
 
     # Return the list of unique signatures
