@@ -5,7 +5,7 @@ Generate a sequence of frames increasingly showing the simplicial complex model 
 
 import os
 
-from PIL import Image
+from PIL import Image, ImageChops
 
 from tethered_planning.env import env_2d
 from tethered_planning.env.triangulation import Triangulation
@@ -102,3 +102,23 @@ for idx in range(n_triangs):
         height=600,
         scale=10,
     )
+
+    # Compute crop box for the first image (to be used for all images)
+    if idx == 0:
+        image = Image.open(
+            f"results/simplicial_complex_frames/{env_name}-{idx+1}.png"
+        ).convert("RGB")
+        background = Image.new("RGB", image.size, image.getpixel((0, 0)))
+        bbox = ImageChops.difference(image, background).getbbox()
+        padding = 20  # pixels, at scale=10
+        crop_box = (
+            bbox[0] - padding,
+            bbox[1] - padding,
+            bbox[2] + padding,
+            bbox[3] + padding,
+        )
+
+    # Crop image
+    Image.open(f"results/simplicial_complex_frames/{env_name}-{idx+1}.png").crop(
+        crop_box
+    ).save(f"results/simplicial_complex_frames/{env_name}-{idx+1}.png")
