@@ -5,6 +5,8 @@ Generate a sequence of frames increasingly showing the simplicial complex model 
 
 import os
 
+from PIL import Image
+
 from tethered_planning.env import env_2d
 from tethered_planning.env.triangulation import Triangulation
 from tethered_planning.utils import plot, plot_triangulation
@@ -23,19 +25,29 @@ os.chdir(dir_name)
 settings = Settings(create_sim_folder=False)
 settings.env_name = f"{env_name}.yaml"
 env = env_2d.Env2D(settings)
-fig, _ = plot.plot_env(
+fig, ax = plot.plot_env(
     env,
     show_tether=False,
     show_robot=False,
-    show_anchor=True,
+    show_anchor=False,
     show_goal=False,
     show_legend=False,
-    show_generators=True,
-    show_generators_labels=True,
-    show_obstacles_labels=True,
-    figsize=[6, 6],
+    show_generators=False,
+    show_generators_labels=False,
+    show_obstacles_labels=False,
+    show_robot_anchor_labels=False,
+    figsize=[8, 8],
 )
-fig.savefig(f"results/{env_name}.png", dpi=900, format="png", bbox_inches="tight")
+ax.set_xticklabels([])
+ax.set_yticklabels([])
+ax.set_xlabel("")
+ax.set_ylabel("")
+fig.savefig(
+    f"results/simplicial_complex_frames/{env_name}.png",
+    dpi=1200,
+    format="png",
+    bbox_inches="tight",
+)
 
 # Generate triangulation
 triang = Triangulation(env)
@@ -73,7 +85,7 @@ for idx in range(n_triangs):
     triang_sub.vertices_dual_lift = vertices_dual_all[: idx + 1]
 
     # Generate plot
-    fig_R = plot_triangulation.plot_3d_plotly(
+    fig = plot_triangulation.plot_3d_plotly(
         triang_sub,
         env,
         custom_sign_order=order,
@@ -84,9 +96,9 @@ for idx in range(n_triangs):
     )
 
     # Save plots
-    fig_R.write_image(
-        f"results/simplicial_complex_frames/{env_name}-{idx}.png",
-        width=300,
-        height=300,
+    fig.write_image(
+        f"results/simplicial_complex_frames/{env_name}-{idx+1}.png",
+        width=600,
+        height=600,
         scale=10,
     )
