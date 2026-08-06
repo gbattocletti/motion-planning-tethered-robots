@@ -5,6 +5,7 @@ Perform trajectory planning and execution.
 import datetime
 import os
 import pickle
+import time
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -26,14 +27,14 @@ n_steps = 30  # most likely one to need updating to get feasible solution
 dt = 0.5
 max_speed = 2.0
 max_acceleration = 1.0
-obstacle_clearance = 0.2
-weight_tracking = 1.0
-weight_input = 2.0
+obstacle_clearance = 0.1
+weight_tracking = 2.0
+weight_input = 0.2
 weight_smoothness = 1.0
 
 # Toggle which trajectory optimization methods to run
 manually_select_tether: bool = False
-run_qp_gurobi: bool = False
+run_qp_gurobi: bool = True
 run_nlp_ipopt: bool = False
 run_miqp_gurobi: bool = True
 run_minlp_knitro: bool = False
@@ -279,6 +280,7 @@ with open("results/trajectory_planning_comparison/log.txt", "w", encoding="utf-8
 
     # Trajectory optimization QP #######################################################
     if run_qp_gurobi is True:
+        time_init = time.perf_counter()
         solution = traj_nlp.solve_nlp(
             edge_normals,
             edge_offsets,
@@ -288,7 +290,10 @@ with open("results/trajectory_planning_comparison/log.txt", "w", encoding="utf-8
             params,
             solver="gurobi",
             verbose=False,
+            max_outer_iterations=10,
         )
+        solve_time = time.perf_counter() - time_init
+        solution["solve_time"] = solve_time
         print(
             f"QP (gurobi):\t t: {solution['solve_time']:.4f}s, "
             f"cost: {solution['cost']:.8f}"
@@ -364,6 +369,7 @@ with open("results/trajectory_planning_comparison/log.txt", "w", encoding="utf-8
 
     # Trajectory optimization NLP ######################################################
     if run_nlp_ipopt is True:
+        time_init = time.perf_counter()
         solution = traj_nlp.solve_nlp(
             edge_normals,
             edge_offsets,
@@ -373,7 +379,10 @@ with open("results/trajectory_planning_comparison/log.txt", "w", encoding="utf-8
             params,
             solver="ipopt",
             verbose=False,
+            max_outer_iterations=20,
         )
+        solve_time = time.perf_counter() - time_init
+        solution["solve_time"] = solve_time
         print(
             f"NLP (ipopt):\t t: {solution['solve_time']:.4f}s, "
             f"cost: {solution['cost']:.8f}"

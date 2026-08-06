@@ -637,8 +637,8 @@ def solve_minlp(
     solver_defaults: dict = {}
     if solver == "gurobi":
         solver_defaults = {
-            "OutputFlag": 1,
-            "LogToConsole": 1,
+            "OutputFlag": 0,
+            "LogToConsole": 0,
         }
     elif solver == "bonmin":
         plugin_options["print_time"] = False
