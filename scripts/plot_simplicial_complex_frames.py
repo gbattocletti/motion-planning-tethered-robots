@@ -104,6 +104,7 @@ for idx in range(n_triangs):
     )
 
     # Compute crop box for the first image (to be used for all images)
+    crop_box = None
     if idx == 0:
         image = Image.open(
             f"results/simplicial_complex_frames/{env_name}-{idx+1}.png"
